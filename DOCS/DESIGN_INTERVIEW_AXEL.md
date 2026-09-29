@@ -34,7 +34,7 @@ The game does not need to be a large continuous RPG. A compact **hub → boss �
 - Positioning, rotation/resource management, and encounter mechanics should all matter.
 - Roughly **50/50 problem-solving and mechanical execution**.
 - Four players are the original/primary version of an encounter.
-- Smaller groups may use scaling, altered mechanics, and/or AI.
+- Smaller groups should be supported somehow. Scaling or altered mechanics are natural options; AI companions are acceptable if the team wants them, but Axel has no particular investment in AI.
 - Some encounters may require exactly four players.
 - Failure should usually create **new problems** rather than instantly wipe the party.
 - Recovery should be possible but have a cost: mana, cooldowns, future safety, etc.
@@ -67,7 +67,7 @@ The game does not need to be a large continuous RPG. A compact **hub → boss �
 - Random matchmaking/grouping should be possible.
 - Smaller groups can receive structurally adapted mechanics (e.g. two pressure plates instead of four), not merely HP scaling.
 - Some encounters can remain four-player-only.
-- Both adapted solo encounters and original-like encounters filled with AI companions are interesting possibilities.
+- Adapted solo encounters make sense. AI-filled parties are also acceptable if someone on the team wants to pursue them, but AI companions were not Axel's proposal or preference.
 
 ## Classes / builds
 A class should have a functional core relatively early. Long-term progression primarily provides **more ways to use that core**.
@@ -175,15 +175,13 @@ Two interesting categories:
 These are interesting ideas, not core requirements.
 
 ## AI
-**Open question.**
+**Don't care / team decision.**
 
-Axel does not currently have a preference between companions that are independently competent and companions directed by the player.
+Axel is not invested in AI companions and did not propose them as a desired feature. When AI was discussed, his position was essentially **"sure, why not"** if someone else on the team thinks it is useful.
 
-Both are appealing:
-- a genuinely adapted solo/small-party version of an encounter;
-- a version closer to the four-player original with empty slots filled by AI.
+The actual requirement is that the game remains playable when only one human is available. How that is achieved—adapted solo mechanics, scaling, AI companions, or another solution—is not something Axel currently has a strong preference about.
 
-This should be prototyped rather than decided by assumption.
+If the team does pursue AI companions, their exact autonomy/control model remains an open implementation/design question rather than an Axel preference.
 
 ## World / presentation
 Gameplay comes first.
@@ -209,7 +207,7 @@ New bosses are exciting mainly because they provide **new problems to learn**, n
 
 With unlimited resources, built-in VoIP, full lobbies, many bosses, secret classes, secret bosses, and extensive cosmetics would all be appealing, but none are required for the core game to work.
 
-PvP is not a priority. It can exist as a secondary feature, but balancing should remain 100% PvE-first even if that means some classes are overpowered relative to others in PvP.
+Axel does **not want or request PvP** and would not add it for his own sake. However, he is also not opposed to it if another developer wants a secondary PvP mode: essentially **"sure, why not"**. The firm condition is that PvP must never drive PvE balance; PvE remains the balancing priority even if some classes are overpowered relative to others in PvP.
 
 ## Scope priorities
 If only three things can be excellent:
@@ -244,12 +242,13 @@ Loot, crafting, Codex, cosmetics, AI, lore, elaborate hub systems, etc. can wait
 - Exact secrecy of challenge conditions.
 - Exact RNG rules can differ by reward/material.
 - Elements and elemental combos are appealing but optional.
-- PvP may exist secondarily.
+- PvP is **don't care / would not request**: Axel does not want it himself, but is not opposed if another developer wants it, provided PvE balance is unaffected.
+- AI companions are **don't care / team decision**: solo play matters, AI specifically does not.
 - Lore is low priority.
 
 ## Potential tensions within the answers
 - **Long-term build commitment vs encounter-specific needs:** base classes should have enough general-purpose capability to remain viable, while builds change *how* they solve problems rather than whether they are allowed to participate.
-- **Four-player-first design vs meaningful solo play:** this likely needs prototyping of encounter adaptation and/or AI rather than a purely theoretical decision.
+- **Four-player-first design vs meaningful solo play:** the team still needs a practical solution for smaller groups/solo, but Axel is not attached to AI as that solution.
 - Axel is deliberately collaborative: these are his preferences, not ultimatums. He is willing to adapt to Jonatan's and Christoffer's preferences.
 
 ## New ideas not previously captured
@@ -262,8 +261,8 @@ Loot, crafting, Codex, cosmetics, AI, lore, elaborate hub systems, etc. can wait
 ## Confidence
 - **Must have:** boss mechanics; class identity; build-changing talents/gear; functional multiplayer prototype; solo remains playable; no ninja looting/timegating/pay-to-win; achievements; PvE-first balance.
 - **Strong preference:** four-player-first encounters; recoverable failure; readable mechanics; minimal downtime; meaningful named loot; low item randomness; WASD; ~8–10 abilities; no levels; limited grind; death recap; transmog.
-- **Interesting idea:** elemental interactions; encounter/pre-fight powerups; AI-filled parties; secret bosses/classes; built-in VoIP; broad boss aesthetics.
-- **Don't care / open:** classes vs specs; exact AI control model; exact choreography/randomness balance; exact challenge-hint secrecy.
+- **Interesting idea:** elemental interactions; encounter/pre-fight powerups; secret bosses/classes; built-in VoIP; broad boss aesthetics.
+- **Don't care / open:** AI companions (including whether to have them at all); PvP as a secondary feature; classes vs specs; exact choreography/randomness balance; exact challenge-hint secrecy.
 - **Don't want:** punitive wipe costs, excessive grind, build-invalidating resistances, routine single-mistake party wipes, vertical-stat progression as the main point, PvP driving balance.
 
 ## Core in one sentence

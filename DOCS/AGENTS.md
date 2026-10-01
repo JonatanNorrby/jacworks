@@ -54,11 +54,15 @@ Current game direction being explored:
 - Solo play with scaling/altered mechanics is being considered.
 - Earlier concepts such as PvPvE, tower defence / Dungeon Defenders-like gameplay, and strategic/board-game layers have been discussed and are not automatically discarded.
 
+## First prototype
+
+Prototype 01 is defined in `DOCS/PROTOTYPE_01.md`. Keep early implementation focused on proving multiplayer boss combat, class/combat feel, readability, learning, coordination, and fast retry. Do not expand prototype scope into progression, loot, AI companions, PvP, lore, or other later systems unless the humans explicitly change the prototype scope.
+
 ## Proposed infrastructure
 
 The team has discussed the following architecture, but implementation should follow recorded architecture decisions:
 - GitHub for source control, issues and pull requests.
-- Browser client.
+- Browser client built with **Babylon.js** (ADR-0007).
 - Cloudflare Workers for backend/API.
 - Cloudflare Durable Objects for authoritative active multiplayer sessions.
 - Cloudflare D1 for persistent player/progression data.

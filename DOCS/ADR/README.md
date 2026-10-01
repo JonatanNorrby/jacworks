@@ -9,6 +9,12 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | ADR | Status | Decision |
 | --- | --- | --- |
 | [0001](0001-use-architecture-decision-records.md) | Accepted | Use Architecture Decision Records |
+| [0002](0002-player-skill-over-raw-power.md) | Accepted | Player skill matters more than raw power |
+| [0003](0003-builds-change-gameplay.md) | Accepted | Builds and gear should change gameplay |
+| [0004](0004-learnable-encounters-and-mechanical-difficulty.md) | Accepted | Learnable encounters and mechanical difficulty |
+| [0005](0005-avoid-forced-grind-and-infinite-power.md) | Accepted | Avoid forced grind and infinite power progression |
+| [0006](0006-support-solo-and-multiplayer.md) | Accepted | Support both solo and multiplayer play |
+| [0007](0007-use-babylonjs-for-game-client.md) | Accepted | Use Babylon.js for the game client |
 
 ## Workflow
 

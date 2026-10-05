@@ -1,0 +1,23 @@
+import { WebSocketServer, WebSocket } from "ws";
+import type { ClientMessage, PlayerState, ServerMessage, Telegraph, Vec2 } from "../shared/protocol";
+import { randomUUID } from "node:crypto";
+
+const PORT=Number(process.env.PORT??8787), TICK_MS=50, ARENA=12;
+const boss={hp:1800,maxHp:1800,pos:{x:0,z:0}};
+const players=new Map<WebSocket,PlayerState>(), moves=new Map<string,Vec2>(), ready=new Set<string>();
+let phase:"lobby"|"fight"|"won"|"wiped"="lobby", telegraphs:Telegraph[]=[], nextMechanicAt=Date.now()+2500, mechanic=0;
+const wss=new WebSocketServer({port:PORT});
+console.log(`JAC Works prototype server listening on ws://localhost:${PORT}`);
+const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(max,v));
+const dist=(a:Vec2,b:Vec2)=>Math.hypot(a.x-b.x,a.z-b.z);
+const broadcast=(m:ServerMessage)=>{const s=JSON.stringify(m);for(const ws of players.keys())if(ws.readyState===WebSocket.OPEN)ws.send(s)};
+const announce=(text:string)=>broadcast({type:"event",text});
+function resetFight(){boss.hp=boss.maxHp;telegraphs=[];ready.clear();phase="lobby";let i=0;for(const p of players.values()){const a=i++/Math.max(1,players.size)*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=p.maxHp;p.alive=true;p.guardUntil=0}}
+function startFight(){if(!players.size)return;phase="fight";boss.hp=boss.maxHp;nextMechanicAt=Date.now()+2200;mechanic=0;ready.clear();announce("Fight!")}
+function hurt(p:PlayerState,n:number){if(!p.alive)return;if(p.guardUntil>Date.now())n*=.25;p.hp=Math.max(0,p.hp-n);if(!p.hp)p.alive=false}
+function schedule(now:number){mechanic++;const alive=[...players.values()].filter(p=>p.alive);if(!alive.length)return;if(mechanic%3===1){const t=alive[Math.floor(Math.random()*alive.length)];telegraphs.push({id:randomUUID(),kind:"circle",pos:{...t.pos},radius:3.1,resolvesAt:now+1400});announce("Marked blast — move!")}else if(mechanic%3===2){const a=Math.random()*Math.PI*2;telegraphs.push({id:randomUUID(),kind:"line",pos:{...boss.pos},direction:{x:Math.cos(a),z:Math.sin(a)},width:3,length:13,resolvesAt:now+1500});announce("Warden sweep!")}else{for(const p of alive)telegraphs.push({id:randomUUID(),kind:"circle",pos:{...p.pos},radius:2.2,resolvesAt:now+1700});announce("Spread!")}nextMechanicAt=now+3600}
+function resolve(t:Telegraph){for(const p of players.values()){if(!p.alive)continue;let hit=false;if(t.kind==="circle")hit=dist(p.pos,t.pos)<=(t.radius??0);else if(t.direction){const dx=p.pos.x-t.pos.x,dz=p.pos.z-t.pos.z,along=dx*t.direction.x+dz*t.direction.z,side=Math.abs(dx*-t.direction.z+dz*t.direction.x);hit=along>=0&&along<=(t.length??0)&&side<=(t.width??0)/2}if(hit)hurt(p,48)}}
+wss.on("connection",ws=>{const id=randomUUID().slice(0,8),p:PlayerState={id,name:`Player ${players.size+1}`,pos:{x:0,z:8},hp:100,maxHp:100,alive:true,guardUntil:0};players.set(ws,p);moves.set(id,{x:0,z:0});ws.send(JSON.stringify({type:"welcome",id} satisfies ServerMessage));
+ws.on("message",raw=>{let m:ClientMessage;try{m=JSON.parse(raw.toString())}catch{return}if(m.type==="join")p.name=m.name.slice(0,24)||p.name;if(m.type==="input")moves.set(id,m.move);if(m.type==="ready"){if(phase==="won"||phase==="wiped")resetFight();ready.add(id);if(ready.size===players.size)startFight()}if(m.type==="ability"&&phase==="fight"&&p.alive){if(m.slot===1&&dist(p.pos,boss.pos)<=11)boss.hp=Math.max(0,boss.hp-18);if(m.slot===2){const v=moves.get(id)??{x:0,z:0},l=Math.hypot(v.x,v.z)||1;p.pos.x=clamp(p.pos.x+v.x/l*3.5,-ARENA,ARENA);p.pos.z=clamp(p.pos.z+v.z/l*3.5,-ARENA,ARENA)}if(m.slot===3&&dist(p.pos,boss.pos)<=4.2)boss.hp=Math.max(0,boss.hp-45);if(m.slot===4)p.guardUntil=Date.now()+1600}});
+ws.on("close",()=>{players.delete(ws);moves.delete(id);ready.delete(id);if(!players.size)resetFight()})});
+setInterval(()=>{const now=Date.now();if(phase==="fight"){for(const p of players.values()){if(!p.alive)continue;const v=moves.get(p.id)??{x:0,z:0},l=Math.hypot(v.x,v.z);if(l){p.pos.x=clamp(p.pos.x+v.x/l*.22,-ARENA,ARENA);p.pos.z=clamp(p.pos.z+v.z/l*.22,-ARENA,ARENA)}}if(now>=nextMechanicAt)schedule(now);const due=telegraphs.filter(t=>t.resolvesAt<=now);telegraphs=telegraphs.filter(t=>t.resolvesAt>now);due.forEach(resolve);if(boss.hp<=0){phase="won";announce("Boss defeated! Press R to reset.")}else if([...players.values()].every(p=>!p.alive)){phase="wiped";announce("Wipe. Press R to reset.")}}broadcast({type:"snapshot",now,phase,players:[...players.values()],boss,telegraphs,readyCount:ready.size})},TICK_MS);

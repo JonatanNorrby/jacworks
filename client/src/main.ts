@@ -205,7 +205,9 @@ function returnToHub() {
 function connectEncounter() {
   const wsProto = location.protocol === "https:" ? "wss" : "ws";
   const wsHost = location.hostname || "localhost";
-  const localVite = location.port === "5173";\n  const endpoint = localVite ? `${wsProto}://${wsHost}:8787` : `${wsProto}://${location.host}/ws`;\n  const socket = new WebSocket(endpoint);
+  const localVite = location.port === "5173";
+  const endpoint = localVite ? `${wsProto}://${wsHost}:8787` : `${wsProto}://${location.host}/ws`;
+  const socket = new WebSocket(endpoint);
   ws = socket;
 
   socket.onopen = () => {

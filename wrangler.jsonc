@@ -6,7 +6,9 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/ws"]
+    "run_worker_first": [
+      "/ws"
+    ]
   },
   "durable_objects": {
     "bindings": [
@@ -31,5 +33,8 @@
         }
       ]
     }
+  },
+  "build": {
+    "command": "npm run build"
   }
 }

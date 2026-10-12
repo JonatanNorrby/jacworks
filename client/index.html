@@ -14,14 +14,95 @@
         <strong>JAC Works</strong>
         <span id="prototype-label">Prototype 01</span>
       </div>
-      <span id="status">Sanctum Hub</span>
+      <div class="topbar-actions">
+        <button id="game-dev-button" class="ui-button hub-only">Game Dev</button>
+        <span id="status">Sanctum Hub</span>
+      </div>
     </div>
 
     <div id="hub-card" class="hub-only panel">
       <div class="eyebrow">SANCTUM HUB</div>
       <div class="panel-title">Expedition Gate</div>
       <div class="panel-copy">Move to the glowing gate and press <kbd>E</kbd> to enter The Warden encounter.</div>
+      <div class="panel-actions">
+        <button id="hub-game-dev-button" class="ui-button primary">Open Game Dev</button>
+      </div>
       <div class="prototype-note">Prototype scope: a thin hub shell around the boss-combat test.</div>
+    </div>
+
+    <div id="game-dev-menu" class="game-dev-menu hidden">
+      <div class="lab-shell">
+        <div class="eyebrow">GAME DEV</div>
+        <div class="panel-title">Development Labs</div>
+        <div class="panel-copy">Inspect combat presentation without running the full encounter.</div>
+        <button id="open-vfx-lab" class="lab-choice">
+          <strong>Visual VFX Lab</strong>
+          <span>Cast and loop prototype abilities against a target dummy.</span>
+        </button>
+        <button id="open-character-lab" class="lab-choice">
+          <strong>Character, Enemy &amp; Boss Lab</strong>
+          <span>Inspect scale, silhouette, rings and simple presentation states.</span>
+        </button>
+        <button class="ui-button back-to-hub">Back to Hub</button>
+      </div>
+    </div>
+
+    <div id="vfx-lab-ui" class="lab-ui hidden">
+      <div class="lab-toolbar">
+        <div>
+          <div class="eyebrow">GAME DEV · VISUAL VFX LAB</div>
+          <div class="lab-title">Spell presentation</div>
+        </div>
+        <button class="ui-button back-to-dev">Labs</button>
+      </div>
+      <div class="lab-controls panel">
+        <label>Spell
+          <select id="vfx-spell">
+            <option value="arc">Arc Bolt</option>
+            <option value="dash">Dash</option>
+            <option value="nova">Pulse Nova</option>
+            <option value="guard">Guard</option>
+          </select>
+        </label>
+        <label class="check-row"><input id="vfx-loop" type="checkbox"/> Loop</label>
+        <label>Speed <input id="vfx-speed" type="range" min="0.4" max="1.6" value="1" step="0.1"/></label>
+        <label>Scale <input id="vfx-scale" type="range" min="0.6" max="1.8" value="1" step="0.1"/></label>
+        <button id="vfx-cast" class="ui-button primary">Cast once</button>
+        <button id="vfx-reset" class="ui-button">Reset effects</button>
+        <div class="prototype-note">MVP lab: build-up → travel/motion → impact. Parameters are temporary inspection controls.</div>
+      </div>
+      <div id="lab-instructions">Click Cast once · Toggle Loop · Esc returns to Game Dev</div>
+    </div>
+
+    <div id="character-lab-ui" class="lab-ui hidden">
+      <div class="lab-toolbar">
+        <div>
+          <div class="eyebrow">GAME DEV · CHARACTER, ENEMY &amp; BOSS LAB</div>
+          <div class="lab-title">Silhouette &amp; scale viewer</div>
+        </div>
+        <button class="ui-button back-to-dev">Labs</button>
+      </div>
+      <div class="lab-controls panel">
+        <label>Type
+          <select id="character-type">
+            <option value="character">Character</option>
+            <option value="enemy">Enemy</option>
+            <option value="boss">Boss</option>
+          </select>
+        </label>
+        <label>Scale <input id="character-scale" type="range" min="0.7" max="1.6" value="1" step="0.1"/></label>
+        <label class="check-row"><input id="character-ring" type="checkbox" checked/> Target ring</label>
+        <label class="check-row"><input id="character-health" type="checkbox" checked/> Health bar</label>
+        <div class="button-grid">
+          <button class="ui-button character-action" data-action="idle">Idle</button>
+          <button class="ui-button character-action" data-action="attack">Attack</button>
+          <button class="ui-button character-action" data-action="cast">Cast</button>
+          <button class="ui-button character-action" data-action="hit">Hit</button>
+        </div>
+        <div class="prototype-note">MVP viewer uses simple Babylon primitives so scale, readability and visual hierarchy can be judged before final models exist.</div>
+      </div>
+      <div id="character-healthbar" class="lab-healthbar"><div></div></div>
+      <div id="lab-instructions">Change Type · Trigger presentation states · Esc returns to Game Dev</div>
     </div>
 
     <div id="boss-wrap" class="encounter-only hidden">

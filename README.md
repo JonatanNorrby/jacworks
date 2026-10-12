@@ -63,4 +63,4 @@ npm run deploy
 ```
 
 
-> Cloudflare build configuration: run `npm run build` before `npx wrangler preview`.
+> Cloudflare build configuration: Build command `npm run build`; Deploy command `npm run build && npx wrangler preview`.

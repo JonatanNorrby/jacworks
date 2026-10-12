@@ -32,3 +32,36 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
   #abilities small{display:none}
   #instructions,#encounter-instructions{bottom:78px;font-size:10px}
 }
+
+button,select,input{font:inherit}
+button{pointer-events:auto}
+.topbar-actions{display:flex;align-items:center;gap:10px;pointer-events:auto}
+.ui-button{border:1px solid #d4ba7245;background:#151922e8;color:#e8e1cf;border-radius:8px;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.02em}
+.ui-button:hover{border-color:#d4ba7288;background:#202633}
+.ui-button.primary{background:linear-gradient(145deg,#5b4a24,#2f291d);border-color:#d4ba7280;color:#fff2c9}
+.panel-actions{margin-top:14px}
+.game-dev-menu,.lab-ui{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;background:radial-gradient(circle at 50% 42%,#16202a55,#05070bb8)}
+.lab-shell{width:min(520px,calc(100vw - 34px));padding:24px;border:1px solid #d4ba7240;background:#10151ded;border-radius:14px;box-shadow:0 24px 70px #000a;pointer-events:auto}
+.lab-choice{width:100%;margin-top:12px;padding:16px;text-align:left;border:1px solid #ffffff18;border-radius:10px;background:#171d27;color:#f0e7d1;cursor:pointer}
+.lab-choice:hover{border-color:#d4ba7270;background:#202838}
+.lab-choice strong{display:block;font-size:15px}
+.lab-choice span{display:block;margin-top:5px;color:#989f9f;font-size:12px;line-height:1.35}
+.lab-shell>.ui-button{margin-top:16px}
+.lab-ui{align-items:flex-start;justify-content:flex-start;background:transparent}
+.lab-toolbar{position:absolute;left:24px;right:24px;top:74px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:auto}
+.lab-title{font-family:Georgia,serif;font-size:24px;font-weight:700;color:#f0e7d1;margin-top:3px}
+.lab-controls{top:126px;pointer-events:auto;width:270px}
+.lab-controls label{display:flex;flex-direction:column;gap:6px;margin-bottom:13px;color:#c9c7bf;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.lab-controls select,.lab-controls input[type="range"]{width:100%;box-sizing:border-box}
+.lab-controls select{background:#0d1118;color:#ece7db;border:1px solid #ffffff25;border-radius:7px;padding:8px;text-transform:none;letter-spacing:0}
+.lab-controls .check-row{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0}
+.button-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:5px 0 12px}
+#lab-instructions{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:#090b0fe8;border:1px solid #ffffff20;padding:9px 13px;border-radius:8px;color:#c9c7bf;font-size:11px;white-space:nowrap}
+.lab-healthbar{position:absolute;top:114px;left:50%;transform:translateX(-50%);width:260px;height:11px;border:2px solid #ded3bb88;border-radius:8px;background:#09090baa;overflow:hidden;pointer-events:none}
+.lab-healthbar>div{height:100%;width:100%;background:linear-gradient(90deg,#7f202c,#d54b43)}
+@media(max-width:720px){
+  .lab-toolbar{left:14px;right:14px;top:62px}
+  .lab-controls{left:14px;top:118px;width:min(240px,calc(100vw - 46px))}
+  .lab-title{font-size:18px}
+  .lab-healthbar{top:105px;width:180px}
+}

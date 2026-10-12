@@ -21,5 +21,15 @@
       "type": "durable-object",
       "storage": "sqlite"
     }
+  },
+  "previews": {
+    "durable_objects": {
+      "bindings": [
+        {
+          "name": "GAME_ROOM",
+          "class_name": "GameRoom"
+        }
+      ]
+    }
   }
 }

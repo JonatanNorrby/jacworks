@@ -1,1 +1,34 @@
-html,body,#game{width:100%;height:100%;margin:0;overflow:hidden}body{background:#101218;color:#fff;font-family:Inter,system-ui,sans-serif}#game{display:block}#hud{position:fixed;inset:0;pointer-events:none}#topbar{display:flex;justify-content:space-between;padding:14px 18px;background:linear-gradient(#000a,transparent)}#boss-wrap{position:absolute;top:54px;left:50%;transform:translateX(-50%);width:min(560px,70vw);text-align:center}#boss-label{font-weight:800;letter-spacing:.18em;font-size:12px;margin-bottom:5px}#boss-bar{height:14px;border:2px solid #fff8;background:#0008;border-radius:8px;overflow:hidden}#boss-fill{height:100%;width:100%;background:#d74a4a}#instructions{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);background:#0009;padding:8px 12px;border-radius:8px}#abilities{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px}#abilities div{background:#151923dd;border:1px solid #ffffff33;border-radius:8px;padding:8px 12px}kbd{background:#fff;color:#111;padding:2px 6px;border-radius:4px;margin-right:7px}#message{position:absolute;top:25%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:900;text-shadow:0 2px 8px #000;text-align:center}
+html,body,#game{width:100%;height:100%;margin:0;overflow:hidden}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f1e9;background:#0b0d12}
+body{background:#0b0d12}
+#game{display:block;outline:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+.hidden{display:none!important}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(#05070bcc,transparent);font-size:14px;letter-spacing:.03em}
+#topbar strong{font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+#prototype-label{margin-left:10px;color:#a8a394;font-size:12px}
+#status{color:#d8cfb4}
+.panel{position:absolute;left:24px;top:76px;width:min(340px,calc(100vw - 48px));padding:18px 18px 16px;border:1px solid #d4ba7240;background:linear-gradient(145deg,#171913e8,#10131ae8);box-shadow:0 16px 44px #0008,inset 0 1px #fff0;border-radius:12px;backdrop-filter:blur(6px)}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:.22em;color:#c6aa65}
+.panel-title{font-family:Georgia,serif;font-size:24px;font-weight:700;margin-top:3px;color:#f0e7d1}
+.panel-copy{margin-top:10px;line-height:1.45;color:#c9c7bf;font-size:13px}
+.prototype-note{margin-top:12px;padding-top:10px;border-top:1px solid #ffffff13;color:#858983;font-size:11px;line-height:1.4}
+#boss-wrap{position:absolute;top:58px;left:50%;transform:translateX(-50%);width:min(600px,72vw);text-align:center}
+#boss-label{font-family:Georgia,serif;font-weight:800;letter-spacing:.18em;font-size:14px;margin-bottom:6px;text-shadow:0 2px 10px #000}
+#boss-bar{height:15px;border:2px solid #e4d8bf99;background:#08080baa;border-radius:9px;overflow:hidden;box-shadow:0 7px 20px #0008}
+#boss-fill{height:100%;width:100%;background:linear-gradient(90deg,#8f2630,#d14d43)}
+#instructions,#encounter-instructions{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:#090b0fd9;border:1px solid #ffffff20;padding:8px 13px;border-radius:8px;color:#d4d0c6;font-size:12px;white-space:nowrap}
+#abilities{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+#abilities>div{display:flex;align-items:center;gap:8px;min-width:105px;background:linear-gradient(#191d25ed,#11141bed);border:1px solid #d8c99c35;border-radius:9px;padding:8px 10px;box-shadow:0 8px 22px #0007}
+#abilities span{display:flex;flex-direction:column;line-height:1.05}
+#abilities strong{font-size:12px;color:#eee9dc}
+#abilities small{font-size:9px;color:#888f98;margin-top:3px}
+kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:20px;background:#d9cfb7;color:#161717;padding:0 4px;border-radius:4px;font:700 11px/1 system-ui;box-shadow:inset 0 -2px #776f5d}
+#message{position:absolute;top:24%;left:50%;transform:translateX(-50%);font-family:Georgia,serif;font-size:28px;font-weight:900;text-shadow:0 3px 14px #000;text-align:center;color:#f6e7ba}
+@media(max-width:720px){
+  .panel{top:66px;left:14px;width:calc(100vw - 56px)}
+  #abilities{gap:4px;width:calc(100vw - 16px);justify-content:center}
+  #abilities>div{min-width:0;padding:7px}
+  #abilities small{display:none}
+  #instructions,#encounter-instructions{bottom:78px;font-size:10px}
+}

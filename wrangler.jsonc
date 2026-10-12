@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "jacworks",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/ws"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAME_ROOM",
+        "class_name": "GameRoom"
+      }
+    ]
+  },
+  "exports": {
+    "GameRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

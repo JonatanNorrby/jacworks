@@ -1,1 +1,46 @@
-<!doctype html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>JAC Works — Prototype 01</title><link rel="stylesheet" href="/src/style.css"/></head><body><canvas id="game"></canvas><div id="hud"><div id="topbar"><strong>JAC Works — Prototype 01</strong><span id="status">Connecting…</span></div><div id="boss-wrap"><div id="boss-label">THE WARDEN</div><div id="boss-bar"><div id="boss-fill"></div></div></div><div id="instructions">WASD move · 1 Bolt · 2 Dash · 3 Nova · 4 Guard · R ready/restart</div><div id="abilities"><div><kbd>1</kbd>Arc Bolt</div><div><kbd>2</kbd>Dash</div><div><kbd>3</kbd>Pulse Nova</div><div><kbd>4</kbd>Guard</div></div><div id="message"></div></div><script type="module" src="/src/main.ts"></script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>JAC Works — Prototype 01</title>
+  <link rel="stylesheet" href="/src/style.css"/>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div>
+        <strong>JAC Works</strong>
+        <span id="prototype-label">Prototype 01</span>
+      </div>
+      <span id="status">Sanctum Hub</span>
+    </div>
+
+    <div id="hub-card" class="hub-only panel">
+      <div class="eyebrow">SANCTUM HUB</div>
+      <div class="panel-title">Expedition Gate</div>
+      <div class="panel-copy">Move to the glowing gate and press <kbd>E</kbd> to enter The Warden encounter.</div>
+      <div class="prototype-note">Prototype scope: a thin hub shell around the boss-combat test.</div>
+    </div>
+
+    <div id="boss-wrap" class="encounter-only hidden">
+      <div id="boss-label">THE WARDEN</div>
+      <div id="boss-bar"><div id="boss-fill"></div></div>
+    </div>
+
+    <div id="message"></div>
+
+    <div id="instructions" class="hub-only">WASD move · E enter encounter</div>
+    <div id="encounter-instructions" class="encounter-only hidden">WASD move · R ready/retry · H return to hub</div>
+
+    <div id="abilities" class="encounter-only hidden">
+      <div><kbd>1</kbd><span><strong>Arc Bolt</strong><small>Ranged</small></span></div>
+      <div><kbd>2</kbd><span><strong>Dash</strong><small>Mobility</small></span></div>
+      <div><kbd>3</kbd><span><strong>Pulse Nova</strong><small>Close burst</small></span></div>
+      <div><kbd>4</kbd><span><strong>Guard</strong><small>Mitigation</small></span></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

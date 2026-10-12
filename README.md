@@ -61,3 +61,6 @@ The branch now includes `wrangler.jsonc` and a Cloudflare Worker entry point in 
 ```bash
 npm run deploy
 ```
+
+
+> Cloudflare build configuration: run `npm run build` before `npx wrangler preview`.

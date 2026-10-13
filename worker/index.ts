@@ -8,6 +8,7 @@ interface Env {
 
 const TICK_MS = 50;
 const ARENA = 12;
+const COOLDOWNS = [650, 2600, 3200, 4800] as const;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -64,6 +65,7 @@ export class GameRoom extends DurableObject<Env> {
       maxHp: 100,
       alive: true,
       guardUntil: 0,
+      cooldowns: [0, 0, 0, 0],
     };
 
     this.players.set(server, player);
@@ -207,6 +209,7 @@ export class GameRoom extends DurableObject<Env> {
       player.hp = player.maxHp;
       player.alive = true;
       player.guardUntil = 0;
+      player.cooldowns = [0, 0, 0, 0];
     }
   }
 
@@ -218,6 +221,7 @@ export class GameRoom extends DurableObject<Env> {
     this.nextMechanicAt = Date.now() + 2200;
     this.mechanic = 0;
     this.ready.clear();
+    for (const player of this.players.values()) player.cooldowns = [0, 0, 0, 0];
     this.announce("Fight!");
   }
 
@@ -297,6 +301,14 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   private useAbility(player: PlayerState, slot: 1 | 2 | 3 | 4) {
+    if (!Number.isInteger(slot) || slot < 1 || slot > 4) return;
+    const now = Date.now();
+    if (now < player.cooldowns[slot - 1]) return;
+    const from = { ...player.pos };
+    // Unavailable ranged attacks do not consume their cooldown.
+    if (slot === 1 && dist(player.pos, this.boss.pos) > 11) return;
+    if (slot === 3 && dist(player.pos, this.boss.pos) > 4.2) return;
+    player.cooldowns[slot - 1] = now + COOLDOWNS[slot - 1];
     if (slot === 1 && dist(player.pos, this.boss.pos) <= 11) {
       this.boss.hp = Math.max(0, this.boss.hp - 18);
     }
@@ -314,7 +326,8 @@ export class GameRoom extends DurableObject<Env> {
     }
 
     if (slot === 4) {
-      player.guardUntil = Date.now() + 1600;
+      player.guardUntil = now + 1600;
     }
+    this.broadcast({ type: "abilityFx", slot, playerId: player.id, from, to: { ...player.pos } });
   }
 }

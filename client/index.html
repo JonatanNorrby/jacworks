@@ -34,11 +34,15 @@
     <div id="instructions" class="hub-only">WASD move · E enter encounter</div>
     <div id="encounter-instructions" class="encounter-only hidden">WASD move · R ready/retry · H return to hub</div>
 
+    <div id="player-health" class="encounter-only hidden">
+      <div class="health-label"><strong>YOUR HP</strong><span id="player-hp-text">100 / 100</span></div>
+      <div class="health-track"><div id="player-hp-fill"></div></div>
+    </div>
     <div id="abilities" class="encounter-only hidden">
-      <div><kbd>1</kbd><span><strong>Arc Bolt</strong><small>Ranged</small></span></div>
-      <div><kbd>2</kbd><span><strong>Dash</strong><small>Mobility</small></span></div>
-      <div><kbd>3</kbd><span><strong>Pulse Nova</strong><small>Close burst</small></span></div>
-      <div><kbd>4</kbd><span><strong>Guard</strong><small>Mitigation</small></span></div>
+      <div class="ability-slot" data-slot="1"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>1</kbd><span><strong>Arc Bolt</strong><small>Ranged</small></span></div>
+      <div class="ability-slot" data-slot="2"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>2</kbd><span><strong>Dash</strong><small>Mobility</small></span></div>
+      <div class="ability-slot" data-slot="3"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>3</kbd><span><strong>Pulse Nova</strong><small>Close burst</small></span></div>
+      <div class="ability-slot" data-slot="4"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>4</kbd><span><strong>Guard</strong><small>Mitigation</small></span></div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

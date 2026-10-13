@@ -32,3 +32,13 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
   #abilities small{display:none}
   #instructions,#encounter-instructions{bottom:78px;font-size:10px}
 }
+
+#player-health{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);width:min(440px,80vw);filter:drop-shadow(0 4px 10px #0009)}
+.health-label{display:flex;justify-content:space-between;font-size:11px;color:#f5e6dc;margin-bottom:5px;letter-spacing:.07em}
+.health-track{height:14px;background:#240e16;border:1px solid #d6aaa080;border-radius:7px;overflow:hidden}
+#player-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#ad303b,#f26c67);transition:width .15s}
+#abilities>.ability-slot{position:relative;overflow:hidden}
+.cooldown-overlay{position:absolute;inset:0;background:#05070bbd;transform:scaleY(0);transform-origin:bottom;pointer-events:none}
+.cooldown-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-weight:800;font-size:14px;text-shadow:0 2px 5px #000;z-index:2;pointer-events:none}
+#encounter-instructions{bottom:128px}
+@media(max-width:720px){#player-health{bottom:72px}#encounter-instructions{bottom:118px}}

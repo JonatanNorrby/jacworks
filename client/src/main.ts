@@ -20,7 +20,7 @@ const engine = new Engine(canvas, true);
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.025, 0.03, 0.04, 1);
 
-const camera = new ArcRotateCamera("camera", -Math.PI / 2, 1.08, 27, new Vector3(0, 0, 0), scene);
+const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.65, 27, new Vector3(0, 0, 0), scene);
 camera.attachControl(canvas, true);
 camera.inputs.clear();
 
@@ -345,13 +345,13 @@ setInterval(() => {
   if (mode !== "encounter" || ws?.readyState !== WebSocket.OPEN) return;
 
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-  const z = (keys.has("s") ? 1 : 0) - (keys.has("w") ? 1 : 0);
+  const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
   send({ type: "input", seq: seq++, move: { x, z } });
 }, 50);
 
 function updateHub(deltaSeconds: number) {
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-  const z = (keys.has("s") ? 1 : 0) - (keys.has("w") ? 1 : 0);
+  const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
   const length = Math.hypot(x, z);
 
   if (length > 0) {

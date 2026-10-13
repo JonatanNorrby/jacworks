@@ -33,6 +33,10 @@ glow.intensity = 0.65;
 const status = document.querySelector<HTMLElement>("#status")!;
 const message = document.querySelector<HTMLElement>("#message")!;
 const bossFill = document.querySelector<HTMLElement>("#boss-fill")!;
+const hpFill = document.querySelector<HTMLElement>("#player-hp-fill")!;
+const hpText = document.querySelector<HTMLElement>("#player-hp-text")!;
+const abilitySlots = [...document.querySelectorAll<HTMLElement>(".ability-slot")];
+const cooldownMs = [650, 2600, 3200, 4800];
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
@@ -47,6 +51,8 @@ let myId = "";
 let snapshot: Snapshot | undefined;
 let seq = 0;
 let ws: WebSocket | null = null;
+const fx: { mesh: Mesh; born: number; duration: number; start: Vector3; end: Vector3; kind: number }[] = [];
+
 
 const material = (name: string, diffuse: Color3, emissive?: Color3, alpha = 1) => {
   const m = new StandardMaterial(name, scene);
@@ -56,6 +62,10 @@ const material = (name: string, diffuse: Color3, emissive?: Color3, alpha = 1) =
   return m;
 };
 
+const arcMat = material("arc-bolt-fx", new Color3(0.2, 0.75, 1), new Color3(0.15, 0.7, 1));
+const novaMat = material("nova-fx", new Color3(0.65, 0.25, 1), new Color3(0.5, 0.12, 0.9), 0.65);
+const dashMat = material("dash-fx", new Color3(0.1, 0.95, 0.95), new Color3(0.1, 0.6, 0.75), 0.6);
+const guardMat = material("guard-fx", new Color3(0.25, 0.8, 1), new Color3(0.1, 0.5, 0.9), 0.32);
 const hubGroundMat = material("hub-ground", new Color3(0.085, 0.105, 0.09));
 const hubStoneMat = material("hub-stone", new Color3(0.18, 0.19, 0.17));
 const hubAccentMat = material(
@@ -162,6 +172,7 @@ function setMode(next: ClientMode) {
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
+  for (const effect of fx) effect.mesh.setEnabled(!inHub);
 
   hubOnly.forEach((el) => el.classList.toggle("hidden", !inHub));
   encounterOnly.forEach((el) => el.classList.toggle("hidden", inHub));
@@ -177,6 +188,8 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
+  for (const effect of fx) effect.mesh.dispose();
+  fx.length = 0;
   for (const mesh of playerMeshes.values()) mesh.dispose();
   playerMeshes.clear();
   for (const mesh of telegraphMeshes.values()) mesh.dispose();
@@ -197,6 +210,8 @@ function returnToHub() {
   myId = "";
   clearEncounterMeshes();
   bossFill.style.width = "100%";
+  hpFill.style.width = "100%";
+  hpText.textContent = "100 / 100";
   hubPlayer.position.set(0, 0.85, 6.2);
   hubPlayerRing.position.set(0, 0.08, 6.2);
   setMode("hub");
@@ -227,6 +242,10 @@ function connectEncounter() {
 
     if (packet.type === "welcome") myId = packet.id;
 
+    if (packet.type === "abilityFx") {
+      spawnAbilityFx(packet.slot, packet.from, packet.to);
+    }
+
     if (packet.type === "event") {
       message.textContent = packet.text;
       setTimeout(() => {
@@ -239,6 +258,11 @@ function connectEncounter() {
       bossFill.style.width = `${(packet.boss.hp / packet.boss.maxHp) * 100}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);
+      const me = packet.players.find((p) => p.id === myId);
+      if (me) {
+        hpFill.style.width = `${Math.max(0, me.hp / me.maxHp * 100)}%`;
+        hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}`;
+      }
     }
   };
 }
@@ -312,6 +336,72 @@ function createTelegraph(t: Telegraph) {
   return mesh;
 }
 
+function spawnAbilityFx(slot: number, from: {x:number;z:number}, to: {x:number;z:number}) {
+  const start = new Vector3(from.x, 1, from.z);
+  const end = slot === 1 ? new Vector3(0, 1.6, 0) : new Vector3(to.x, 1, to.z);
+  let mesh: Mesh;
+  let duration: number;
+  if (slot === 1) {
+    mesh = MeshBuilder.CreateSphere("arc-bolt", { diameter: 0.48, segments: 12 }, scene);
+    mesh.material = arcMat;
+    duration = 360;
+  } else if (slot === 2) {
+    mesh = MeshBuilder.CreateTorus("dash-trail", { diameter: 1.4, thickness: 0.2 }, scene);
+    mesh.material = dashMat;
+    mesh.rotation.x = Math.PI / 2;
+    duration = 420;
+  } else if (slot === 3) {
+    mesh = MeshBuilder.CreateTorus("pulse-nova", { diameter: 1, thickness: 0.2, tessellation: 48 }, scene);
+    mesh.material = novaMat;
+    duration = 520;
+  } else {
+    mesh = MeshBuilder.CreateSphere("guard-shield", { diameter: 2.1, segments: 16 }, scene);
+    mesh.material = guardMat;
+    duration = 700;
+  }
+  mesh.position.copyFrom(start);
+  if (slot === 2) mesh.position.copyFrom(end);
+  fx.push({ mesh, born: performance.now(), duration, start, end, kind: slot });
+}
+
+function updateEffects() {
+  const now = performance.now();
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const effect = fx[i];
+    const t = Math.min(1, (now - effect.born) / effect.duration);
+    if (t >= 1) {
+      effect.mesh.dispose();
+      fx.splice(i, 1);
+      continue;
+    }
+    if (effect.kind === 1) {
+      effect.mesh.position.copyFrom(Vector3.Lerp(effect.start, effect.end, t));
+      effect.mesh.scaling.setAll(1 + 0.4 * Math.sin(t * Math.PI));
+    } else if (effect.kind === 2) {
+      effect.mesh.scaling.setAll(1 + t * 1.5);
+      effect.mesh.visibility = 1 - t;
+    } else if (effect.kind === 3) {
+      effect.mesh.scaling.setAll(1 + t * 8);
+      effect.mesh.visibility = 1 - t;
+    } else {
+      effect.mesh.scaling.setAll(1 + 0.15 * Math.sin(t * Math.PI));
+      effect.mesh.visibility = 1 - t * 0.75;
+    }
+  }
+}
+
+function updateCooldowns() {
+  const me = snapshot?.players.find(p => p.id === myId);
+  const now = Date.now();
+  for (let i = 0; i < abilitySlots.length; i++) {
+    const remaining = mode === "encounter" && me ? Math.max(0, me.cooldowns[i] - now) : 0;
+    const overlay = abilitySlots[i].querySelector<HTMLElement>(".cooldown-overlay")!;
+    const label = abilitySlots[i].querySelector<HTMLElement>(".cooldown-text")!;
+    overlay.style.transform = `scaleY(${remaining / cooldownMs[i]})`;
+    label.textContent = remaining > 0 ? (remaining / 1000).toFixed(1) : "";
+  }
+}
+
 function send(payload: unknown) {
   if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
@@ -332,7 +422,7 @@ addEventListener("keydown", (event) => {
   if (mode !== "encounter") return;
 
   if (["1", "2", "3", "4"].includes(event.key)) {
-    send({ type: "ability", slot: Number(event.key) });
+    if (!event.repeat) send({ type: "ability", slot: Number(event.key) });
   }
 
   if (key === "r") send({ type: "ready" });
@@ -379,6 +469,8 @@ engine.runRenderLoop(() => {
   else if (snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }
+  updateEffects();
+  updateCooldowns();
   scene.render();
 });
 

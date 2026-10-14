@@ -11,7 +11,7 @@ try{
  for(let i=0;i<2;i++){
   const c={ws:new WebSocket(`ws://localhost:${port}`),packets:[],id:null,snapshot:null};clients.push(c);
   c.ws.on('message',raw=>{const m=JSON.parse(String(raw));c.packets.push(m);if(m.type==='welcome')c.id=m.id;if(m.type==='snapshot')c.snapshot=m});
-  await waitFor(()=>c.id,'welcome');c.ws.send(JSON.stringify({type:'join',name:'Smoke-'+i,boss:'greenCone',loadout:['swordSwing','chargingStab','guard','dash']}));
+  await waitFor(()=>c.id,'welcome');c.ws.send(JSON.stringify({type:'join',name:'Smoke-'+i,boss:'greenCone',classId:'warrior',loadout:['swordSwing','chargingStab','guard','dash']}));
  }
  await waitFor(()=>clients.every(c=>c.snapshot?.players.length===2),'shared room');
  for(const c of clients)c.ws.send(JSON.stringify({type:'ready'}));
@@ -23,7 +23,40 @@ try{
  c.ws.send(JSON.stringify({type:'ability',slot:1}));
  await waitFor(()=>clients.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.skill==='swordSwing')),'cleave broadcast');
  await waitFor(()=>clients.every(c=>c.snapshot.boss.hp<1800),'shared damage');
- for(const c of clients){assert.equal(c.snapshot.players.find(p=>p.id===clients[0].id).classId,'prototype');assert.ok(c.snapshot.players.find(p=>p.id===clients[0].id).cooldowns[1]>0)}
+ for(const c of clients){assert.equal(c.snapshot.players.find(p=>p.id===clients[0].id).classId,'warrior');assert.ok(c.snapshot.players.find(p=>p.id===clients[0].id).cooldowns[1]>0)}
  for(const skill of ['chargingStab','swordSwing'])assert.deepEqual(clients[0].packets.find(m=>m.type==='abilityFx'&&m.skill===skill),clients[1].packets.find(m=>m.type==='abilityFx'&&m.skill===skill));
  console.log('TWO_CLIENT_SMOKE_OK: shared room, loadouts, class ID, charge/cleave FX, damage and cooldowns');
+ for(const c of clients)c.ws.close();
+ await delay(200);
+ const definitions={priest:['pulseNova','targetedHeal','holyLight','dash'],lightningMage:['arcBolt','lightningStorm','lightningShield','dash'],ranger:['aimedShot','arrowRain','splitShot','dash'],fireMage:['fireball','lazor','fireMine','dash']};
+ for(const pair of [['priest','lightningMage'],['ranger','fireMage']]){
+  const pairClients=[];
+  for(const classId of pair){
+   const c={ws:new WebSocket(`ws://localhost:${port}`),packets:[],id:null,snapshot:null};clients.push(c);pairClients.push(c);
+   c.ws.on('message',raw=>{const m=JSON.parse(String(raw));c.packets.push(m);if(m.type==='welcome')c.id=m.id;if(m.type==='snapshot')c.snapshot=m});
+   await waitFor(()=>c.id,'class welcome');c.ws.send(JSON.stringify({type:'join',name:classId,classId,loadout:definitions[classId],boss:'warden'}));
+  }
+  await waitFor(()=>pairClients.every(c=>c.snapshot?.players.length===2&&c.snapshot.players.every(p=>pair.includes(p.classId))),'class snapshots');
+  for(const c of pairClients)c.ws.send(JSON.stringify({type:'ready'}));
+  await waitFor(()=>pairClients.every(c=>c.snapshot?.phase==='fight'),'class fight');
+  // Exercise every skill without interrupting the timed casts/channels.
+  for(let slot=1;slot<=4;slot++){
+   for(let i=0;i<2;i++){
+    const c=pairClients[i],skill=definitions[pair[i]][slot-1];
+    c.ws.send(JSON.stringify({type:'ability',slot,target:['lightningStorm','arrowRain','fireMine'].includes(skill)?{x:0,z:0}:undefined,targetId:['targetedHeal','lightningShield'].includes(skill)?pairClients[1-i].id:undefined,damage:999999}));
+   }
+   await delay(slot===1?2500:slot===2?3100:300);
+  }
+  for(let i=0;i<2;i++){
+   const sender=pairClients[i];
+   for(const skill of definitions[pair[i]]){
+    await waitFor(()=>pairClients.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill)),`${pair[i]} ${skill} shared FX`);
+    const events=pairClients.map(c=>c.packets.filter(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill));assert.deepEqual(events[0],events[1]);
+   }
+   for(const c of pairClients){const p=c.snapshot.players.find(p=>p.id===sender.id);assert.equal(p.classId,pair[i]);assert.deepEqual(p.loadout,definitions[pair[i]]);assert.ok(p.cooldowns.some(n=>n>0));assert.ok(c.snapshot.boss.hp<1800&&c.snapshot.boss.hp>0);}
+  }
+  console.log('MIXED_CLASS_SMOKE_OK: '+pair.join(' + ')+' skills, casts, friendly targeting, snapshots, FX and damage');
+  for(const c of pairClients)c.ws.close();await delay(200);
+ }
+
 }finally{for(const c of clients)c.ws.close();server.kill()}

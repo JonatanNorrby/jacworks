@@ -69,3 +69,7 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #options-panel label{display:block;margin:14px 0}#camera-zoom{width:100%}
 #options-button,#options-panel button{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;cursor:pointer}
 .gear-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gear-card{padding:12px;background:#202c3c;border:1px solid #78b4c755;border-radius:8px}.gear-card strong,.gear-card small{display:block;margin-bottom:8px}.gear-card small{text-transform:capitalize;color:#b4bfcb}.material-inventory{padding:10px;background:#202c3c;border-radius:8px}
+
+#hub-card button{pointer-events:auto;cursor:pointer;margin-top:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px}
+#skill-grid>select{grid-column:1/-1;padding:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;font:inherit}
+#encounter-instructions{white-space:normal;text-align:center;width:min(840px,90vw);box-sizing:border-box}

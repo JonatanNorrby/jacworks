@@ -36,7 +36,7 @@ test('hat charges spend independently and recharge one at a time without restart
  g.reset();assert.equal(p.dashCharges,3);assert.equal(p.dashRechargeAt,0);
 });
 test('orb adds exactly two seconds and server burn ticks on beam hits including adds',()=>{
- const g=room(),p=g.add('p'),v=owned();craft(v,'pointyOrb');equip(v,'offhand','pointyOrb');g.message('p',{type:'join',inventory:v,loadout:['lazor','dash','guard','holyNova']});const other=g.add('other');g.message('p',{type:'ready'},100);g.message('other',{type:'ready'},100);p.pos={x:0,z:4};p.facing={x:0,z:-1};
+ const g=room(),p=g.add('p'),v=owned();craft(v,'pointyOrb');equip(v,'offhand','pointyOrb');g.message('p',{type:'join',inventory:v,classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});const other=g.add('other');g.message('p',{type:'ready'},100);g.message('other',{type:'ready'},100);p.pos={x:0,z:4};p.facing={x:0,z:-1};
  g.adds.push({id:'a',pos:{x:0,z:2},hp:200,maxHp:200,attackAt:99999});g.message('p',{type:'ability',slot:1,burn:99999},200);assert.equal(p.cooldowns[0],200+SKILLS.lazor.cooldown+2000);assert.equal(other.offhand,null);assert.equal(g.boss.hp,1710);assert.equal(g.adds[0].hp,110);
  g.tick(1199);assert.equal(g.boss.hp,1710);g.tick(1200);assert.equal(g.boss.hp,1702);assert.equal(g.adds[0].hp,102);g.tick(4200);assert.equal(g.boss.hp,1678);assert.equal(g.adds[0].hp,78);
  g.message('p',{type:'ability',slot:1},4599);assert.equal(g.boss.hp,1678);p.facing={x:1,z:0};g.message('p',{type:'ability',slot:1},4600);g.tick(5600);assert.equal(g.boss.hp,1678);
@@ -49,7 +49,7 @@ test('forged gear, charge fields, invalid abilities and active re-equipping are 
 
 test('different players burn independently and gear remains isolated in snapshots',()=>{
  const g=room(),v=owned();craft(v,'pointyOrb');equip(v,'offhand','pointyOrb');
- for(const id of ['a','b']){const p=g.add(id);g.message(id,{type:'join',inventory:v,loadout:['lazor','dash','guard','holyNova']});p.pos={x:0,z:4};p.facing={x:0,z:-1};}
+ for(const id of ['a','b']){const p=g.add(id);g.message(id,{type:'join',inventory:v,classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});p.pos={x:0,z:4};p.facing={x:0,z:-1};}
  g.message('a',{type:'ready'},100);g.message('b',{type:'ready'},100);
  for(const id of ['a','b'])g.message(id,{type:'ability',slot:1},200);
  assert.equal(g.boss.hp,1620);const s=g.tick(1200);assert.equal(s.boss.hp,1604);assert.equal(s.players[0].offhand,'pointyOrb');assert.equal(s.players[1].offhand,'pointyOrb');assert.equal(g.burns.size,2);

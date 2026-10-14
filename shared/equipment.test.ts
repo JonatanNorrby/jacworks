@@ -23,7 +23,7 @@ test('server rejects nonexistent weapons and crafted counts unsupported by mater
 });
 test('wand transforms Arc Blast in every slot and unequipping restores base skill',()=>{
  for(let slot=0;slot<4;slot++){
- const g=room(),p=g.add('p'),loadout=[...DEFAULT_LOADOUT];[loadout[0],loadout[slot]]=[loadout[slot],loadout[0]];
+ const g=room(),p=g.add('p'),loadout:import("./protocol").Loadout=["arcBolt","dash","lightningStorm","lightningShield"];[loadout[0],loadout[slot]]=[loadout[slot],loadout[0]];
  const inv=owned();equipWeapon(inv,'primitiveWand');g.message('p',{type:'join',loadout,inventory:inv});assert.equal(p.loadout[slot],'arcSpear');
  equipWeapon(inv,null);g.message('p',{type:'join',loadout,inventory:inv});assert.equal(p.loadout[slot],'arcBolt');
  }

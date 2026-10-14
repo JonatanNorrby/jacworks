@@ -1,5 +1,6 @@
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
-import { CLASS_DEFINITIONS, PROTOTYPE_CLASS_ID, skillEligible } from '../../shared/classes';
+import type { ClassId } from '../../shared/classes';
+import { CLASS_DEFINITIONS, loadClass, saveClass, readClass, gearEligible, resolveClassLoadout, skillEligible } from '../../shared/classes';
 import {
   ArcRotateCamera,
   Color3,
@@ -57,6 +58,9 @@ const skillGrid=document.querySelector<HTMLElement>("#skill-grid")!;
 const skillLoadout=document.querySelector<HTMLElement>("#skill-loadout")!;
 let loadout:Loadout=[...DEFAULT_LOADOUT];
 try{const saved=JSON.parse(localStorage.getItem("jacworks-loadout")??"null");loadout=baseLoadout(saved)}catch{}
+let selectedClass=loadClass(localStorage);
+loadout=resolveClassLoadout(selectedClass,loadout,null);
+let draftClass:ClassId=selectedClass;
 let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
@@ -86,7 +90,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
  const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
  if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
- for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
+ for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
@@ -101,12 +105,17 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
 renderInventory();
 addEventListener('storage',e=>{if(e.key==='jacworks-camera-v1'){preferences=readCamera(e.newValue);refreshOptions()}if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
 function renderSkills(){
-  skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[PROTOTYPE_CLASS_ID],id as SkillId)).map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
+  const chooser=document.createElement('select');chooser.setAttribute('aria-label','Class');
+  for(const [id,c] of Object.entries(CLASS_DEFINITIONS)){const o=document.createElement('option');o.value=id;o.textContent=c.name;o.selected=id===draftClass;chooser.append(o)}
+  chooser.onchange=()=>{draftClass=readClass(chooser.value);draft=[...CLASS_DEFINITIONS[draftClass].skills] as Loadout;renderSkills()};
+
+  skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[draftClass],id as SkillId)).map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
+  skillGrid.prepend(chooser);
   skillLoadout.replaceChildren();
   for(let i=0;i<4;i++){
     const wrap=document.createElement("div"),label=document.createElement("div"),select=document.createElement("select");
     label.className="skill-slot-label";label.textContent=`Slot ${i+1}`;select.className="skill-choice";
-    for(const [id,skill] of Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[PROTOTYPE_CLASS_ID],id as SkillId))){
+    for(const [id,skill] of Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[draftClass],id as SkillId))){
       const option=document.createElement("option");option.value=id;option.textContent=skill.name;
       option.selected=id===draft[i];select.append(option);
     }
@@ -119,14 +128,15 @@ function renderSkills(){
   }
 }
 function closeTrainer(save:boolean){
-  if(save){loadout=[...draft];localStorage.setItem("jacworks-loadout",JSON.stringify(loadout))}
+  if(save){selectedClass=draftClass;saveClass(localStorage,selectedClass);loadout=[...draft];renderAbilityBar();syncGear(hubPlayer,inventory);localStorage.setItem("jacworks-loadout",JSON.stringify(loadout))}
   trainerOpen=false;skillPanel.classList.add("hidden");keys.clear();
 }
 document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
 document.querySelector("#save-skills")!.addEventListener("click",()=>closeTrainer(true));
-function openTrainer(){draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
+function openTrainer(){draftClass=selectedClass;draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
 function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description})}
 renderAbilityBar();
+const classButton=document.createElement('button');classButton.textContent='Choose class';classButton.onclick=openTrainer;document.querySelector('#hub-card')!.append(classButton);
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
@@ -228,6 +238,7 @@ hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
 function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown}){
+ if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,offhand:gearEligible(selectedClass,'pointyOrb')?gear.offhand:null};
  const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
@@ -358,7 +369,7 @@ function connectEncounter() {
   socket.onopen = () => {
     if (ws !== socket) return;
     status.textContent = "Connected · press R when ready";
-    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,loadout,boss:selectedBoss,inventory:readInventory(localStorage.getItem(inventoryKey)) }));
+    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,classId:selectedClass,loadout,boss:selectedBoss,inventory:readInventory(localStorage.getItem(inventoryKey)) }));
   };
 
   socket.onclose = () => {
@@ -394,7 +405,7 @@ function connectEncounter() {
       if (me) {
         renderAbilityBar(me.loadout);
         hpFill.style.width = `${Math.max(0, me.hp / me.maxHp * 100)}%`;
-        hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}`;
+        hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}${me.cast?` - ${SKILLS[me.cast.skill].name} ${(Math.max(0,me.cast.endsAt-packet.now)/1000).toFixed(1)}s`:""}`;
       }
     }
   };
@@ -412,6 +423,9 @@ function syncEncounter(state: Snapshot) {
  document.querySelector('#boss-label')!.textContent=yellow?'YELLOW BALL':green?'GREEN CONE':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropTube.position.set(state.boss.pos.x,.35,state.boss.pos.z);dropBall.position.set(state.boss.pos.x,.3,state.boss.pos.z);
+  const combatTelegraphs:Telegraph[]=state.effects.filter(e=>['fireMine','arrowRain','lightningShield','fireball','aimedShot'].includes(e.skill)).map(e=>({id:'effect-'+e.id,kind:'circle',pos:e.pos,radius:e.skill==='fireMine'?2:e.skill==='arrowRain'?3.5:e.skill==='lightningShield'?3:e.skill==='fireball'?2:1,resolvesAt:e.expires}));
+  for(const p of state.players)if(p.cast)combatTelegraphs.push({id:'cast-'+p.id,kind:'circle',pos:p.cast.skill==='lightningStorm'?p.cast.target:p.pos,radius:p.cast.skill==='lightningStorm'?3:1,resolvesAt:p.cast.endsAt});
+  const allTelegraphs=[...state.telegraphs,...combatTelegraphs];
   const playerIds = new Set(state.players.map((p) => p.id));
 
   for (const [id, mesh] of playerMeshes) {
@@ -438,7 +452,7 @@ function syncEncounter(state: Snapshot) {
     mesh.scaling.y = p.guardUntil > state.now ? 1.25 : 1;
   }
 
-  const telegraphIds = new Set(state.telegraphs.map((t) => t.id));
+  const telegraphIds = new Set(allTelegraphs.map((t) => t.id));
 
   for (const [id, mesh] of telegraphMeshes) {
     if (!telegraphIds.has(id)) {
@@ -447,7 +461,8 @@ function syncEncounter(state: Snapshot) {
     }
   }
 
-  for (const telegraph of state.telegraphs) {
+  for (const telegraph of allTelegraphs) {
+    const existing=telegraphMeshes.get(telegraph.id);if(existing&&telegraph.kind==='circle')existing.position.set(telegraph.pos.x,.04,telegraph.pos.z);
     if (!telegraphMeshes.has(telegraph.id)) {
       telegraphMeshes.set(telegraph.id, createTelegraph(telegraph));
     }
@@ -479,7 +494,7 @@ function createTelegraph(t: Telegraph) {
     );
   }
 
-  mesh.material = dangerMat;
+  mesh.material = t.id.startsWith('effect-')||t.id.startsWith('cast-')?arcMat:dangerMat;
   return mesh;
 }
 
@@ -488,7 +503,17 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   const end = new Vector3(to.x, 1, to.z);
   let mesh: Mesh;
   let duration: number;
-  if(skill==='swordSwing'){
+  if(['holyLight','targetedHeal','aimedShot','fireball'].includes(skill)){
+    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'?.8:.35},scene);
+    if(skill==='aimedShot'){mesh.rotation.x=Math.PI/2;mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);}
+    mesh.material=skill==='fireball'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=350;
+  }else if(skill==='splitShot'){
+    const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize();
+    const lines=[-.3,0,.3].map(a=>[start,start.add(new Vector3(dir.x*Math.cos(a)-dir.z*Math.sin(a),0,dir.x*Math.sin(a)+dir.z*Math.cos(a)).scale(10))]);
+    mesh=MeshBuilder.CreateLineSystem('split-arrows',{lines},scene);duration=350;
+  }else if(['arrowRain','lightningStorm','fireMine','lightningShield'].includes(skill)){
+    mesh=MeshBuilder.CreateTorus(skill,{diameter:6,thickness:.15},scene);mesh.material=skill==='fireMine'?dangerMat:arcMat;start.copyFrom(end);duration=500;
+  }else if(skill==='swordSwing'){
  const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize(),side=new Vector3(dir.z,0,-dir.x),points=[];
  for(let i=0;i<=20;i++){const angle=-Math.PI/3+i/20*Math.PI*2/3;points.push(start.add(dir.scale(Math.cos(angle)*3)).add(side.scale(Math.sin(angle)*3)))}
  mesh=MeshBuilder.CreateTube('sword-cleave',{path:points,radius:.09},scene);mesh.material=holyMat;duration=350;
@@ -515,9 +540,9 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
     mesh.material = guardMat;
     duration = 700;
   }
-  if(!['lazor','swordSwing','chargingStab'].includes(skill))mesh.position.copyFrom(start);
+  if(!['lazor','swordSwing','chargingStab','splitShot'].includes(skill))mesh.position.copyFrom(start);
   if (skill === "dash") mesh.position.copyFrom(end);
-  fx.push({ mesh, born: performance.now(), duration, start, end, kind: skill === "arcBolt" || skill === "arcSpear" ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
+  fx.push({ mesh, born: performance.now(), duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
 
 function updateEffects() {
@@ -585,7 +610,14 @@ addEventListener("keydown", (event) => {
   if (mode !== "encounter") return;
 
   if (["1", "2", "3", "4"].includes(event.key)) {
-    if (!event.repeat) send({ type: "ability", slot: Number(event.key) });
+    if (!event.repeat) {
+      const pick=scene.pick(scene.pointerX,scene.pointerY,m=>m===arenaGround);
+      const target=pick?.pickedPoint?{x:pick.pickedPoint.x,z:pick.pickedPoint.z}:undefined;
+      const me=snapshot?.players.find(p=>p.id===myId),skill=me?.loadout[Number(event.key)-1];
+      const friendly=skill==='targetedHeal'||skill==='lightningShield';
+      const ally=target?snapshot?.players.filter(p=>p.alive&&Math.hypot(p.pos.x-target.x,p.pos.z-target.z)<1.5).sort((a,b)=>Math.hypot(a.pos.x-target.x,a.pos.z-target.z)-Math.hypot(b.pos.x-target.x,b.pos.z-target.z))[0]:undefined;
+      send({type:'ability',slot:Number(event.key),target:friendly?undefined:target,targetId:friendly?(event.shiftKey?myId:ally?.id??myId):undefined});
+    }
   }
 
   if (key === "r") send({ type: "ready" });
@@ -626,7 +658,8 @@ function updateHub(deltaSeconds: number) {
   status.textContent = nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
-  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe � press E';
+  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';
+  status.textContent=CLASS_DEFINITIONS[selectedClass].name+' - '+status.textContent;
   const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.08;
   portalRing.scaling.set(pulse, 1, pulse);
 }

@@ -20,10 +20,10 @@ test('inputs reject invalid shape, nonfinite values, excessive magnitude and sta
   g.message('p',{type:'ready'},100);g.tick(150);assert.deepEqual(p.facing,{x:1,z:0});g.tick(500);assert.deepEqual(p.facing,{x:1,z:0});
 });
 test('boss choice locks across players and joins cannot replace active loadout',()=>{
-  const g=room();g.add('a');g.message('a',{type:'join',boss:'yellowBall'});g.add('b');g.message('b',{type:'join',boss:'warden'});assert.equal(g.boss.id,'yellowBall');g.message('a',{type:'ready'},100);g.message('b',{type:'ready'},100);g.message('a',{type:'join',loadout:['lazor','dash','guard','holyNova']});assert.equal(g.players.get('a')!.loadout[0],'arcBolt');
+  const g=room();g.add('a');g.message('a',{type:'join',boss:'yellowBall'});g.add('b');g.message('b',{type:'join',boss:'warden'});assert.equal(g.boss.id,'yellowBall');g.message('a',{type:'ready'},100);g.message('b',{type:'ready'},100);g.message('a',{type:'join',classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});assert.equal(g.players.get('a')!.loadout[0],'arcBolt');
 });
 test('LAZOR damage, cooldown, missed beam and dash use server state',()=>{
-  const g=room(),p=g.add('p');g.message('p',{type:'join',loadout:['lazor','dash','guard','holyNova']});g.message('p',{type:'ready'},100);
+  const g=room(),p=g.add('p');g.message('p',{type:'join',classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});g.message('p',{type:'ready'},100);
   p.pos={x:0,z:4};p.facing={x:0,z:-1};g.message('p',{type:'ability',slot:1,damage:999999},200);assert.equal(g.boss.hp,1710);
   g.message('p',{type:'ability',slot:1},201);assert.equal(g.boss.hp,1710);p.facing={x:1,z:0};g.message('p',{type:'ability',slot:1},3000);assert.equal(g.boss.hp,1710);
   p.facing={x:0,z:-1};g.message('p',{type:'ability',slot:2},3001);assert.ok(p.pos.z>=1.729);

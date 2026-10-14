@@ -17,21 +17,21 @@ test('inventory views separate materials from owned gear and preserve receipts o
  const v=emptyInventory();v.rewards={a:'cylinderTube',b:'sphericalBall',c:'conicalTaper'};assert.equal(inventoryView(v).gear.length,0);craft(v);equip(v,'weapon','primitiveWand');
  assert.deepEqual(inventoryView(v).materials.map(x=>x.count),[0,0,1]);assert.equal(inventoryView(v).gear[0].equipped,true);equip(v,'weapon',null);assert.equal(inventoryView(v).gear[0].equipped,false);assert.deepEqual(readInventory(JSON.stringify(v)).rewards,v.rewards);
 });
-test('prototype eligibility remains unrestricted and gear transformation follows base eligibility',()=>{
- for(const skill of Object.keys(SKILLS))assert.ok(skillEligible(CLASS_DEFINITIONS.prototype,skill as keyof typeof SKILLS));
- assert.deepEqual(eligibleLoadout({id:'future',name:'Future',skills:['swordSwing','chargingStab','dash','guard']},['lazor','arcBolt','pulseNova','holyNova']),['swordSwing','chargingStab','dash','guard']);
- assert.equal(skillEligible({id:'future',name:'Future',skills:['swordSwing']},'lazor'),false);
- assert.deepEqual(resolveClassLoadout('prototype',['swordSwing','chargingStab','arcBolt','dash'],'primitiveWand'),['swordSwing','chargingStab','arcSpear','dash']);
- const g=new Game(()=>{},()=> 'id'),p=g.add('p');g.message('p',{type:'join',classId:'forged',loadout:['swordSwing','chargingStab','guard','dash']});assert.equal(p.classId,'prototype');assert.equal(p.loadout[0],'swordSwing');
+test('class eligibility restricts base skills before gear transformations',()=>{
+ assert.equal(skillEligible(CLASS_DEFINITIONS.warrior,'lazor'),false);
+ assert.deepEqual(eligibleLoadout(CLASS_DEFINITIONS.warrior,['lazor','arcBolt','pulseNova','holyNova']),['swordSwing','chargingStab','guard','dash']);
+ assert.deepEqual(resolveClassLoadout('lightningMage',['arcBolt','dash','lightningStorm','lightningShield'],'primitiveWand'),['arcSpear','dash','lightningStorm','lightningShield']);
+ const g=new Game(()=>{},()=> 'id'),p=g.add('p');g.message('p',{type:'join',classId:'forged',loadout:['swordSwing','chargingStab','guard','dash']});assert.equal(p.classId,'lightningMage');assert.equal(p.loadout.includes('swordSwing'),false);
 });
+
 test('sword cleaves multiple front targets including cone adds but excludes rear and range; cooldown enforced',()=>{
- const events:unknown[]=[];const g=new Game(e=>events.push(e),()=> 'id'),p=g.add('p');g.message('p',{type:'join',loadout:['swordSwing','chargingStab','guard','dash']});g.message('p',{type:'ready'},100);p.pos={x:0,z:2};p.facing={x:0,z:-1};
+ const events:unknown[]=[];const g=new Game(e=>events.push(e),()=> 'id'),p=g.add('p');g.message('p',{type:'join',classId:'warrior',loadout:['swordSwing','chargingStab','guard','dash']});g.message('p',{type:'ready'},100);p.pos={x:0,z:2};p.facing={x:0,z:-1};
  g.adds=[{id:'front',pos:{x:1,z:1},hp:54,maxHp:54,attackAt:9999},{id:'rear',pos:{x:0,z:3},hp:54,maxHp:54,attackAt:9999},{id:'far',pos:{x:0,z:-2},hp:54,maxHp:54,attackAt:9999}];
  g.message('p',{type:'ability',slot:1,damage:9999},200);assert.equal(g.boss.hp,1762);assert.deepEqual(g.adds.map(a=>a.hp),[16,54,54]);g.message('p',{type:'ability',slot:1},201);assert.equal(events.length,1);assert.equal(p.cooldowns[0],1300);
  assert.equal(meleeHits(p.pos,p.facing,{x:3,z:2}),false);
 });
 test('charge stops at boss, adds and walls, stabs only endpoint frontal targets and synchronizes FX',()=>{
- const events:any[]=[];const g=new Game(e=>events.push(e),()=> 'id'),p=g.add('p');g.message('p',{type:'join',loadout:['swordSwing','chargingStab','guard','dash']});g.message('p',{type:'ready'},100);p.pos={x:0,z:6};p.facing={x:0,z:-1};
+ const events:any[]=[];const g=new Game(e=>events.push(e),()=> 'id'),p=g.add('p');g.message('p',{type:'join',classId:'warrior',loadout:['swordSwing','chargingStab','guard','dash']});g.message('p',{type:'ready'},100);p.pos={x:0,z:6};p.facing={x:0,z:-1};
  g.message('p',{type:'ability',slot:2,to:{x:0,z:-12},damage:999},200);assert.ok(p.pos.z>=1.73&&p.pos.z<1.8);assert.equal(g.boss.hp,1740);assert.equal(p.cooldowns[1],3800);assert.equal(events[0].skill,'chargingStab');assert.deepEqual(events[0].from,{x:0,z:6});
  const before={...p.pos};g.message('p',{type:'ability',slot:2},201);assert.deepEqual(p.pos,before);
  const a={id:'a',pos:{x:0,z:4},hp:54,maxHp:54,attackAt:9999};const end=chargeEnd({x:0,z:6},p.facing,g.boss.pos,[a]);assert.ok(distance(end,a.pos)>=.9);assert.ok(end.z<5);

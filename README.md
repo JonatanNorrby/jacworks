@@ -72,3 +72,10 @@ npm run deploy
 > Cloudflare preview configuration: Preview URLs enabled; Build command `npm run build`; Preview command `npm run build && npx wrangler preview`.
 
 Primitive Wand is reusable Weapon equipment. Old crafted contraptions migrate one-for-one to owned wands, initially unequipped. Arc Spear is unavailable at the trainer; equipping a wand transforms Arc Blast (`arcBolt`) in any slot for the encounter. Unequipping restores the base skill. The shared server validates saved material receipts and crafting counts before accepting an equipped wand and derives the encounter loadout and damage itself. As before, browser-local saves are not authenticated account ownership; forged local reward ledgers are outside this prototype economy boundary.
+
+
+Green Cone is the third gate selection. It slowly pursues the nearest living player, stops to telegraph a 3-unit slam for 1.5 seconds, and summons two smaller cones every third slam (up to six alive). Adds pursue and attack for 12 damage every 1.2 seconds, have 54 HP, and can be hit by Arc Blast / Arc Spear (nearest target), LAZOR, and Pulse Nova. Victory grants **Conical Taper**; no separate triangle material exists.
+
+The Crafter also offers **3 Conical Tapers -> Pointy Hat** (Head) and **1 Conical Taper + 1 Spherical Ball -> Pointy Orb** (Offhand). The Wardrobe paperdoll equips and unequips all three reusable items. Gear appears on the hub avatar and on every encounter player from server snapshots. The existing browser save key is preserved; legacy wand ownership and equipment migrate without refunding spent materials.
+
+Pointy Hat gives Dash three independently usable charges. One charge returns every 2.6 seconds; spending another charge does not restart the running recharge. Pointy Orb extends LAZOR's cooldown from 2.4 to exactly 4.4 seconds and applies four 8-damage burn ticks, one per second, on beam hits. A caster refreshes their own burn; separate players' burns coexist. The shared server controls all charges, cooldowns, burn damage, cone AI and add HP. Browser-local receipts remain the prototype's unauthenticated inventory boundary.

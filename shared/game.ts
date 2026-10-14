@@ -1,6 +1,6 @@
 import { readInventory } from './inventory';
 import { DEFAULT_LOADOUT, SKILLS, baseLoadout, encounterLoadout } from './protocol';
-import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2 } from './protocol';
+import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
 const clamp = (n: number) => Math.max(-12, Math.min(12,n));
@@ -25,20 +25,21 @@ export class Game {
   ready=new Set<string>(); phase:Snapshot['phase']='lobby';
   selectionLocked=false;
   initialized=new Set<string>();
+  adds:AddState[]=[];lastTick=0;burns=new Map<string,{target:string;next:number;remaining:number}>();
   boss:Snapshot['boss']={id:'warden',hp:1800,maxHp:1800,pos:{x:0,z:0},height:0};
   telegraphs:Telegraph[]=[]; reward:Snapshot['reward']; next=0; mechanic=0; fightId=''; motion?:Motion;
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
-    const p:PlayerState={id,name:'Player',pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT],weapon:null};
+    const p:PlayerState={id,name:'Player',pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT],weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
     this.players.set(id,p);return p;
   }
   remove(id:string) {this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.reset();this.boss.id='warden';this.selectionLocked=false;}}
   reset() {
-    this.phase='lobby';this.boss.hp=1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
+    this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
-    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;}
+    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
@@ -47,10 +48,10 @@ export class Game {
       this.initialized.add(id);
       if(typeof v.name==='string')p.name=v.name.slice(0,24);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
-      p.weapon=inventory.weapon;
+      p.weapon=inventory.weapon;p.head=inventory.head;p.offhand=inventory.offhand;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=encounterLoadout(baseLoadout(v.loadout),p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall')) {this.boss.id=v.boss;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;
@@ -60,29 +61,49 @@ export class Game {
     }
     if(v.type==='ready'&&this.phase!=='fight') {
       if(this.phase!=='lobby')this.reset();this.ready.add(id);
-      if(this.ready.size===this.players.size) {this.phase='fight';this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;this.ready.clear();}
+      if(this.ready.size===this.players.size) {this.phase='fight';this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;this.ready.clear();}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now);
   }
   ability(p:PlayerState,slot:number,now:number) {
-    const skill=p.loadout[slot-1];if(now<p.cooldowns[slot-1])return;
+    const skill=p.loadout[slot-1];this.recharge(p,now);if(skill==='dash'?p.dashCharges===0:now<p.cooldowns[slot-1])return;
     const d=distance(p.pos,this.boss.pos);
-    if(((skill==='arcBolt'||skill==='arcSpear')&&d>11)||(skill==='pulseNova'&&d>4.2))return;
-    p.cooldowns[slot-1]=now+SKILLS[skill].cooldown;const from={...p.pos};let to={...p.pos},damage=0;
+    const target=[{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0).sort((a,b)=>distance(p.pos,a.pos)-distance(p.pos,b.pos))[0];
+    if((skill==='arcBolt'||skill==='arcSpear')&&(!target||distance(p.pos,target.pos)>11))return;
+    if(skill==='pulseNova'&&d>4.2&&!this.adds.some(a=>a.hp>0&&distance(p.pos,a.pos)<=4.2))return;
+    p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
+    if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
     if(skill==='dash')p.pos=moveSolid(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.boss.pos);
     if(skill==='lazor') {to={x:from.x+p.facing.x*14,z:from.z+p.facing.z*14};if(beamHits(from,p.facing,this.boss.pos))damage=90;}
-    if(skill==='arcBolt'||skill==='arcSpear') {damage=skill==='arcBolt'?18:72;to={...this.boss.pos};}
-    if(skill==='pulseNova')damage=45;if(skill==='guard')p.guardUntil=now+1600;
+    if(skill==='arcBolt'||skill==='arcSpear') {damage=skill==='arcBolt'?18:72;to={...target.pos};}
+    if(skill==='pulseNova'&&d<=4.2)damage=45;if(skill==='guard')p.guardUntil=now+1600;
     if(skill==='holyNova')for(const a of this.players.values())if(a.alive&&distance(a.pos,p.pos)<=4.5)a.hp=Math.min(100,a.hp+25);
-    this.boss.hp=Math.max(0,this.boss.hp-damage);
+    if(skill==='arcBolt'||skill==='arcSpear'){if(target.id==='boss')this.boss.hp=Math.max(0,this.boss.hp-damage);else {const a=this.adds.find(a=>a.id===target.id)!;a.hp=Math.max(0,a.hp-damage);}}
+    else this.boss.hp=Math.max(0,this.boss.hp-damage);
+    for(const a of this.adds)if(a.hp>0&&((skill==='lazor'&&beamHits(from,p.facing,a.pos))||(skill==='pulseNova'&&distance(from,a.pos)<=4.2)))a.hp=Math.max(0,a.hp-(skill==='lazor'?90:45));
+    if(skill==='lazor'&&p.offhand)for(const t of [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds])if(t.hp>0&&beamHits(from,p.facing,t.pos))this.burns.set(p.id+':'+t.id,{target:t.id,next:now+1000,remaining:4});
     this.emit({type:'abilityFx',skill,playerId:p.id,from,to:skill==='dash'?{...p.pos}:to});
+  }
+  recharge(p:PlayerState,now:number) {
+    const max=p.head?3:1;
+    // Spending another charge never restarts the current sequential recharge.
+    while(p.dashRechargeAt&&now>=p.dashRechargeAt) {
+      p.dashCharges++;
+      p.dashRechargeAt=p.dashCharges<max?p.dashRechargeAt+SKILLS.dash.cooldown:0;
+    }
+    const slot=p.loadout.indexOf('dash');
+    if(slot>=0)p.cooldowns[slot]=p.dashCharges?0:p.dashRechargeAt;
   }
   hurt(p:PlayerState,now:number) {p.hp=Math.max(0,p.hp-(p.guardUntil>now?12:48));p.alive=p.hp>0;}
   schedule(now:number) {
     const alive=[...this.players.values()].filter(p=>p.alive);if(!alive.length)return;
     const target=alive[this.mechanic++%alive.length];let t:Telegraph;
     const dir=unit({x:target.pos.x-this.boss.pos.x,z:target.pos.z-this.boss.pos.z});
-    if(this.boss.id==='yellowBall') {
+    if(this.boss.id==='greenCone') {
+      t={id:this.uuid(),kind:'circle',pos:{...this.boss.pos},radius:3,resolvesAt:now+1500};
+      this.emit({type:'event',text:'Green Cone: close-range slam!'});
+      if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:54,maxHp:54,attackAt:now+1500});
+    } else if(this.boss.id==='yellowBall') {
       const roll=this.mechanic%2===1;
       t=roll?{id:this.uuid(),kind:'line',pos:{...this.boss.pos},direction:dir,width:3.5,length:10,resolvesAt:now+1500}:{id:this.uuid(),kind:'circle',pos:{...target.pos},radius:3.2,resolvesAt:now+1500};
       this.emit({type:'event',text:roll?'Yellow Ball: rolling charge!':'Yellow Ball: bouncing slam!'});
@@ -96,6 +117,22 @@ export class Game {
   }
   tick(now=Date.now()):Snapshot {
     if(this.phase==='fight') {
+      const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
+      for(const p of this.players.values())this.recharge(p,now);
+      // Each caster refreshes only their own four-tick burn on a target.
+      for(const [key,b] of this.burns) {
+        while(b.remaining>0&&now>=b.next) {
+          if(b.target==='boss')this.boss.hp=Math.max(0,this.boss.hp-8);
+          else {const a=this.adds.find(a=>a.id===b.target);if(a)a.hp=Math.max(0,a.hp-8);}
+          b.remaining--;b.next+=1000;
+        }
+        if(!b.remaining)this.burns.delete(key);
+      }
+      const alive=[...this.players.values()].filter(p=>p.alive);
+      const chase=(pos:Vec2,speed:number,stop:number)=>{const target=alive.filter(p=>p.alive).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
+      if(this.boss.id==='greenCone'&&!this.telegraphs.length&&this.boss.hp>0)chase(this.boss.pos,.9,1.73);
+      this.adds=this.adds.filter(a=>a.hp>0);
+      for(const a of this.adds){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){target.hp=Math.max(0,target.hp-(target.guardUntil>now?3:12));target.alive=target.hp>0;a.attackAt=now+1200;}}
       if(this.motion) {
         const m=this.motion,t=Math.min(1,(now-m.start)/(m.end-m.start)),previous={...this.boss.pos};
         this.boss.pos={x:m.from.x+(m.to.x-m.from.x)*t,z:m.from.z+(m.to.z-m.from.z)*t};this.boss.height=m.kind==='bounce'?Math.sin(t*Math.PI)*4:0;
@@ -118,11 +155,11 @@ export class Game {
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.boss.hp<=0) {
-        this.phase='won';this.motion=undefined;this.boss.height=0;this.telegraphs=[];
-        this.reward={id:this.fightId,material:this.boss.id==='warden'?'cylinderTube':'sphericalBall',players:[...this.players.keys()]};
+        this.phase='won';this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.reward={id:this.fightId,material:this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive))this.phase='wiped';
     }
-    return {type:'snapshot',now,phase:this.phase,players:[...this.players.values()],boss:this.boss,telegraphs:this.telegraphs,readyCount:this.ready.size,reward:this.reward};
+    return {type:'snapshot',now,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.ready.size,reward:this.reward};
   }
 }

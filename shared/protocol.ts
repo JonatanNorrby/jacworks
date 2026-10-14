@@ -12,10 +12,11 @@ export function baseLoadout(v:unknown):Loadout {
 }
 export function encounterLoadout(base:Loadout,weapon:Weapon):Loadout{return base.map(x=>x==='arcBolt'&&weapon==='primitiveWand'?'arcSpear':x) as Loadout}
 export type Weapon='primitiveWand'|null;
-export type PlayerState={id:string;name:string;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;cooldowns:number[];loadout:Loadout;weapon:Weapon};
+export type PlayerState={id:string;name:string;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|null;dashCharges:number;dashRechargeAt:number};
 export type Telegraph={id:string;kind:"circle"|"line";pos:Vec2;radius?:number;direction?:Vec2;width?:number;length?:number;resolvesAt:number};
-export type BossId="warden"|"yellowBall";
-export const ITEMS={cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand"} as const;
-export type Snapshot={type:"snapshot";now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number};reward?:{id:string;material:"cylinderTube"|"sphericalBall";players:string[]};telegraphs:Telegraph[];readyCount:number};
+export type BossId="warden"|"yellowBall"|"greenCone";
+export const ITEMS={cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb"} as const;
+export type AddState={id:string;pos:Vec2;hp:number;maxHp:number;attackAt:number};
+export type Snapshot={type:"snapshot";now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number};reward?:{id:string;material:"cylinderTube"|"sphericalBall"|"conicalTaper";players:string[]};adds:AddState[];telegraphs:Telegraph[];readyCount:number};
 export type ClientMessage={type:"join";name:string;loadout?:Loadout;boss?:BossId;inventory?:unknown}|{type:"input";seq:number;move:Vec2}|{type:"ability";slot:1|2|3|4}|{type:"ready"};
 export type ServerMessage=Snapshot|{type:"welcome";id:string}|{type:"event";text:string}|{type:"abilityFx";skill:SkillId;playerId:string;from:Vec2;to:Vec2};

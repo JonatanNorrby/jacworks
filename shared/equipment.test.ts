@@ -6,7 +6,7 @@ import {craft,countInventory,emptyInventory,equipWeapon,readInventory} from './i
 const owned=()=>readInventory(JSON.stringify({rewards:{w:'cylinderTube',y:'sphericalBall'},crafted:1}));
 const room=()=>new Game(()=>{},()=> 'fight');
 test('legacy contraptions migrate to unequipped wands without refunding materials',()=>{
- const inv=owned();assert.deepEqual(countInventory(inv),{cylinderTube:0,sphericalBall:0,primitiveWand:1});assert.equal(inv.weapon,null);
+ const inv=owned();assert.deepEqual(countInventory(inv),{cylinderTube:0,sphericalBall:0,conicalTaper:0,primitiveWand:1,pointyHat:0,pointyOrb:0});assert.equal(inv.weapon,null);
  assert.ok(equipWeapon(inv,'primitiveWand'));assert.equal(readInventory(JSON.stringify(inv)).weapon,'primitiveWand');
  assert.ok(equipWeapon(inv,null));assert.equal(readInventory(JSON.stringify(inv)).weapon,null);assert.equal(inv.crafted,1);
 });

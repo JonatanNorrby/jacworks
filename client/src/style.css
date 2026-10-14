@@ -56,3 +56,11 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #inventory-panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;background:#141d2a;border:1px solid #8dc9e088;padding:24px;border-radius:14px;width:min(480px,80vw);box-shadow:0 20px 80px #000b}
 #inventory-panel button,#inventory-panel select{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;margin:6px;cursor:pointer}
 #inventory-panel button:disabled{opacity:.4;cursor:default}
+
+.paperdoll{display:grid;grid-template-columns:1fr 90px 1fr;gap:8px;align-items:center}
+.paperdoll-body{grid-column:2;grid-row:2;position:relative;height:150px;color:#8dc9e0}
+.paperdoll-body span{position:absolute;background:currentColor;border-radius:12px}
+.doll-head{width:30px;height:30px;left:30px;top:5px}.doll-torso{width:38px;height:65px;left:26px;top:40px}
+.doll-arms{width:80px;height:12px;left:5px;top:50px}.doll-legs{width:14px;height:45px;left:27px;top:100px;box-shadow:22px 0 currentColor}
+.equipment-slot.head{grid-column:1/-1;grid-row:1}.equipment-slot.weapon{grid-column:1;grid-row:2}.equipment-slot.offhand{grid-column:3;grid-row:2}
+#inventory-panel{max-height:85vh;overflow:auto}

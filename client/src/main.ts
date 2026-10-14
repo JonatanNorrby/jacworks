@@ -12,9 +12,9 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
-import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph } from "../../shared/protocol";
+import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft, equipWeapon } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equip, RECIPES } from './inventory';
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -47,7 +47,7 @@ try{const saved=JSON.parse(localStorage.getItem("jacworks-loadout")??"null");loa
 let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
-let selectedBoss:'warden'|'yellowBall'='warden';
+let selectedBoss:BossId='warden';
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 const inventoryDisplay=document.createElement('div');inventoryDisplay.id='inventory-display';document.body.append(inventoryDisplay);
@@ -58,23 +58,29 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Equipment changes Arc Blast into Arc Spear during encounters.':'Recipe: 1 Cylinder Tube + 1 Spherical Ball = 1 Primitive Wand';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
- const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['yellowBall','Yellow Ball']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
+ const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['yellowBall','Yellow Ball'],['greenCone','Green Cone']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
  const button=document.createElement('button');button.textContent='Enter encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
- const slot=document.createElement('p');slot.textContent='Weapon: '+(inventory.weapon==='primitiveWand'?'Primitive Wand (Equipped)':'Empty');inventoryPanel.append(slot);
- const owned=document.createElement('p');owned.textContent='Owned Primitive Wands: '+countInventory(inventory).primitiveWand;inventoryPanel.append(owned);
- const button=document.createElement('button');button.textContent=inventory.weapon?'Unequip Primitive Wand':'Equip Primitive Wand';button.disabled=!inventory.weapon&&inventory.crafted<1;
- button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equipWeapon(inventory,inventory.weapon?null:'primitiveWand')){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('wardrobe')}};inventoryPanel.append(button);
+ const doll=document.createElement('div');doll.className='paperdoll';
+ const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
+ for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
+ for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand']] as const){
+  const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[gear]+' (Unequip)':'Empty (Equip '+ITEMS[gear]+')');button.disabled=!inventory[slot]&&countInventory(inventory)[gear]<1;
+  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};doll.append(button);
+ }inventoryPanel.append(doll);
  }else{
- const button=document.createElement('button');button.textContent='Craft Primitive Wand';const c=countInventory(inventory);button.disabled=c.cylinderTube<1||c.sphericalBall<1;
- button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter');const result=document.createElement('p');result.textContent='Crafted Primitive Wand! Added to inventory.';inventoryPanel.append(result)}};inventoryPanel.append(button);
+ for(const gear of ['primitiveWand','pointyHat','pointyOrb'] as const){
+  const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
+  const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
+  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
+ }
  }
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }
 renderInventory();
-addEventListener('storage',e=>{if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();if(hubPanelOpen)closeHubPanel()}});
+addEventListener('storage',e=>{if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
 function renderSkills(){
   skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear").map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
   skillLoadout.replaceChildren();
@@ -107,6 +113,7 @@ const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-onl
 
 const keys = new Set<string>();
 const playerMeshes = new Map<string, Mesh>();
+const addMeshes=new Map<string,Mesh>();
 const telegraphMeshes = new Map<string, Mesh>();
 const hubMeshes: Mesh[] = [];
 const arenaMeshes: Mesh[] = [];
@@ -201,6 +208,14 @@ hubPlayer.position.set(0, 0.85, 6.2);
 hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
+function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown}){
+ const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand]);if(parent.metadata?.gear===signature)return;
+ for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
+ if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
+ if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
+ if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+}
+
 
 const hubPlayerRing = pushHub(MeshBuilder.CreateTorus("hub-player-ring", { diameter: 1.55, thickness: 0.08, tessellation: 32 }, scene));
 hubPlayerRing.position.set(0, 0.08, 6.2);
@@ -245,6 +260,9 @@ bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
 const yellowMat=material('yellow-ball',new Color3(1,.85,.02),new Color3(.5,.32,0));
 const yellowBoss=pushArena(MeshBuilder.CreateSphere('yellow-boss',{diameter:2.5,segments:24},scene));yellowBoss.material=yellowMat;
+const greenMat=material('green-cone',new Color3(.1,.8,.2),new Color3(.02,.25,.04));
+const coneBoss=pushArena(MeshBuilder.CreateCylinder('green-cone',{height:2.9,diameterTop:0,diameterBottom:2.5,tessellation:24},scene));coneBoss.material=greenMat;
+const dropCone=pushArena(MeshBuilder.CreateCylinder('conical-taper-drop',{height:.65,diameterTop:0,diameterBottom:.5},scene));dropCone.material=greenMat;
 const dropTube=pushArena(MeshBuilder.CreateCylinder('cylinder-tube-drop',{diameter:.4,height:.65},scene));dropTube.material=bossMat;
 const dropBall=pushArena(MeshBuilder.CreateSphere('spherical-ball-drop',{diameter:.5},scene));dropBall.material=yellowMat;
 
@@ -260,7 +278,7 @@ function setMode(next: ClientMode) {
 
   for (const mesh of hubMeshes) mesh.setEnabled(inHub);
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
-  dropTube.setEnabled(false);dropBall.setEnabled(false);yellowBoss.setEnabled(false);
+  dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);coneBoss.setEnabled(false);yellowBoss.setEnabled(false);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
   for (const effect of fx) effect.mesh.setEnabled(!inHub);
@@ -269,7 +287,7 @@ function setMode(next: ClientMode) {
   encounterOnly.forEach((el) => el.classList.toggle("hidden", inHub));
 
   if (inHub) {
-    status.textContent = "Sanctum Hub";
+    syncGear(hubPlayer,inventory);status.textContent = "Sanctum Hub";
     renderAbilityBar();
     message.textContent = "";
     camera.radius = 27;
@@ -284,6 +302,7 @@ function clearEncounterMeshes() {
   fx.length = 0;
   for (const mesh of playerMeshes.values()) mesh.dispose();
   playerMeshes.clear();
+  for(const mesh of addMeshes.values())mesh.dispose();addMeshes.clear();
   for (const mesh of telegraphMeshes.values()) mesh.dispose();
   telegraphMeshes.clear();
 }
@@ -363,12 +382,16 @@ function connectEncounter() {
 }
 
 function syncEncounter(state: Snapshot) {
- const yellow=state.boss.id==='yellowBall';
- bossMesh.setEnabled(!yellow&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.phase!=='won');
+ const yellow=state.boss.id==='yellowBall',green=state.boss.id==='greenCone';
+ coneBoss.setEnabled(green&&state.phase!=='won');coneBoss.position.set(state.boss.pos.x,1.45,state.boss.pos.z);
+ dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
+ for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
+ for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('cone-add-'+a.id,{height:1.1,diameterTop:0,diameterBottom:.9,tessellation:16},scene);mesh.material=greenMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=.85;bar.material=holyMat;}mesh.position.set(a.pos.x,.55,a.pos.z);mesh.getChildMeshes()[0].scaling.x=a.hp/a.maxHp;}
+ bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
- yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?'YELLOW BALL':'THE WARDEN';
- dropTube.setEnabled(state.phase==='won'&&!yellow);dropBall.setEnabled(state.phase==='won'&&yellow);
+ yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
+ document.querySelector('#boss-label')!.textContent=yellow?'YELLOW BALL':green?'GREEN CONE':'THE WARDEN';
+ dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropTube.position.set(state.boss.pos.x,.35,state.boss.pos.z);dropBall.position.set(state.boss.pos.x,.3,state.boss.pos.z);
   const playerIds = new Set(state.players.map((p) => p.id));
 
@@ -391,6 +414,7 @@ function syncEncounter(state: Snapshot) {
     mesh.setEnabled(mode === "encounter");
     mesh.position.set(p.pos.x, 0.8, p.pos.z);
     mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);
+    syncGear(mesh,p);
     mesh.material = p.alive ? (p.id === myId ? meMat : otherMat) : deadMat;
     mesh.scaling.y = p.guardUntil > state.now ? 1.25 : 1;
   }
@@ -505,7 +529,8 @@ function updateCooldowns() {
     const overlay = abilitySlots[i].querySelector<HTMLElement>(".cooldown-overlay")!;
     const label = abilitySlots[i].querySelector<HTMLElement>(".cooldown-text")!;
     overlay.style.transform = `scaleY(${remaining / SKILLS[me?.loadout[i]??loadout[i]].cooldown})`;
-    label.textContent = remaining > 0 ? (remaining / 1000).toFixed(1) : "";
+    const dash=me?.loadout[i]==='dash';label.textContent=dash?`${me.dashCharges}/${me.head?3:1}${me.dashRechargeAt?' / '+(Math.max(0,me.dashRechargeAt-now)/1000).toFixed(1)+'s':''}`:remaining>0?(remaining/1000).toFixed(1):'';
+    if(me?.loadout[i]==='lazor'&&me.offhand)overlay.style.transform=`scaleY(${remaining/(SKILLS.lazor.cooldown+2000)})`;
   }
 }
 
@@ -575,7 +600,7 @@ function updateHub(deltaSeconds: number) {
   status.textContent = nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
-  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe � press E';
+  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe � press E';
   const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.08;
   portalRing.scaling.set(pulse, 1, pulse);
 }

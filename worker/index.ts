@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { DEFAULT_LOADOUT, SKILLS, validLoadout } from "../shared/protocol";
 import type { ClientMessage, PlayerState, ServerMessage, Snapshot, Telegraph, Vec2 } from "../shared/protocol";
 
 interface Env {
@@ -8,7 +9,6 @@ interface Env {
 
 const TICK_MS = 50;
 const ARENA = 12;
-const COOLDOWNS = [650, 2600, 3200, 4800] as const;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -66,6 +66,7 @@ export class GameRoom extends DurableObject<Env> {
       alive: true,
       guardUntil: 0,
       cooldowns: [0, 0, 0, 0],
+      loadout: [...DEFAULT_LOADOUT],
     };
 
     this.players.set(server, player);
@@ -93,7 +94,8 @@ export class GameRoom extends DurableObject<Env> {
     }
 
     if (message.type === "join") {
-      player.name = message.name.slice(0, 24) || player.name;
+      if (typeof message.name === "string") player.name = message.name.slice(0, 24) || player.name;
+      if (validLoadout(message.loadout)) player.loadout = [...message.loadout];
       return;
     }
 
@@ -300,34 +302,21 @@ export class GameRoom extends DurableObject<Env> {
     }
   }
 
-  private useAbility(player: PlayerState, slot: 1 | 2 | 3 | 4) {
-    if (!Number.isInteger(slot) || slot < 1 || slot > 4) return;
-    const now = Date.now();
-    if (now < player.cooldowns[slot - 1]) return;
-    const from = { ...player.pos };
-    // Unavailable ranged attacks do not consume their cooldown.
-    if (slot === 1 && dist(player.pos, this.boss.pos) > 11) return;
-    if (slot === 3 && dist(player.pos, this.boss.pos) > 4.2) return;
-    player.cooldowns[slot - 1] = now + COOLDOWNS[slot - 1];
-    if (slot === 1 && dist(player.pos, this.boss.pos) <= 11) {
-      this.boss.hp = Math.max(0, this.boss.hp - 18);
-    }
-
-    if (slot === 2) {
-      const move = this.moves.get(player.id) ?? { x: 0, z: 0 };
-      const length = Math.hypot(move.x, move.z) || 1;
-
-      player.pos.x = clamp(player.pos.x + (move.x / length) * 3.5, -ARENA, ARENA);
-      player.pos.z = clamp(player.pos.z + (move.z / length) * 3.5, -ARENA, ARENA);
-    }
-
-    if (slot === 3 && dist(player.pos, this.boss.pos) <= 4.2) {
-      this.boss.hp = Math.max(0, this.boss.hp - 45);
-    }
-
-    if (slot === 4) {
-      player.guardUntil = now + 1600;
-    }
-    this.broadcast({ type: "abilityFx", slot, playerId: player.id, from, to: { ...player.pos } });
+  private useAbility(player:PlayerState,slot:1|2|3|4){
+    if(!Number.isInteger(slot)||slot<1||slot>4)return;
+    const skill=player.loadout[slot-1];
+    if(!skill||!Object.prototype.hasOwnProperty.call(SKILLS,skill))return;
+    const now=Date.now();
+    if(now<player.cooldowns[slot-1])return;
+    const from={...player.pos},distance=dist(player.pos,this.boss.pos);
+    if((skill==="arcBolt"||skill==="arcSpear")&&distance>11)return;
+    if(skill==="pulseNova"&&distance>4.2)return;
+    player.cooldowns[slot-1]=now+SKILLS[skill].cooldown;
+    if(skill==="arcBolt"||skill==="arcSpear")this.boss.hp=Math.max(0,this.boss.hp-(skill==="arcSpear"?72:18));
+    else if(skill==="dash"){const move=this.moves.get(player.id)??{x:0,z:0},len=Math.hypot(move.x,move.z);if(len){player.pos.x=clamp(player.pos.x+move.x/len*3.5,-ARENA,ARENA);player.pos.z=clamp(player.pos.z+move.z/len*3.5,-ARENA,ARENA)}}
+    else if(skill==="pulseNova")this.boss.hp=Math.max(0,this.boss.hp-45);
+    else if(skill==="guard")player.guardUntil=now+1600;
+    else if(skill==="holyNova"){for(const ally of this.players.values())if(ally.alive&&dist(ally.pos,player.pos)<=4.5)ally.hp=Math.min(ally.maxHp,ally.hp+25)}
+    this.broadcast({type:"abilityFx",skill,playerId:player.id,from,to:{...player.pos}});
   }
 }

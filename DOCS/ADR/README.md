@@ -22,6 +22,8 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 
 | [0010](0010-room-votes-and-shaman.md) | Accepted | Unanimous room votes and Shaman |
 
+| [0011](0011-yellow-ball-splits.md) | Accepted | Yellow Ball split encounters and Large Sphere |
+
 ## Workflow
 
 1. Check this index and relevant Accepted ADRs before making architectural or durable game-system changes.

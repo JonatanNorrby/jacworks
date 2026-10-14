@@ -13,7 +13,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
       const from={...p.pos};let to={...p.pos};
       if(skill==='heroicShield'){
         const ally=targetId===undefined?p:this.players.get(String(targetId));if(!ally?.alive||distance(p.pos,ally.pos)>11)return true;
-        if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.boss.pos,this.adds,d,this.pillars());ally.shield=Math.max(ally.shield,40);ally.shieldUntil=now+6000;}
+        if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.solidBoss(),this.adds,d,this.pillars());ally.shield=Math.max(ally.shield,40);ally.shieldUntil=now+6000;}
         p.shield=Math.max(p.shield,80);p.shieldUntil=now+6000;to={...p.pos};
       }else if(skill==='bulwark')p.bulwarkUntil=now+6000;
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;

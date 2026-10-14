@@ -1,3 +1,4 @@
+import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory } from './inventory';
@@ -16,11 +17,11 @@ export { HARD_PILLARS } from './protocol';
 import {clipPillars,pillarOccludes} from './cover';
 export {pillarOccludes} from './cover';
 // Sweep in small steps to prevent tunnelling, then project onto the collision boundary for sliding.
-export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2,pillars:Vec2[]=[]):Vec2 {
+export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2,pillars:Vec2[]=[],bossRadius=1.73):Vec2 {
   let p={...pos}; const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
   for(let i=0;i<steps;i++) {
     p={x:clamp(p.x+delta.x/steps),z:clamp(p.z+delta.z/steps)};
-    for(const body of [boss,...pillars]){const radius=body===boss?1.73:1.48;const dx=p.x-body.x,dz=p.z-body.z,l=Math.hypot(dx,dz);
+    for(const body of [boss,...pillars]){const radius=body===boss?bossRadius:1.48;const dx=p.x-body.x,dz=p.z-body.z,l=Math.hypot(dx,dz);
     if(l<radius)p={x:clamp(body.x+(l?dx/l:1)*radius),z:clamp(body.z+(l?dz/l:0)*radius)};}
   } return p;
 }
@@ -32,12 +33,13 @@ export function meleeHits(from:Vec2,dir:Vec2,target:Vec2,reach=3,cosine=.5){
 export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,pillars:Vec2[]=[]):Vec2 {
  let p={...from};for(let travelled=0;travelled<length;travelled+=.05){
   const step=Math.min(.05,length-travelled),next={x:p.x+dir.x*step,z:p.z+dir.z*step};
-  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||pillars.some(c=>distance(next,c)<1.48)||adds.some(a=>a.hp>0&&distance(next,a.pos)<.9))break;
+  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||pillars.some(c=>distance(next,c)<1.48)||adds.some(a=>a.hp>0&&distance(next,a.pos)<(a.radius??.42)+.48))break;
   p=next;
  }return p;
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
+  balls=new BallEncounter(this);
   players=new Map<string,PlayerState>();
   moves=new Map<string,{v:Vec2;at:number;seq:number}>();
   ready=new Set<string>(); phase:Snapshot['phase']='lobby';
@@ -62,8 +64,8 @@ export class Game {
   }
   remove(id:string) {this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
-    this.vote=undefined;this.scatter=[];this.totems=[];
-    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
+    this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
     for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
@@ -78,7 +80,7 @@ export class Game {
       p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:1800;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:1800;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;
@@ -87,13 +89,13 @@ export class Game {
       }
     }
     if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby')this.reset();return;}
-    if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','yellowBall','greenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
+    if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
     // Legacy ready may propose, but cannot cast an acceptance without the current proposal ID.
     if(v.type==='ready'&&!this.vote&&this.phase!=='fight')this.propose(this.boss.id,now);
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:1800;this.phase='fight';this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -112,21 +114,21 @@ export class Game {
     if((skill==='arcBolt'||skill==='arcSpear')&&(!target||distance(p.pos,target.pos)>11))return;
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
-    if(skill==='dash')p.pos=moveSolid(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.boss.pos,this.pillars());
-    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.boss.pos,this.adds,5,this.pillars());
+    if(skill==='dash')p.pos=this.movePlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5});
+    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,5,this.pillars());
     if(skill==='swordSwing'||skill==='chargingStab') {
       const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour?4:3,angle=skill==='chargingStab'?.85:p.armour?0:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
       if(this.visible(origin,this.boss.pos)&&meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
-      for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))a.hp=Math.max(0,a.hp-(skill==='swordSwing'?38:60));
+      for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))this.damageTarget(a.id,skill==='swordSwing'?38:60);
     }
     if(skill==='lazor') {to={x:from.x+p.facing.x*14,z:from.z+p.facing.z*14};if(this.beamHits(from,p.facing,this.boss.pos))damage=90;}
     if(skill==='arcBolt'||skill==='arcSpear') {damage=this.visible(from,target.pos)?(skill==='arcBolt'?18:72):0;to=this.clip(from,target.pos);}
     if(skill==='pulseNova'){for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)a.hp=Math.min(a.maxHp,a.hp+18);if(d<=4.2&&this.visible(from,this.boss.pos))damage=45;}if(skill==='guard')p.guardUntil=now+1600;
     if(skill==='holyNova')for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)a.hp=Math.min(100,a.hp+25);
-    if(skill==='arcBolt'||skill==='arcSpear'){if(target.id==='boss')this.boss.hp=Math.max(0,this.boss.hp-damage);else {const a=this.adds.find(a=>a.id===target.id)!;a.hp=Math.max(0,a.hp-damage);}}
-    else this.boss.hp=Math.max(0,this.boss.hp-damage);
-    for(const a of this.adds)if(a.hp>0&&((skill==='lazor'&&this.beamHits(from,p.facing,a.pos))||(skill==='pulseNova'&&this.visible(from,a.pos)&&distance(from,a.pos)<=4.2)))a.hp=Math.max(0,a.hp-(skill==='lazor'?90:45));
+    if(skill==='arcBolt'||skill==='arcSpear'){this.damageTarget(target.id,damage)}
+    else this.damageTarget('boss',damage);
+    for(const a of this.adds)if(a.hp>0&&((skill==='lazor'&&this.beamHits(from,p.facing,a.pos))||(skill==='pulseNova'&&this.visible(from,a.pos)&&distance(from,a.pos)<=4.2)))this.damageTarget(a.id,skill==='lazor'?90:45);
     if(skill==='lazor'&&p.offhand)for(const t of [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds])if(t.hp>0&&this.beamHits(from,p.facing,t.pos))this.burns.set(p.id+':'+t.id,{target:t.id,next:now+1000,remaining:4});
     this.emit({type:'abilityFx',skill,playerId:p.id,from,to:skill==='dash'?{...p.pos}:['lazor','swordSwing','chargingStab'].includes(skill)?this.clip(from,to):to});
   }
@@ -136,7 +138,11 @@ export class Game {
     return this.visible(from,target)&&(reach>=length-1e-8||(target.x-from.x)*dir.x+(target.z-from.z)*dir.z<=reach)&&beamHits(from,dir,target,reach,radius);
   };
   targets(){return [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0)}
-  damageTarget(id:string,amount:number){if(id==='boss')this.boss.hp=Math.max(0,this.boss.hp-amount);else {const a=this.adds.find(a=>a.id===id);if(a)a.hp=Math.max(0,a.hp-amount)}}
+  damageTarget(id:string,amount:number){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
+    const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
+    const floor=isBall(this)&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
+    t.hp=Math.max(floor,t.hp-amount);
+  }
   area(pos:Vec2,radius:number,damage:number){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
   tickClassEffects(now:number){tickClassEffects.call(this,now)}
@@ -150,6 +156,14 @@ export class Game {
     const slot=p.loadout.indexOf('dash');
     if(slot>=0)p.cooldowns[slot]=p.dashCharges?0:p.dashRechargeAt;
   }
+  movePlayer(pos:Vec2,delta:Vec2){
+    let p={...pos};const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
+    for(let i=0;i<steps;i++){
+      p=moveSolid(p,{x:delta.x/steps,z:delta.z/steps},this.solidBoss(),this.pillars());
+      for(const a of this.adds)if(a.kind==='ball'&&a.hp>0)p=moveSolid(p,{x:0,z:0},a.pos,[],(a.radius??.9)+.48);
+    }return p;
+  }
+  solidBoss(){return this.boss.hp>0?this.boss.pos:{x:1000,z:1000}}
   pillars(){return this.boss.id==='hardWarden'?HARD_PILLARS:[]}
   clearBuffs(p:PlayerState){p.bulwarkUntil=p.invisibleUntil=p.poisonUntil=p.shield=p.shieldUntil=0;const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}
   hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
@@ -170,10 +184,6 @@ export class Game {
       t={id:this.uuid(),kind:'circle',pos:kind===2?{...this.boss.pos}:{...target.pos},radius:kind===2?35:kind===1?4.2:2.6,resolvesAt:now+1500,sweep:kind===2};
       if(kind===0)for(let i=1;i<=2;i++)this.scatter.push({at:now+i*500,targetId:target.id});
       this.emit({type:'event',text:kind===2?'Hard Warden: hide behind a pillar!':kind===0?'Triple scatter - move!':'Large marked blast!'});
-    } else if(this.boss.id==='yellowBall') {
-      const roll=this.mechanic%2===1;
-      t=roll?{id:this.uuid(),kind:'line',pos:{...this.boss.pos},direction:dir,width:3.5,length:10,resolvesAt:now+1500}:{id:this.uuid(),kind:'circle',pos:{...target.pos},radius:3.2,resolvesAt:now+1500};
-      this.emit({type:'event',text:roll?'Yellow Ball: rolling charge!':'Yellow Ball: bouncing slam!'});
     } else {
       const line=this.mechanic%3===2;
       t=line?{id:this.uuid(),kind:'line',pos:{...this.boss.pos},direction:dir,width:3,length:13,resolvesAt:now+1500}:{id:this.uuid(),kind:'circle',pos:{...target.pos},radius:this.mechanic%3?3.1:2.2,resolvesAt:now+1500};
@@ -198,8 +208,7 @@ export class Game {
       // Each caster refreshes only their own four-tick burn on a target.
       for(const [key,b] of this.burns) {
         while(b.remaining>0&&now>=b.next) {
-          if(b.target==='boss')this.boss.hp=Math.max(0,this.boss.hp-8);
-          else {const a=this.adds.find(a=>a.id===b.target);if(a)a.hp=Math.max(0,a.hp-8);}
+          this.damageTarget(b.target,8);
           b.remaining--;b.next+=1000;
         }
         if(!b.remaining)this.burns.delete(key);
@@ -208,20 +217,13 @@ export class Game {
       const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
       if(this.boss.id==='greenCone'&&!this.telegraphs.length&&this.boss.hp>0)chase(this.boss.pos,.9,1.73);
       this.adds=this.adds.filter(a=>a.hp>0);
-      for(const a of this.adds){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
-      if(this.motion) {
-        const m=this.motion,t=Math.min(1,(now-m.start)/(m.end-m.start)),previous={...this.boss.pos};
-        this.boss.pos={x:m.from.x+(m.to.x-m.from.x)*t,z:m.from.z+(m.to.z-m.from.z)*t};this.boss.height=m.kind==='bounce'?Math.sin(t*Math.PI)*4:0;
-        for(const p of this.players.values())if(p.alive&&!m.hit.has(p.id)&&(m.kind==='roll'?beamHits(previous,unit({x:this.boss.pos.x-previous.x,z:this.boss.pos.z-previous.z}),p.pos,distance(previous,this.boss.pos),1.73):t===1&&distance(p.pos,m.to)<=3.2)) {this.hurt(p,now);m.hit.add(p.id);}
-        for(const ttm of this.totems)if(m.kind==='roll'?beamHits(previous,unit({x:this.boss.pos.x-previous.x,z:this.boss.pos.z-previous.z}),ttm.pos,distance(previous,this.boss.pos),1.73):t===1&&distance(ttm.pos,m.to)<=3.2)ttm.hp=0;
-        if(t===1){this.motion=undefined;this.boss.height=0;}
-      }
+      for(const a of this.adds.filter(a=>a.kind!=='ball')){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
-        p.pos=moveSolid(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)},this.boss.pos,this.pillars());
+        p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)});
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
-      if(now>=this.next)this.schedule(now);
+      if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
         this.scatter.shift();
@@ -232,18 +234,13 @@ export class Game {
         if(target)this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:2.6,resolvesAt:now+1500});
       }
 
-      for(const t of this.telegraphs.filter(t=>t.resolvesAt<=now)) {
-        if(this.boss.id==='yellowBall') {
-          const destination=t.kind==='line'?{x:t.pos.x+t.direction!.x*10,z:t.pos.z+t.direction!.z*10}:{...t.pos};
-          // Leave enough space between boss and arena wall for player separation.
-          this.motion={kind:t.kind==='line'?'roll':'bounce',from:{...this.boss.pos},to:{x:Math.max(-10,Math.min(10,destination.x)),z:Math.max(-10,Math.min(10,destination.z))},start:now,end:now+(t.kind==='line'?800:1000),hit:new Set()};
-        }
-        else {for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);}
+      for(const t of this.telegraphs.filter(t=>!t.ownerId&&t.resolvesAt<=now)) {
+        for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
-      if(this.boss.hp<=0) {
+      if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))) {
         this.phase='won';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
-        this.reward={id:this.fightId,material:this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
+        this.reward={id:this.fightId,material:this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }

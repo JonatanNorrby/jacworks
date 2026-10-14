@@ -18,7 +18,9 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 
 | [0008](0008-five-prototype-classes.md) | Superseded (roster size) | Five class-restricted prototype kits |
 
-| [0009](0009-defender-rogue-hard-warden.md) | Accepted | Defender, Rogue and separate Hard Warden tier |
+| [0009](0009-defender-rogue-hard-warden.md) | Superseded (selection and roster size) | Defender, Rogue and separate Hard Warden tier |
+
+| [0010](0010-room-votes-and-shaman.md) | Accepted | Unanimous room votes and Shaman |
 
 ## Workflow
 

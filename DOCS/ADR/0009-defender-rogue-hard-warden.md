@@ -1,6 +1,6 @@
 # ADR-0009: Defender, Rogue and a separate Hard Warden tier
 
-- **Status:** Accepted (explicit user implementation request)
+- **Status:** Superseded by ADR-0010 for encounter selection and roster size; authority, gear and persistence retained
 - **Date:** 2026-10-14
 - **Supersedes:** ADR-0008 roster size only; its authority, eligibility and persistence rules remain current.
 

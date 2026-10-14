@@ -73,3 +73,6 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #hub-card button{pointer-events:auto;cursor:pointer;margin-top:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px}
 #skill-grid>select{grid-column:1/-1;padding:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;font:inherit}
 #encounter-instructions{white-space:normal;text-align:center;width:min(840px,90vw);box-sizing:border-box}
+
+#encounter-vote { position: fixed; z-index: 100; top: 18%; left: 50%; transform: translateX(-50%); background: #182126; border: 2px solid #c6a65e; border-radius: 12px; padding: 24px; min-width: 300px; color: white; }
+#encounter-vote button { margin: 8px; padding: 10px 20px; }

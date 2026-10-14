@@ -1,3 +1,4 @@
+import {clipPillars} from '../../shared/cover';
 import { HARD_PILLARS } from '../../shared/protocol';
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
 import type { ClassId } from '../../shared/classes';
@@ -76,10 +77,10 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['hardWarden','Hard Warden'],['yellowBall','Yellow Ball'],['greenCone','Green Cone']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Enter encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
@@ -135,9 +136,10 @@ function closeTrainer(save:boolean){
 document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
 document.querySelector("#save-skills")!.addEventListener("click",()=>closeTrainer(true));
 function openTrainer(){draftClass=selectedClass;draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
-function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description})}
+function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description;el.title=skill.name+': '+skill.description})}
 renderAbilityBar();
 const classButton=document.createElement('button');classButton.textContent='Choose class';classButton.onclick=openTrainer;document.querySelector('#hub-card')!.append(classButton);
+const gateButton=document.createElement('button');gateButton.textContent='Propose boss';gateButton.onclick=()=>openHubPanel('gate');document.querySelector('#hub-card')!.append(gateButton);
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
@@ -333,6 +335,7 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
+  for(const mesh of totemMeshes.values())mesh.dispose();totemMeshes.clear();
   for (const effect of fx) effect.mesh.dispose();
   fx.length = 0;
   for (const mesh of playerMeshes.values()) mesh.dispose();
@@ -342,25 +345,26 @@ function clearEncounterMeshes() {
   telegraphMeshes.clear();
 }
 
-function enterEncounter() {
-  if (mode === "encounter") return;
-  setMode("encounter");
-  connectEncounter();
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',yellowBall:'Yellow Ball',greenCone:'Green Cone'};
+const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
+let renderedVote='';
+function syncVote(state:Snapshot){
+ const vote=state.vote;
+ if(!vote){votePanel.classList.add('hidden');renderedVote='';return;}
+ const key=JSON.stringify([vote,state.players.map(p=>[p.id,p.name])]);if(key===renderedVote)return;renderedVote=key;
+ votePanel.replaceChildren();votePanel.classList.remove('hidden');
+ const title=document.createElement('h2');title.textContent='Start '+bossNames[vote.boss]+'?';votePanel.append(title);
+ const count=document.createElement('p');count.textContent=vote.accepted.length+' / '+vote.voters.length+' accepted (30s vote)';votePanel.append(count);
+ for(const id of vote.voters){const row=document.createElement('p');row.textContent=(state.players.find(p=>p.id===id)?.name??'Player')+': '+(vote.accepted.includes(id)?'Accepted':'Waiting');votePanel.append(row);}
+ for(const accept of [true,false]){const button=document.createElement('button');button.textContent=accept?'Accept':'Decline';button.disabled=accept&&vote.accepted.includes(myId);button.onclick=()=>{syncJoin();send({type:'vote',proposalId:vote.id,accept});};votePanel.append(button);}
 }
-
+function syncJoin(){send({type:'join',name:'Player-'+myId.slice(0,4),classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
+function enterEncounter() {
+  if(ws?.readyState!==WebSocket.OPEN){message.textContent='Room disconnected. Reload to reconnect.';return;}
+  syncJoin();send({type:'propose',boss:selectedBoss});
+}
 function returnToHub() {
-  if (mode === "hub") return;
-  ws?.close();
-  ws = null;
-  snapshot = undefined;
-  myId = "";
-  clearEncounterMeshes();
-  bossFill.style.width = "100%";
-  hpFill.style.width = "100%";
-  hpText.textContent = "100 / 100";
-  hubPlayer.position.set(0, 0.85, 6.2);
-  hubPlayerRing.position.set(0, 0.08, 6.2);
-  setMode("hub");
+  send({type:'hub'});clearEncounterMeshes();setMode('hub');
 }
 
 function connectEncounter() {
@@ -382,13 +386,13 @@ function connectEncounter() {
   };
 
   socket.onmessage = (event) => {
-    if (ws !== socket || mode !== "encounter") return;
+    if (ws !== socket) return;
 
     const packet = JSON.parse(event.data) as ServerMessage;
 
     if (packet.type === "welcome") myId = packet.id;
 
-    if (packet.type === "abilityFx") {
+    if (packet.type === "abilityFx" && mode === "encounter") {
       spawnAbilityFx(packet.skill, packet.from, packet.to);
     }
 
@@ -402,7 +406,10 @@ function connectEncounter() {
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
-      snapshot = packet;
+      snapshot = packet;syncVote(packet);
+      if(packet.phase==='fight'&&mode==='hub')setMode('encounter');
+      if(packet.phase==='lobby'&&mode==='encounter'){clearEncounterMeshes();setMode('hub');}
+      if(mode==='hub')return;
       bossFill.style.width = `${(packet.boss.hp / packet.boss.maxHp) * 100}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);
@@ -416,7 +423,11 @@ function connectEncounter() {
   };
 }
 
+const totemMeshes=new Map<string,Mesh>();
 function syncEncounter(state: Snapshot) {
+ for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id);}
+ for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
+
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
  const yellow=state.boss.id==='yellowBall',green=state.boss.id==='greenCone';
  coneBoss.setEnabled(green&&state.phase!=='won');coneBoss.position.set(state.boss.pos.x,1.45,state.boss.pos.z);
@@ -513,20 +524,20 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   const end = new Vector3(to.x, 1, to.z);
   let mesh: Mesh;
   let duration: number;
-  if(['holyLight','targetedHeal','aimedShot','fireball'].includes(skill)){
-    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'?.8:.35},scene);
+  if(skill==='earthShock'){mesh=MeshBuilder.CreateTorus('earth-shock',{diameter:1.4,thickness:.2},scene);mesh.material=spearMat;start.copyFrom(end);duration=200;}else if(['holyLight','targetedHeal','aimedShot','fireball','fireTotem'].includes(skill)){
+    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'||skill==='fireTotem'?.8:.35},scene);
     if(skill==='aimedShot'){mesh.rotation.x=Math.PI/2;mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);}
-    mesh.material=skill==='fireball'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=350;
+    mesh.material=skill==='fireball'||skill==='fireTotem'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=350;
   }else if(skill==='splitShot'){
     const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize();
-    const lines=[-.3,0,.3].map(a=>[start,start.add(new Vector3(dir.x*Math.cos(a)-dir.z*Math.sin(a),0,dir.x*Math.sin(a)+dir.z*Math.cos(a)).scale(10))]);
+    const lines=[[start,end]];
     mesh=MeshBuilder.CreateLineSystem('split-arrows',{lines},scene);duration=350;
-  }else if(['arrowRain','lightningStorm','fireMine','lightningShield'].includes(skill)){
-    mesh=MeshBuilder.CreateTorus(skill,{diameter:6,thickness:.15},scene);mesh.material=skill==='fireMine'?dangerMat:arcMat;start.copyFrom(end);duration=500;
+  }else if(['arrowRain','lightningStorm','fireMine','lightningShield','healingTotem'].includes(skill)){
+    mesh=MeshBuilder.CreateTorus(skill,{diameter:skill==='healingTotem'?8:6,thickness:.15},scene);mesh.material=skill==='fireMine'?dangerMat:arcMat;start.copyFrom(end);duration=500;
   }else if(skill==='swordSwing'){
  const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize(),side=new Vector3(dir.z,0,-dir.x),points=[];
  const reach=Vector3.Distance(start,end),halfAngle=reach>3.5?Math.PI/2:Math.PI/3;
- for(let i=0;i<=20;i++){const angle=-halfAngle+i/20*halfAngle*2;points.push(start.add(dir.scale(Math.cos(angle)*reach)).add(side.scale(Math.sin(angle)*reach)))}
+ for(let i=0;i<=20;i++){const angle=-halfAngle+i/20*halfAngle*2;const point=start.add(dir.scale(Math.cos(angle)*reach)).add(side.scale(Math.sin(angle)*reach));const clipped=snapshot?.boss.id==='hardWarden'?clipPillars(from,{x:point.x,z:point.z}):{x:point.x,z:point.z};points.push(new Vector3(clipped.x,start.y,clipped.z))}
  mesh=MeshBuilder.CreateTube('sword-cleave',{path:points,radius:.09},scene);mesh.material=holyMat;duration=350;
  }else if(['chargingStab','stab','quickStab','backstab','heroicShield'].includes(skill)){
  mesh=MeshBuilder.CreateBox('charging-stab',{width:.22,height:.3,depth:Vector3.Distance(start,end)},scene);mesh.position.copyFrom(Vector3.Center(start,end));mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);mesh.material=spearMat;duration=400;
@@ -553,7 +564,7 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   }
   if(!['lazor','swordSwing','chargingStab','stab','quickStab','backstab','heroicShield','splitShot'].includes(skill))mesh.position.copyFrom(start);
   if (skill === "dash") mesh.position.copyFrom(end);
-  fx.push({ mesh, born: performance.now(), duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
+  fx.push({ mesh, born: performance.now(), duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal","fireTotem"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
 
 function updateEffects() {
@@ -605,6 +616,7 @@ function hubPortalDistance() {
 
 addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+  if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
   if(optionsOpen){if(key==='escape')closeOptions();return}
   if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
   if(trainerOpen){if(key==="escape")closeTrainer(false);return}
@@ -632,7 +644,7 @@ addEventListener("keydown", (event) => {
     }
   }
 
-  if (key === "r") send({ type: "ready" });
+  if (key === 'r'&&!event.repeat)send({type:'propose',boss:snapshot?.boss.id??selectedBoss});
   if (key === "h") returnToHub();
 });
 
@@ -667,7 +679,7 @@ function updateHub(deltaSeconds: number) {
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
   const nearGate = hubPortalDistance() <= 3 || Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2;
-  status.textContent = Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2?'Hard Warden - E to enter':nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
+  status.textContent = Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2?'Hard Warden - E to propose':nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
   if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';
@@ -677,10 +689,11 @@ function updateHub(deltaSeconds: number) {
 }
 
 setMode("hub");
+connectEncounter();
 
 engine.runRenderLoop(() => {
   const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen) updateHub(deltaSeconds);
+  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen && !snapshot?.vote) updateHub(deltaSeconds);
   else if (snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }

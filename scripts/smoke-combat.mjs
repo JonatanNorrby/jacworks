@@ -6,6 +6,12 @@ const port=18787;
 const server=spawn(process.execPath,['--import','tsx','server/index.ts'],{env:{...process.env,PORT:String(port)},stdio:['ignore','pipe','pipe']});
 const clients=[];
 async function waitFor(test,label){for(let i=0;i<100;i++){if(test())return;await delay(50)}throw Error('Timeout: '+label)}
+async function begin(group){
+ group[0].ws.send(JSON.stringify({type:'propose',boss:group[0].snapshot.boss.id}));
+ await waitFor(()=>group.every(c=>c.snapshot?.vote),'proposal broadcast');
+ const id=group[0].snapshot.vote.id;
+ for(const c of group)c.ws.send(JSON.stringify({type:'vote',proposalId:id,accept:true}));
+}
 try{
  await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('error',reject);server.once('exit',code=>reject(Error('Server exit '+code)))});
  for(let i=0;i<2;i++){
@@ -14,7 +20,7 @@ try{
   await waitFor(()=>c.id,'welcome');c.ws.send(JSON.stringify({type:'join',name:'Smoke-'+i,boss:'greenCone',classId:'warrior',loadout:['swordSwing','chargingStab','guard','dash']}));
  }
  await waitFor(()=>clients.every(c=>c.snapshot?.players.length===2),'shared room');
- for(const c of clients)c.ws.send(JSON.stringify({type:'ready'}));
+ await begin(clients);
  await waitFor(()=>clients.every(c=>c.snapshot?.phase==='fight'),'fight');
  const c=clients[0];
  for(let seq=0;seq<10;seq++){c.ws.send(JSON.stringify({type:'input',seq,move:{x:0,z:-1}}));await delay(50)}
@@ -37,7 +43,7 @@ try{
    await waitFor(()=>c.id,'class welcome');c.ws.send(JSON.stringify({type:'join',name:classId,classId,loadout:definitions[classId],boss:'warden'}));
   }
   await waitFor(()=>pairClients.every(c=>c.snapshot?.players.length===2&&c.snapshot.players.every(p=>pair.includes(p.classId))),'class snapshots');
-  for(const c of pairClients)c.ws.send(JSON.stringify({type:'ready'}));
+  await begin(pairClients);
   await waitFor(()=>pairClients.every(c=>c.snapshot?.phase==='fight'),'class fight');
   // Exercise every skill without interrupting the timed casts/channels.
   for(let slot=1;slot<=4;slot++){
@@ -67,7 +73,7 @@ try{
   c.ws.send(JSON.stringify({type:'join',classId,boss:'hardWarden',loadout:classId==='defender'?['stab','bulwark','heroicShield','dash']:['quickStab','vanish','poisonEnchant','dash'],inventory:{rewards:{a:'largeCylinder',b:'largeCylinder',c:'largeCylinder'},armours:1,armour:'redtubeArmour'}}));
  }
  await waitFor(()=>duo.every(c=>c.snapshot?.players.length===2&&c.snapshot.boss.id==='hardWarden'),'hard room');
- for(const c of duo)c.ws.send(JSON.stringify({type:'ready'}));
+ await begin(duo);
  await waitFor(()=>duo.every(c=>c.snapshot?.phase==='fight'),'hard fight');
  const [defender,rogue]=duo;
  for(let seq=0;seq<28;seq++){for(const c of duo)c.ws.send(JSON.stringify({type:'input',seq,move:{x:0,z:-1}}));await delay(50)}

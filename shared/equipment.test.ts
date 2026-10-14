@@ -30,11 +30,11 @@ test('wand transforms Arc Blast in every slot and unequipping restores base skil
 });
 test('direct spear selection and client damage cannot bypass server equipment rules',()=>{
  const g=room(),p=g.add('p');g.message('p',{type:'join',loadout:['arcSpear','dash','pulseNova','guard'],weapon:'primitiveWand'});
- assert.equal(p.loadout[0],'arcBolt');g.message('p',{type:'ready'},100);g.message('p',{type:'ability',slot:1,skill:'arcSpear',damage:9999},200);assert.equal(g.boss.hp,1782);
+ assert.equal(p.loadout[0],'arcBolt');g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.message('p',{type:'ability',slot:1,skill:'arcSpear',damage:9999},200);assert.equal(g.boss.hp,1782);
  g.message('p',{type:'join',inventory:{...owned(),weapon:'primitiveWand'}},300);assert.equal(p.weapon,null);
 });
 test('equipped damage and cooldown are server derived; late entrant equipment is isolated',()=>{
- const g=room(),a=g.add('a');g.message('a',{type:'ready'},100);const b=g.add('b');
+ const g=room(),a=g.add('a');g.message('a',{type:'ready'},100);g.message('a',{type:'vote',proposalId:g.vote?.id,accept:true},100);const b=g.add('b');
  g.message('b',{type:'join',inventory:{...owned(),weapon:'primitiveWand'},boss:'yellowBall'});
  assert.equal(g.boss.id,'warden');assert.equal(a.weapon,null);assert.equal(b.loadout[0],'arcSpear');
  g.message('b',{type:'ability',slot:1,damage:1},200);assert.equal(g.boss.hp,1728);assert.equal(b.cooldowns[0],200+SKILLS.arcSpear.cooldown);

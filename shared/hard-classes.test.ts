@@ -4,7 +4,7 @@ import {Game,HARD_PILLARS,pillarOccludes,moveSolid,chargeEnd,distance} from './g
 import {CLASS_DEFINITIONS,gearEligible} from './classes';
 import type {ClassId} from './classes';
 import {emptyInventory,craft,equip,readInventory,countInventory,grantReward} from './inventory';
-function room(classId:ClassId='defender',hard=false){let n=0;const events:any[]=[];const g=new Game(e=>events.push(e),()=>String(++n));const p=g.add('p');g.message('p',{type:'join',classId,loadout:CLASS_DEFINITIONS[classId].skills,boss:hard?'hardWarden':'warden'});g.message('p',{type:'ready'},100);g.next=1e9;p.pos={x:0,z:2};p.facing={x:0,z:-1};const use=(skill:string,now=200,extra:object={})=>g.message('p',{type:'ability',slot:p.loadout.indexOf(skill as never)+1,...extra},now);return {g,p,use,events};}
+function room(classId:ClassId='defender',hard=false){let n=0;const events:any[]=[];const g=new Game(e=>events.push(e),()=>String(++n));const p=g.add('p');g.message('p',{type:'join',classId,loadout:CLASS_DEFINITIONS[classId].skills,boss:hard?'hardWarden':'warden'});g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.next=1e9;p.pos={x:0,z:2};p.facing={x:0,z:-1};const use=(skill:string,now=200,extra:object={})=>g.message('p',{type:'ability',slot:p.loadout.indexOf(skill as never)+1,...extra},now);return {g,p,use,events};}
 test('Bulwark halves movement and damage, expires, cannot be refreshed on cooldown',()=>{
  const {g,p,use}=room();use('bulwark');use('bulwark',300);assert.equal(p.bulwarkUntil,6200);g.hurt(p,300);assert.equal(p.hp,76);
  p.pos={x:0,z:8};g.message('p',{type:'input',seq:1,move:{x:1,z:0}},400);g.tick(400);assert.equal(p.pos.x,.11);
@@ -56,8 +56,11 @@ test('Hard Warden sweep hits full arena except pillar cover; normal Warden retai
  const {g,p}=room('defender',true);p.pos={x:7,z:0};const a=g.add('a');a.pos={x:0,z:7};g.mechanic=1;g.schedule(200);assert.equal(g.telegraphs[0].sweep,true);g.tick(1700);assert.equal(p.hp,100);assert.equal(a.hp,36);
  const normal=room();normal.g.mechanic=1;normal.g.schedule(200);assert.equal(normal.g.telegraphs[0].kind,'line');assert.equal(normal.g.telegraphs[0].sweep,undefined);
 });
-test('Hard Warden large blast and fixed-position triple scatter spaced 500ms',()=>{
- const {g,p}=room('defender',true);assert.equal(g.boss.hp,3000);g.schedule(200);assert.equal(g.telegraphs[0].radius,4.2);g.telegraphs=[];g.mechanic=2;g.schedule(300);assert.deepEqual(g.telegraphs.map(t=>t.resolvesAt).sort(),[1800,2300,2800]);for(const t of g.telegraphs)assert.deepEqual(t.pos,p.pos);
+test('Hard Warden scatter deploys at 0/500/1000ms and tracks at each deployment',()=>{
+ const {g,p}=room('defender',true);g.schedule(200);assert.equal(g.telegraphs[0].radius,4.2);g.telegraphs=[];g.mechanic=2;g.schedule(300);
+ assert.equal(g.telegraphs.length,1);assert.deepEqual(g.telegraphs[0].pos,{x:0,z:2});g.tick(799);assert.equal(g.telegraphs.length,1);
+ p.pos={x:0,z:5};g.tick(800);assert.equal(g.telegraphs.length,2);assert.deepEqual(g.telegraphs[1].pos,{x:0,z:5});g.tick(1299);assert.equal(g.telegraphs.length,2);
+ p.pos={x:0,z:9};g.tick(1300);assert.equal(g.telegraphs.length,3);assert.deepEqual(g.telegraphs[2].pos,{x:0,z:9});assert.deepEqual(g.telegraphs.map(t=>t.resolvesAt),[1800,2300,2800]);
  p.pos={x:8,z:8};g.tick(2800);assert.equal(p.hp,100);
 });
 test('hard selection locks, victory grants distinct loot once, reset retains hard HP',()=>{
@@ -73,7 +76,7 @@ test('armour reduces boss damage 5%, excludes add damage, expands Sword Swing re
 });
 
 test('Vanish swaps a rearranged slot and forged client buff fields are ignored',()=>{
- const {g,p}=room('rogue');g.reset();g.message('p',{type:'join',classId:'rogue',loadout:['dash','poisonEnchant','quickStab','vanish'],shield:999,invisibleUntil:999999});assert.equal(p.shield,0);assert.equal(p.invisibleUntil,0);g.message('p',{type:'ready'},100);g.next=1e9;
+ const {g,p}=room('rogue');g.reset();g.message('p',{type:'join',classId:'rogue',loadout:['dash','poisonEnchant','quickStab','vanish'],shield:999,invisibleUntil:999999});assert.equal(p.shield,0);assert.equal(p.invisibleUntil,0);g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.next=1e9;
  g.message('p',{type:'ability',slot:4},200);assert.equal(p.loadout[3],'backstab');assert.equal(p.loadout[1],'poisonEnchant');g.tick(4200);assert.equal(p.loadout[3],'vanish');assert.equal(p.cooldowns[3],8200);
 });
 test('Guard, Bulwark and armour mitigate before absorption; shields do not stack',()=>{
@@ -81,5 +84,5 @@ test('Guard, Bulwark and armour mitigate before absorption; shields do not stack
  p.cooldowns[2]=0;use('heroicShield',400);assert.equal(p.shield,80);
 });
 test('triple scatter actually resolves separate hits 500ms apart',()=>{
- const {g,p}=room('defender',true);p.hp=p.maxHp=300;g.mechanic=2;g.schedule(200);g.tick(1699);assert.equal(p.hp,300);g.tick(1700);assert.equal(p.hp,236);g.tick(2199);assert.equal(p.hp,236);g.tick(2200);assert.equal(p.hp,172);g.tick(2700);assert.equal(p.hp,108);
+ const {g,p}=room('defender',true);p.hp=p.maxHp=300;g.mechanic=2;g.schedule(200);g.tick(700);g.tick(1200);g.tick(1699);assert.equal(p.hp,300);g.tick(1700);assert.equal(p.hp,236);g.tick(2199);assert.equal(p.hp,236);g.tick(2200);assert.equal(p.hp,172);g.tick(2700);assert.equal(p.hp,108);
 });

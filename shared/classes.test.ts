@@ -5,7 +5,7 @@ import {CLASS_DEFINITIONS,resolveClassLoadout,readClass,gearEligible,loadClass,s
 import type {ClassId} from './classes';
 import type {SkillId} from './protocol';
 import {emptyInventory,craft,equip,countInventory,readInventory} from './inventory';
-function setup(classId:ClassId){let n=0;const events:any[]=[];const g=new Game(e=>events.push(e),()=>String(++n));const p=g.add('p');g.message('p',{type:'join',classId,loadout:CLASS_DEFINITIONS[classId].skills});g.message('p',{type:'ready'},100);g.next=1e9;p.pos={x:0,z:2};p.facing={x:0,z:-1};return {g,p,events,use:(skill:SkillId,now=200,extra:object={})=>g.message('p',{type:'ability',slot:p.loadout.indexOf(skill)+1,...extra},now)}}
+function setup(classId:ClassId){let n=0;const events:any[]=[];const g=new Game(e=>events.push(e),()=>String(++n));const p=g.add('p');g.message('p',{type:'join',classId,loadout:CLASS_DEFINITIONS[classId].skills});g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.next=1e9;p.pos={x:0,z:2};p.facing={x:0,z:-1};return {g,p,events,use:(skill:SkillId,now=200,extra:object={})=>g.message('p',{type:'ability',slot:p.loadout.indexOf(skill)+1,...extra},now)}}
 for(const classId of Object.keys(CLASS_DEFINITIONS) as ClassId[]){
  test(`${classId}: authoritative skills reject mixing, midfight switches and spoofed damage`,()=>{
   const {g,p}=setup(classId);assert.equal(p.classId,classId);assert.deepEqual(p.loadout,CLASS_DEFINITIONS[classId].skills);
@@ -67,7 +67,7 @@ test('class gear eligibility preserves all inventory receipts, ownership and sav
  assert.equal(readClass('__proto__'),'lightningMage');assert.equal(readClass('prototype'),'lightningMage');
 });
 test('reset, victory and disconnect clean up casts and persistent effects',()=>{
- const {g,p,use}=setup('lightningMage');use('lightningShield');use('lightningStorm',300);g.reset();assert.equal(g.effects.length,0);assert.equal(p.cast,undefined);assert.deepEqual(p.cooldowns,[0,0,0,0]);g.message('p',{type:'ready'},500);use('lightningShield',600);use('lightningStorm',700);g.boss.hp=0;g.tick(800);assert.equal(g.effects.length,0);assert.equal(p.cast,undefined);g.remove('p');assert.equal(g.players.size,0);
+ const {g,p,use}=setup('lightningMage');use('lightningShield');use('lightningStorm',300);g.reset();assert.equal(g.effects.length,0);assert.equal(p.cast,undefined);assert.deepEqual(p.cooldowns,[0,0,0,0]);g.message('p',{type:'ready'},500);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},500);use('lightningShield',600);use('lightningStorm',700);g.boss.hp=0;g.tick(800);assert.equal(g.effects.length,0);assert.equal(p.cast,undefined);g.remove('p');assert.equal(g.players.size,0);
 });
 
 test('class choice persists independently of old inventory and invalid values migrate safely',()=>{
@@ -77,5 +77,5 @@ test('class choice persists independently of old inventory and invalid values mi
 });
 
 test('ready without join cannot bypass the active class lock',()=>{
- const g=new Game(()=>{},()=> 'id'),p=g.add('p');g.message('p',{type:'ready'},100);g.message('p',{type:'join',classId:'warrior'},200);assert.equal(p.classId,'lightningMage');assert.equal(p.loadout.includes('swordSwing'),false);
+ const g=new Game(()=>{},()=> 'id'),p=g.add('p');g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.message('p',{type:'join',classId:'warrior'},200);assert.equal(p.classId,'lightningMage');assert.equal(p.loadout.includes('swordSwing'),false);
 });

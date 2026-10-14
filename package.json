@@ -11,7 +11,8 @@
     "start": "tsx server/index.ts",
     "dev:cloudflare": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
-    "test": "node --import ./scripts/test-register.mjs --test shared/*.test.ts"
+    "test": "node --import ./scripts/test-register.mjs --test shared/*.test.ts",
+    "smoke": "node scripts/smoke-combat.mjs && node scripts/smoke-vote-totems.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^8.0.0",

@@ -2,6 +2,7 @@ import { baseLoadout, encounterLoadout } from './protocol';
 import type { Loadout, SkillId, Weapon } from './protocol';
 export type ClassDefinition={id:string;name:string;skills:readonly SkillId[]};
 export const CLASS_DEFINITIONS={
+ shaman:{id:'shaman',name:'Shaman',skills:['earthShock','fireTotem','healingTotem','dash']},
  defender:{id:'defender',name:'Defender',skills:['stab','bulwark','heroicShield','dash']},
  rogue:{id:'rogue',name:'Rogue',skills:['quickStab','vanish','poisonEnchant','dash']},
  warrior:{id:'warrior',name:'Warrior',skills:['swordSwing','chargingStab','guard','dash']},

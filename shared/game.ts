@@ -1,4 +1,5 @@
-import { DEFAULT_LOADOUT, SKILLS, validLoadout } from './protocol';
+import { readInventory } from './inventory';
+import { DEFAULT_LOADOUT, SKILLS, baseLoadout, encounterLoadout } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2 } from './protocol';
 
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
@@ -23,16 +24,17 @@ export class Game {
   moves=new Map<string,{v:Vec2;at:number;seq:number}>();
   ready=new Set<string>(); phase:Snapshot['phase']='lobby';
   selectionLocked=false;
+  initialized=new Set<string>();
   boss:Snapshot['boss']={id:'warden',hp:1800,maxHp:1800,pos:{x:0,z:0},height:0};
   telegraphs:Telegraph[]=[]; reward:Snapshot['reward']; next=0; mechanic=0; fightId=''; motion?:Motion;
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
-    const p:PlayerState={id,name:'Player',pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT]};
+    const p:PlayerState={id,name:'Player',pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT],weapon:null};
     this.players.set(id,p);return p;
   }
-  remove(id:string) {this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.reset();this.boss.id='warden';this.selectionLocked=false;}}
+  remove(id:string) {this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.reset();this.boss.id='warden';this.selectionLocked=false;}}
   reset() {
     this.phase='lobby';this.boss.hp=1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
@@ -41,11 +43,14 @@ export class Game {
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
     const v=m as Record<string,unknown>;
-    if(v.type==='join'&&this.phase==='lobby'&&!this.ready.has(id)) {
+    if(v.type==='join'&&(!this.initialized.has(id)||(this.phase==='lobby'&&!this.ready.has(id)))) {
+      this.initialized.add(id);
       if(typeof v.name==='string')p.name=v.name.slice(0,24);
-      if(validLoadout(v.loadout))p.loadout=[...v.loadout];
+      const inventory=readInventory(JSON.stringify(v.inventory??null));
+      p.weapon=inventory.weapon;
+      p.loadout=encounterLoadout(baseLoadout(v.loadout),p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall')) {this.boss.id=v.boss;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall')) {this.boss.id=v.boss;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;

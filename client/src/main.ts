@@ -11,10 +11,10 @@ import {
   StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
-import { DEFAULT_LOADOUT, ITEMS, SKILLS, validLoadout } from "../../shared/protocol";
+import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equipWeapon } from './inventory';
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -43,7 +43,7 @@ const trainerPrompt=document.querySelector<HTMLElement>("#trainer-prompt")!;
 const skillGrid=document.querySelector<HTMLElement>("#skill-grid")!;
 const skillLoadout=document.querySelector<HTMLElement>("#skill-loadout")!;
 let loadout:Loadout=[...DEFAULT_LOADOUT];
-try{const saved=JSON.parse(localStorage.getItem("jacworks-loadout")??"null");if(validLoadout(saved))loadout=[...saved]}catch{}
+try{const saved=JSON.parse(localStorage.getItem("jacworks-loadout")??"null");loadout=baseLoadout(saved)}catch{}
 let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
@@ -52,30 +52,36 @@ const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 const inventoryDisplay=document.createElement('div');inventoryDisplay.id='inventory-display';document.body.append(inventoryDisplay);
 let inventory=readInventory(localStorage.getItem(inventoryKey));
+localStorage.setItem(inventoryKey,JSON.stringify(inventory));
 function renderInventory(){inventoryDisplay.textContent=Object.entries(countInventory(inventory)).map(([id,n])=>ITEMS[id as keyof typeof ITEMS]+': '+n).join(' | ')}
 function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden');keys.clear()}
-function openHubPanel(kind:'gate'|'crafter'){
+function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
- const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':'Recipe: 1 Cylinder Tube + 1 Spherical Ball = 1 Odd Contraption';inventoryPanel.append(copy);
+ const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Equipment changes Arc Blast into Arc Spear during encounters.':'Recipe: 1 Cylinder Tube + 1 Spherical Ball = 1 Primitive Wand';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['yellowBall','Yellow Ball']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
  const button=document.createElement('button');button.textContent='Enter encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ }else if(kind==='wardrobe'){
+ const slot=document.createElement('p');slot.textContent='Weapon: '+(inventory.weapon==='primitiveWand'?'Primitive Wand (Equipped)':'Empty');inventoryPanel.append(slot);
+ const owned=document.createElement('p');owned.textContent='Owned Primitive Wands: '+countInventory(inventory).primitiveWand;inventoryPanel.append(owned);
+ const button=document.createElement('button');button.textContent=inventory.weapon?'Unequip Primitive Wand':'Equip Primitive Wand';button.disabled=!inventory.weapon&&inventory.crafted<1;
+ button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equipWeapon(inventory,inventory.weapon?null:'primitiveWand')){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('wardrobe')}};inventoryPanel.append(button);
  }else{
- const button=document.createElement('button');button.textContent='Craft Odd Contraption';const c=countInventory(inventory);button.disabled=c.cylinderTube<1||c.sphericalBall<1;
- button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter');const result=document.createElement('p');result.textContent='Crafted Odd Contraption! Added to inventory.';inventoryPanel.append(result)}};inventoryPanel.append(button);
+ const button=document.createElement('button');button.textContent='Craft Primitive Wand';const c=countInventory(inventory);button.disabled=c.cylinderTube<1||c.sphericalBall<1;
+ button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter');const result=document.createElement('p');result.textContent='Crafted Primitive Wand! Added to inventory.';inventoryPanel.append(result)}};inventoryPanel.append(button);
  }
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }
 renderInventory();
 addEventListener('storage',e=>{if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();if(hubPanelOpen)closeHubPanel()}});
 function renderSkills(){
-  skillGrid.innerHTML=Object.entries(SKILLS).map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
+  skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear").map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
   skillLoadout.replaceChildren();
   for(let i=0;i<4;i++){
     const wrap=document.createElement("div"),label=document.createElement("div"),select=document.createElement("select");
     label.className="skill-slot-label";label.textContent=`Slot ${i+1}`;select.className="skill-choice";
-    for(const [id,skill] of Object.entries(SKILLS)){
+    for(const [id,skill] of Object.entries(SKILLS).filter(([id])=>id!=="arcSpear")){
       const option=document.createElement("option");option.value=id;option.textContent=skill.name;
       option.selected=id===draft[i];select.append(option);
     }
@@ -94,7 +100,7 @@ function closeTrainer(save:boolean){
 document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
 document.querySelector("#save-skills")!.addEventListener("click",()=>closeTrainer(true));
 function openTrainer(){draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
-function renderAbilityBar(){abilitySlots.forEach((el,i)=>{const skill=SKILLS[loadout[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description})}
+function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description})}
 renderAbilityBar();
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
@@ -210,6 +216,11 @@ const crafter=pushHub(MeshBuilder.CreateCapsule('crafter',{height:2,radius:.65},
 const craftingTable=pushHub(MeshBuilder.CreateBox('crafting-table',{width:1.8,height:.8,depth:1.2},scene));craftingTable.position.set(4.3,.4,2.3);craftingTable.material=hubStoneMat;
 const tube=pushHub(MeshBuilder.CreateCylinder('tube-example',{diameter:.35,height:.6},scene));tube.position.set(3.9,1.1,2.3);tube.material=bossMat;
 const ball=pushHub(MeshBuilder.CreateSphere('ball-example',{diameter:.45},scene));ball.position.set(4.7,1.05,2.3);ball.material=holyMat;
+const wardrobe=pushHub(MeshBuilder.CreateBox('wardrobe',{width:2.2,height:2.8,depth:1},scene));wardrobe.position.set(5.5,1.4,-2.5);wardrobe.material=hubStoneMat;
+for(const x of [4.95,6.05]){
+ const door=pushHub(MeshBuilder.CreateBox('wardrobe-door',{width:1,height:2.5,depth:.1},scene));door.position.set(x,1.4,-3.06);door.material=hubAccentMat;
+ const handle=pushHub(MeshBuilder.CreateSphere('wardrobe-handle',{diameter:.16},scene));handle.position.set(x+(x<5.5?.35:-.35),1.4,-3.18);handle.material=holyMat;
+}
 const arenaGround = pushArena(MeshBuilder.CreateGround("arena", { width: 26, height: 26 }, scene));
 arenaGround.material = arenaGroundMat;
 
@@ -309,7 +320,7 @@ function connectEncounter() {
   socket.onopen = () => {
     if (ws !== socket) return;
     status.textContent = "Connected · press R when ready";
-    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,loadout,boss:selectedBoss }));
+    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,loadout,boss:selectedBoss,inventory:readInventory(localStorage.getItem(inventoryKey)) }));
   };
 
   socket.onclose = () => {
@@ -343,6 +354,7 @@ function connectEncounter() {
       syncEncounter(packet);
       const me = packet.players.find((p) => p.id === myId);
       if (me) {
+        renderAbilityBar(me.loadout);
         hpFill.style.width = `${Math.max(0, me.hp / me.maxHp * 100)}%`;
         hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}`;
       }
@@ -492,7 +504,7 @@ function updateCooldowns() {
     const remaining = mode === "encounter" && me ? Math.max(0, me.cooldowns[i] - now) : 0;
     const overlay = abilitySlots[i].querySelector<HTMLElement>(".cooldown-overlay")!;
     const label = abilitySlots[i].querySelector<HTMLElement>(".cooldown-text")!;
-    overlay.style.transform = `scaleY(${remaining / SKILLS[loadout[i]].cooldown})`;
+    overlay.style.transform = `scaleY(${remaining / SKILLS[me?.loadout[i]??loadout[i]].cooldown})`;
     label.textContent = remaining > 0 ? (remaining / 1000).toFixed(1) : "";
   }
 }
@@ -510,6 +522,7 @@ addEventListener("keydown", (event) => {
   if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
   if(trainerOpen){if(key==="escape")closeTrainer(false);return}
   keys.add(key);
+  if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6){openHubPanel('wardrobe');return}
   if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
 
   if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
@@ -562,6 +575,7 @@ function updateHub(deltaSeconds: number) {
   status.textContent = nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
+  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe � press E';
   const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.08;
   portalRing.scaling.set(pulse, 1, pulse);
 }

@@ -36,11 +36,11 @@ Hub:
 - WASD — move
 - E — enter the encounter when standing near the Expedition Gate
 - E at the gold Skill Trainer — equip four skills, including LAZOR
-- E at the purple Crafter — craft Odd Contraption from boss materials
+- E at the purple Crafter — craft Primitive Wand from boss materials
 
 Encounter:
 - WASD — move
-- 1 — Arc Bolt (ranged damage)
+- 1 — Arc Blast (ranged damage)
 - 2 — Dash
 - 3 — Pulse Nova (close-range burst)
 - 4 — Guard (brief heavy damage reduction)
@@ -55,7 +55,7 @@ The gate opens boss selection: Warden (red cylinder) or Yellow Ball (yellow sphe
 
 LAZOR fires a 14-unit forward beam, dealing 90 damage on intersection with the boss, with a 2.4-second cooldown. Player noses show actual movement direction and keep their facing when stopped. Equip it at the existing Skill Trainer before entering.
 
-Victory automatically grants Cylinder Tube from Warden or Spherical Ball from Yellow Ball. A miniature material mesh marks the drop. Inventory and victory receipt IDs persist in browser localStorage, preventing repeated snapshots from granting the same reward twice. At the Crafter, spend one of each to produce Odd Contraption, displayed in inventory. This is browser-local prototype persistence, not an account inventory or tamper-proof economy; clients cannot award loot or damage to the server. Clearing browser storage clears these items. Rewards require being connected when the victory snapshot arrives.
+Victory automatically grants Cylinder Tube from Warden or Spherical Ball from Yellow Ball. A miniature material mesh marks the drop. Inventory and victory receipt IDs persist in browser localStorage, preventing repeated snapshots from granting the same reward twice. At the Crafter, spend one of each to produce Primitive Wand, displayed in inventory. This is browser-local prototype persistence, not an account inventory or tamper-proof economy; clients cannot award loot or damage to the server. Clearing browser storage clears these items. Rewards require being connected when the victory snapshot arrives.
 
 Validation: `npm test` runs collision, facing, input validation, directional attack, boss selection/motion, reward and crafting regressions. `npm run build` checks TypeScript and builds the client. The native Vite configuration loader and Node test runner require Node 24+. No external art assets are used.
 
@@ -70,3 +70,5 @@ npm run deploy
 
 
 > Cloudflare preview configuration: Preview URLs enabled; Build command `npm run build`; Preview command `npm run build && npx wrangler preview`.
+
+Primitive Wand is reusable Weapon equipment. Old crafted contraptions migrate one-for-one to owned wands, initially unequipped. Arc Spear is unavailable at the trainer; equipping a wand transforms Arc Blast (`arcBolt`) in any slot for the encounter. Unequipping restores the base skill. The shared server validates saved material receipts and crafting counts before accepting an equipped wand and derives the encounter loadout and damage itself. As before, browser-local saves are not authenticated account ownership; forged local reward ledgers are outside this prototype economy boundary.

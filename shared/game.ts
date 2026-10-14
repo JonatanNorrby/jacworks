@@ -146,7 +146,7 @@ export class Game {
       const kind=this.mechanic%3;
       t={id:this.uuid(),kind:'circle',pos:kind===2?{...this.boss.pos}:{...target.pos},radius:kind===2?35:kind===1?4.2:2.6,resolvesAt:now+1500,sweep:kind===2};
       if(kind===0)for(let i=1;i<=2;i++)this.telegraphs.push({...t,id:this.uuid(),resolvesAt:t.resolvesAt+i*500});
-      this.emit({type:'event',text:kind===2?'Hard Warden: hide behind a pillar!':kind===0?'Triple scatter — move!':'Large marked blast!'});
+      this.emit({type:'event',text:kind===2?'Hard Warden: hide behind a pillar!':kind===0?'Triple scatter - move!':'Large marked blast!'});
     } else if(this.boss.id==='yellowBall') {
       const roll=this.mechanic%2===1;
       t=roll?{id:this.uuid(),kind:'line',pos:{...this.boss.pos},direction:dir,width:3.5,length:10,resolvesAt:now+1500}:{id:this.uuid(),kind:'circle',pos:{...target.pos},radius:3.2,resolvesAt:now+1500};

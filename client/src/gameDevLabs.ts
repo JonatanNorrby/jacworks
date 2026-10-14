@@ -278,6 +278,7 @@ export function installGameDevLabs(options: InstallOptions) {
 
   function updateVfxCopy() {
     if (vfxTab === "players") {
+      if (activeBoss && !activeBoss.isDisposed()) activeBoss.setEnabled(false);
       const preview = currentPlayerPreview();
       description.textContent = SKILLS[preview.skill].description;
       stageLabel.textContent = `${preview.group} · ${SKILLS[preview.skill].name}`;

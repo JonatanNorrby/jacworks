@@ -1,5 +1,6 @@
+import { PROTOTYPE_CLASS_ID, resolveClassLoadout } from './classes';
 import { readInventory } from './inventory';
-import { DEFAULT_LOADOUT, SKILLS, baseLoadout, encounterLoadout } from './protocol';
+import { DEFAULT_LOADOUT, SKILLS } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
@@ -18,6 +19,18 @@ export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2):Vec2 {
     if(l<1.73) p={x:clamp(boss.x+(l?dx/l:1)*1.73),z:clamp(boss.z+(l?dz/l:0)*1.73)};
   } return p;
 }
+// Center-based 120-degree cleave; a stab uses a narrower forward reach.
+export function meleeHits(from:Vec2,dir:Vec2,target:Vec2,reach=3,cosine=.5){
+ const d=distance(from,target);return d>0&&d<=reach&&((target.x-from.x)*dir.x+(target.z-from.z)*dir.z)/d>=cosine;
+}
+// Charge stops at the first solid body rather than sliding or tunnelling through it.
+export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5):Vec2 {
+ let p={...from};for(let travelled=0;travelled<length;travelled+=.05){
+  const step=Math.min(.05,length-travelled),next={x:p.x+dir.x*step,z:p.z+dir.z*step};
+  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||adds.some(a=>a.hp>0&&distance(next,a.pos)<.9))break;
+  p=next;
+ }return p;
+}
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
   players=new Map<string,PlayerState>();
@@ -32,7 +45,7 @@ export class Game {
   uuid:()=>string;
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
-    const p:PlayerState={id,name:'Player',pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT],weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
+    const p:PlayerState={id,name:'Player',classId:PROTOTYPE_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:[...DEFAULT_LOADOUT],weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
     this.players.set(id,p);return p;
   }
   remove(id:string) {this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.reset();this.boss.id='warden';this.selectionLocked=false;}}
@@ -49,7 +62,7 @@ export class Game {
       if(typeof v.name==='string')p.name=v.name.slice(0,24);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
       p.weapon=inventory.weapon;p.head=inventory.head;p.offhand=inventory.offhand;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
-      p.loadout=encounterLoadout(baseLoadout(v.loadout),p.weapon);
+      p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.selectionLocked=true;}
     }
@@ -74,6 +87,13 @@ export class Game {
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
     if(skill==='dash')p.pos=moveSolid(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.boss.pos);
+    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.boss.pos,this.adds);
+    if(skill==='swordSwing'||skill==='chargingStab') {
+      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:3,angle=skill==='chargingStab'?.85:.5;
+      to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
+      if(meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
+      for(const a of this.adds)if(a.hp>0&&meleeHits(origin,p.facing,a.pos,reach,angle))a.hp=Math.max(0,a.hp-(skill==='swordSwing'?38:60));
+    }
     if(skill==='lazor') {to={x:from.x+p.facing.x*14,z:from.z+p.facing.z*14};if(beamHits(from,p.facing,this.boss.pos))damage=90;}
     if(skill==='arcBolt'||skill==='arcSpear') {damage=skill==='arcBolt'?18:72;to={...target.pos};}
     if(skill==='pulseNova'&&d<=4.2)damage=45;if(skill==='guard')p.guardUntil=now+1600;

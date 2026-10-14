@@ -36,3 +36,9 @@ export function equip(v:Inventory,slot:'weapon'|'head'|'offhand',gear:Gear|null)
  if(slot==='weapon')v.weapon=gear as Weapon;else if(slot==='head')v.head=gear as Inventory['head'];else v.offhand=gear as Inventory['offhand'];return true;
 }
 export function equipWeapon(v:Inventory,weapon:Weapon){return equip(v,'weapon',weapon)}
+
+export const GEAR_SLOTS={primitiveWand:'weapon',pointyHat:'head',pointyOrb:'offhand'} as const;
+export function inventoryView(v:Inventory){const counts=countInventory(v);return {
+ materials:(['cylinderTube','sphericalBall','conicalTaper'] as const).map(id=>({id,count:counts[id]})),
+ gear:(Object.keys(GEAR_SLOTS) as Gear[]).filter(id=>counts[id]>0).map(id=>({id,count:counts[id],slot:GEAR_SLOTS[id],equipped:v[GEAR_SLOTS[id]]===id}))
+}}

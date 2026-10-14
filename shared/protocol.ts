@@ -1,5 +1,5 @@
 export type Vec2={x:number;z:number};
-export const SKILLS={lazor:{name:"LAZOR",description:"90 directional beam damage",cooldown:2400},arcBolt:{name:"Arc Blast",description:"18 ranged damage",cooldown:650},dash:{name:"Dash",description:"Move 3.5 units",cooldown:2600},pulseNova:{name:"Pulse Nova",description:"45 close-range damage",cooldown:3200},guard:{name:"Guard",description:"75% mitigation for 1.6s",cooldown:4800},arcSpear:{name:"Arc Spear",description:"72 ranged damage",cooldown:2600},holyNova:{name:"Holy Nova",description:"Heal allies 25 HP within 4.5 units",cooldown:5000}} as const;
+export const SKILLS={swordSwing:{name:"Sword Swing",description:"38 damage frontal cleave - 3 units",cooldown:1100},chargingStab:{name:"Charging Stab",description:"Charge 5 units, then stab for 60 damage",cooldown:3600},lazor:{name:"LAZOR",description:"90 directional beam damage",cooldown:2400},arcBolt:{name:"Arc Blast",description:"18 ranged damage",cooldown:650},dash:{name:"Dash",description:"Move 3.5 units",cooldown:2600},pulseNova:{name:"Pulse Nova",description:"45 close-range damage",cooldown:3200},guard:{name:"Guard",description:"75% mitigation for 1.6s",cooldown:4800},arcSpear:{name:"Arc Spear",description:"72 ranged damage",cooldown:2600},holyNova:{name:"Holy Nova",description:"Heal allies 25 HP within 4.5 units",cooldown:5000}} as const;
 export type SkillId=keyof typeof SKILLS;
 export type Loadout=[SkillId,SkillId,SkillId,SkillId];
 export const DEFAULT_LOADOUT:Loadout=["arcBolt","dash","pulseNova","guard"];
@@ -12,7 +12,7 @@ export function baseLoadout(v:unknown):Loadout {
 }
 export function encounterLoadout(base:Loadout,weapon:Weapon):Loadout{return base.map(x=>x==='arcBolt'&&weapon==='primitiveWand'?'arcSpear':x) as Loadout}
 export type Weapon='primitiveWand'|null;
-export type PlayerState={id:string;name:string;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|null;dashCharges:number;dashRechargeAt:number};
+export type PlayerState={id:string;name:string;classId:import("./classes").ClassId;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|null;dashCharges:number;dashRechargeAt:number};
 export type Telegraph={id:string;kind:"circle"|"line";pos:Vec2;radius?:number;direction?:Vec2;width?:number;length?:number;resolvesAt:number};
 export type BossId="warden"|"yellowBall"|"greenCone";
 export const ITEMS={cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb"} as const;

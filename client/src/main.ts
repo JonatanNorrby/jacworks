@@ -1,3 +1,5 @@
+import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
+import { CLASS_DEFINITIONS, PROTOTYPE_CLASS_ID, skillEligible } from '../../shared/classes';
 import {
   ArcRotateCamera,
   Color3,
@@ -14,7 +16,7 @@ import {
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft, equip, RECIPES } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -22,9 +24,20 @@ const engine = new Engine(canvas, true);
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.025, 0.03, 0.04, 1);
 
-const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.65, 27, new Vector3(0, 0, 0), scene);
+const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.65, 31, new Vector3(0, 0, 0), scene);
 camera.attachControl(canvas, true);
 camera.inputs.clear();
+let preferences=loadCamera(localStorage),optionsOpen=false;
+const optionsButton=document.createElement('button');optionsButton.id='options-button';optionsButton.textContent='Options';document.body.append(optionsButton);
+const optionsPanel=document.createElement('section');optionsPanel.id='options-panel';optionsPanel.className='hidden';optionsPanel.setAttribute('aria-label','Options');
+optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><button>Close</button>';document.body.append(optionsPanel);
+const follow=optionsPanel.querySelector<HTMLInputElement>('#camera-follow')!,zoom=optionsPanel.querySelector<HTMLInputElement>('#camera-zoom')!;
+function refreshOptions(){follow.checked=preferences.followPlayer;zoom.value=String(preferences.zoom);optionsPanel.querySelector('output')!.textContent=zoom.value}
+function closeOptions(){optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();optionsButton.focus()}
+optionsButton.onclick=()=>{closeHubPanel();if(trainerOpen)closeTrainer(false);optionsOpen=true;keys.clear();refreshOptions();optionsPanel.classList.remove('hidden');follow.focus()};
+optionsPanel.querySelector('button')!.onclick=closeOptions;
+function changeCamera(){preferences=readCamera(JSON.stringify({followPlayer:follow.checked,zoom:Number(zoom.value)}));saveCamera(localStorage,preferences);refreshOptions()}
+follow.onchange=changeCamera;zoom.oninput=changeCamera;refreshOptions();
 
 const light = new HemisphericLight("light", new Vector3(0.15, 1, 0.1), scene);
 light.intensity = 1.2;
@@ -50,10 +63,10 @@ let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
-const inventoryDisplay=document.createElement('div');inventoryDisplay.id='inventory-display';document.body.append(inventoryDisplay);
+
 let inventory=readInventory(localStorage.getItem(inventoryKey));
 localStorage.setItem(inventoryKey,JSON.stringify(inventory));
-function renderInventory(){inventoryDisplay.textContent=Object.entries(countInventory(inventory)).map(([id,n])=>ITEMS[id as keyof typeof ITEMS]+': '+n).join(' | ')}
+function renderInventory(){if(hubPanelOpen)closeHubPanel()}
 function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden');keys.clear()}
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
@@ -67,10 +80,16 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
  for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
  for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand']] as const){
-  const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[gear]+' (Unequip)':'Empty (Equip '+ITEMS[gear]+')');button.disabled=!inventory[slot]&&countInventory(inventory)[gear]<1;
+  const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[gear]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
+ const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
+ const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
+ if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
+ for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
+ const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
+ for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
  for(const gear of ['primitiveWand','pointyHat','pointyOrb'] as const){
   const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
@@ -80,14 +99,14 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }
 renderInventory();
-addEventListener('storage',e=>{if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
+addEventListener('storage',e=>{if(e.key==='jacworks-camera-v1'){preferences=readCamera(e.newValue);refreshOptions()}if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
 function renderSkills(){
-  skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear").map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
+  skillGrid.innerHTML=Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[PROTOTYPE_CLASS_ID],id as SkillId)).map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
   skillLoadout.replaceChildren();
   for(let i=0;i<4;i++){
     const wrap=document.createElement("div"),label=document.createElement("div"),select=document.createElement("select");
     label.className="skill-slot-label";label.textContent=`Slot ${i+1}`;select.className="skill-choice";
-    for(const [id,skill] of Object.entries(SKILLS).filter(([id])=>id!=="arcSpear")){
+    for(const [id,skill] of Object.entries(SKILLS).filter(([id])=>id!=="arcSpear"&&skillEligible(CLASS_DEFINITIONS[PROTOTYPE_CLASS_ID],id as SkillId))){
       const option=document.createElement("option");option.value=id;option.textContent=skill.name;
       option.selected=id===draft[i];select.append(option);
     }
@@ -290,10 +309,10 @@ function setMode(next: ClientMode) {
     syncGear(hubPlayer,inventory);status.textContent = "Sanctum Hub";
     renderAbilityBar();
     message.textContent = "";
-    camera.radius = 27;
+    camera.radius = preferences.zoom;
   } else {
     status.textContent = "Connecting to encounter…";
-    camera.radius = 25;
+    camera.radius = preferences.zoom;
   }
 }
 
@@ -469,7 +488,13 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   const end = new Vector3(to.x, 1, to.z);
   let mesh: Mesh;
   let duration: number;
-  if(skill==='lazor'){
+  if(skill==='swordSwing'){
+ const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize(),side=new Vector3(dir.z,0,-dir.x),points=[];
+ for(let i=0;i<=20;i++){const angle=-Math.PI/3+i/20*Math.PI*2/3;points.push(start.add(dir.scale(Math.cos(angle)*3)).add(side.scale(Math.sin(angle)*3)))}
+ mesh=MeshBuilder.CreateTube('sword-cleave',{path:points,radius:.09},scene);mesh.material=holyMat;duration=350;
+ }else if(skill==='chargingStab'){
+ mesh=MeshBuilder.CreateBox('charging-stab',{width:.22,height:.3,depth:Vector3.Distance(start,end)},scene);mesh.position.copyFrom(Vector3.Center(start,end));mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);mesh.material=spearMat;duration=400;
+ }else if(skill==='lazor'){
  mesh=MeshBuilder.CreateBox('lazor-beam',{width:.7,height:.5,depth:Vector3.Distance(start,end)},scene);mesh.material=holyMat;mesh.position.copyFrom(Vector3.Center(start,end));mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);duration=450;
  } else if (skill === "arcBolt" || skill === "arcSpear") {
     mesh = skill === "arcSpear" ? MeshBuilder.CreateCylinder("arc-spear", {height:1.8,diameterTop:0,diameterBottom:0.35,tessellation:8},scene) : MeshBuilder.CreateSphere("arc-bolt", { diameter: 0.48, segments: 12 }, scene);
@@ -490,7 +515,7 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
     mesh.material = guardMat;
     duration = 700;
   }
-  if(skill!=='lazor')mesh.position.copyFrom(start);
+  if(!['lazor','swordSwing','chargingStab'].includes(skill))mesh.position.copyFrom(start);
   if (skill === "dash") mesh.position.copyFrom(end);
   fx.push({ mesh, born: performance.now(), duration, start, end, kind: skill === "arcBolt" || skill === "arcSpear" ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
@@ -544,6 +569,7 @@ function hubPortalDistance() {
 
 addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+  if(optionsOpen){if(key==='escape')closeOptions();return}
   if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
   if(trainerOpen){if(key==="escape")closeTrainer(false);return}
   keys.add(key);
@@ -609,10 +635,13 @@ setMode("hub");
 
 engine.runRenderLoop(() => {
   const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (mode === "hub" && !trainerOpen && !hubPanelOpen) updateHub(deltaSeconds);
+  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen) updateHub(deltaSeconds);
   else if (snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }
+  const tracked=mode==='hub'?hubPlayer.position:snapshot?.players.find(p=>p.id===myId)?.pos;
+  const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
+  camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
   updateEffects();
   updateCooldowns();
   scene.render();

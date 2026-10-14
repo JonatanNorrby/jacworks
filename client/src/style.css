@@ -52,3 +52,7 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #skill-loadout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.skill-slot-label{font-size:11px;color:#d6bc7c;margin-bottom:5px}.skill-choice{width:100%;min-width:0;font-size:12px}
 .skill-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px}#save-skills{background:#276078;font-weight:700}
 @media(max-width:650px){#skill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#skill-loadout{grid-template-columns:repeat(2,minmax(0,1fr))}#skill-panel{padding:14px}}
+#inventory-display{position:fixed;right:16px;top:52px;padding:10px;background:#10141de8;border:1px solid #d4ba7240;border-radius:8px;font-size:12px;max-width:35vw;pointer-events:none}
+#inventory-panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;background:#141d2a;border:1px solid #8dc9e088;padding:24px;border-radius:14px;width:min(480px,80vw);box-shadow:0 20px 80px #000b}
+#inventory-panel button,#inventory-panel select{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;margin:6px;cursor:pointer}
+#inventory-panel button:disabled{opacity:.4;cursor:default}

@@ -7,10 +7,11 @@
     "dev": "concurrently -n client,server \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "vite --host 0.0.0.0",
     "dev:server": "tsx watch server/index.ts",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build --configLoader native",
     "start": "tsx server/index.ts",
     "dev:cloudflare": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "test": "node --import ./scripts/test-register.mjs --test shared/*.test.ts"
   },
   "dependencies": {
     "@babylonjs/core": "^8.0.0",
@@ -24,5 +25,8 @@
     "typescript": "^5.9.0",
     "vite": "^7.1.0",
     "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

@@ -11,7 +11,8 @@ import {
   StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
-import type { ServerMessage, Snapshot, Telegraph } from "../../shared/protocol";
+import { DEFAULT_LOADOUT, SKILLS, validLoadout } from "../../shared/protocol";
+import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph } from "../../shared/protocol";
 
 type ClientMode = "hub" | "encounter";
 
@@ -36,7 +37,41 @@ const bossFill = document.querySelector<HTMLElement>("#boss-fill")!;
 const hpFill = document.querySelector<HTMLElement>("#player-hp-fill")!;
 const hpText = document.querySelector<HTMLElement>("#player-hp-text")!;
 const abilitySlots = [...document.querySelectorAll<HTMLElement>(".ability-slot")];
-const cooldownMs = [650, 2600, 3200, 4800];
+const skillPanel=document.querySelector<HTMLElement>("#skill-panel")!;
+const trainerPrompt=document.querySelector<HTMLElement>("#trainer-prompt")!;
+const skillGrid=document.querySelector<HTMLElement>("#skill-grid")!;
+const skillLoadout=document.querySelector<HTMLElement>("#skill-loadout")!;
+let loadout:Loadout=[...DEFAULT_LOADOUT];
+try{const saved=JSON.parse(localStorage.getItem("jacworks-loadout")??"null");if(validLoadout(saved))loadout=[...saved]}catch{}
+let draft:Loadout=[...loadout];
+let trainerOpen=false;
+function renderSkills(){
+  skillGrid.innerHTML=Object.entries(SKILLS).map(([id,s])=>`<div class="skill-node"><strong>${s.name}</strong><small>${s.description} · ${(s.cooldown/1000).toFixed(2)}s cooldown</small></div>`).join("");
+  skillLoadout.replaceChildren();
+  for(let i=0;i<4;i++){
+    const wrap=document.createElement("div"),label=document.createElement("div"),select=document.createElement("select");
+    label.className="skill-slot-label";label.textContent=`Slot ${i+1}`;select.className="skill-choice";
+    for(const [id,skill] of Object.entries(SKILLS)){
+      const option=document.createElement("option");option.value=id;option.textContent=skill.name;
+      option.selected=id===draft[i];select.append(option);
+    }
+    select.onchange=()=>{
+      const next=select.value as SkillId,other=draft.indexOf(next);
+      if(other>=0&&other!==i)draft[other]=draft[i];
+      draft[i]=next;renderSkills();
+    };
+    wrap.append(label,select);skillLoadout.append(wrap);
+  }
+}
+function closeTrainer(save:boolean){
+  if(save){loadout=[...draft];localStorage.setItem("jacworks-loadout",JSON.stringify(loadout))}
+  trainerOpen=false;skillPanel.classList.add("hidden");keys.clear();
+}
+document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
+document.querySelector("#save-skills")!.addEventListener("click",()=>closeTrainer(true));
+function openTrainer(){draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
+function renderAbilityBar(){abilitySlots.forEach((el,i)=>{const skill=SKILLS[loadout[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description})}
+renderAbilityBar();
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
@@ -65,6 +100,8 @@ const material = (name: string, diffuse: Color3, emissive?: Color3, alpha = 1) =
 const arcMat = material("arc-bolt-fx", new Color3(0.2, 0.75, 1), new Color3(0.15, 0.7, 1));
 const novaMat = material("nova-fx", new Color3(0.65, 0.25, 1), new Color3(0.5, 0.12, 0.9), 0.65);
 const dashMat = material("dash-fx", new Color3(0.1, 0.95, 0.95), new Color3(0.1, 0.6, 0.75), 0.6);
+const spearMat=material("arc-spear-fx",new Color3(0.7,0.9,1),new Color3(0.4,0.8,1));
+const holyMat=material("holy-nova-fx",new Color3(1,0.94,0.45),new Color3(0.9,0.8,0.2),0.7);
 const guardMat = material("guard-fx", new Color3(0.25, 0.8, 1), new Color3(0.1, 0.5, 0.9), 0.32);
 const hubGroundMat = material("hub-ground", new Color3(0.085, 0.105, 0.09));
 const hubStoneMat = material("hub-stone", new Color3(0.18, 0.19, 0.17));
@@ -137,6 +174,12 @@ const hubPlayerRing = pushHub(MeshBuilder.CreateTorus("hub-player-ring", { diame
 hubPlayerRing.position.set(0, 0.08, 6.2);
 hubPlayerRing.material = hubPlayerMat;
 
+const trainer=pushHub(MeshBuilder.CreateCapsule("skill-trainer",{height:2,radius:0.65},scene));
+trainer.position.set(-4.3,1,3.5);trainer.material=holyMat;
+const trainerBase=pushHub(MeshBuilder.CreateTorus("trainer-ring",{diameter:2.2,thickness:0.13},scene));
+trainerBase.position.set(-4.3,0.08,3.5);trainerBase.material=holyMat;
+const trainerStaff=pushHub(MeshBuilder.CreateCylinder("trainer-staff",{height:2.4,diameter:0.14},scene));
+trainerStaff.position.set(-3.55,1.2,3.5);trainerStaff.material=hubAccentMat;
 const arenaGround = pushArena(MeshBuilder.CreateGround("arena", { width: 26, height: 26 }, scene));
 arenaGround.material = arenaGroundMat;
 
@@ -165,6 +208,7 @@ bossRing.position.y = 0.08;
 bossRing.material = bossMat;
 
 function setMode(next: ClientMode) {
+  if(trainerOpen)closeTrainer(false);
   mode = next;
   const inHub = mode === "hub";
 
@@ -179,6 +223,7 @@ function setMode(next: ClientMode) {
 
   if (inHub) {
     status.textContent = "Sanctum Hub";
+    renderAbilityBar();
     message.textContent = "";
     camera.radius = 27;
   } else {
@@ -228,7 +273,7 @@ function connectEncounter() {
   socket.onopen = () => {
     if (ws !== socket) return;
     status.textContent = "Connected · press R when ready";
-    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}` }));
+    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,loadout }));
   };
 
   socket.onclose = () => {
@@ -243,7 +288,7 @@ function connectEncounter() {
     if (packet.type === "welcome") myId = packet.id;
 
     if (packet.type === "abilityFx") {
-      spawnAbilityFx(packet.slot, packet.from, packet.to);
+      spawnAbilityFx(packet.skill, packet.from, packet.to);
     }
 
     if (packet.type === "event") {
@@ -336,23 +381,24 @@ function createTelegraph(t: Telegraph) {
   return mesh;
 }
 
-function spawnAbilityFx(slot: number, from: {x:number;z:number}, to: {x:number;z:number}) {
+function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;z:number}) {
   const start = new Vector3(from.x, 1, from.z);
-  const end = slot === 1 ? new Vector3(0, 1.6, 0) : new Vector3(to.x, 1, to.z);
+  const end = (skill === "arcBolt" || skill === "arcSpear") ? new Vector3(0, 1.6, 0) : new Vector3(to.x, 1, to.z);
   let mesh: Mesh;
   let duration: number;
-  if (slot === 1) {
-    mesh = MeshBuilder.CreateSphere("arc-bolt", { diameter: 0.48, segments: 12 }, scene);
-    mesh.material = arcMat;
-    duration = 360;
-  } else if (slot === 2) {
+  if (skill === "arcBolt" || skill === "arcSpear") {
+    mesh = skill === "arcSpear" ? MeshBuilder.CreateCylinder("arc-spear", {height:1.8,diameterTop:0,diameterBottom:0.35,tessellation:8},scene) : MeshBuilder.CreateSphere("arc-bolt", { diameter: 0.48, segments: 12 }, scene);
+    mesh.material = skill === "arcSpear" ? spearMat : arcMat;
+    if(skill==="arcSpear")mesh.rotation.x=Math.PI/2;
+    duration = skill === "arcSpear" ? 500 : 360;
+  } else if (skill === "dash") {
     mesh = MeshBuilder.CreateTorus("dash-trail", { diameter: 1.4, thickness: 0.2 }, scene);
     mesh.material = dashMat;
     mesh.rotation.x = Math.PI / 2;
     duration = 420;
-  } else if (slot === 3) {
+  } else if (skill === "pulseNova" || skill === "holyNova") {
     mesh = MeshBuilder.CreateTorus("pulse-nova", { diameter: 1, thickness: 0.2, tessellation: 48 }, scene);
-    mesh.material = novaMat;
+    mesh.material = skill === "holyNova" ? holyMat : novaMat;
     duration = 520;
   } else {
     mesh = MeshBuilder.CreateSphere("guard-shield", { diameter: 2.1, segments: 16 }, scene);
@@ -360,8 +406,8 @@ function spawnAbilityFx(slot: number, from: {x:number;z:number}, to: {x:number;z
     duration = 700;
   }
   mesh.position.copyFrom(start);
-  if (slot === 2) mesh.position.copyFrom(end);
-  fx.push({ mesh, born: performance.now(), duration, start, end, kind: slot });
+  if (skill === "dash") mesh.position.copyFrom(end);
+  fx.push({ mesh, born: performance.now(), duration, start, end, kind: skill === "arcBolt" || skill === "arcSpear" ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
 
 function updateEffects() {
@@ -397,7 +443,7 @@ function updateCooldowns() {
     const remaining = mode === "encounter" && me ? Math.max(0, me.cooldowns[i] - now) : 0;
     const overlay = abilitySlots[i].querySelector<HTMLElement>(".cooldown-overlay")!;
     const label = abilitySlots[i].querySelector<HTMLElement>(".cooldown-text")!;
-    overlay.style.transform = `scaleY(${remaining / cooldownMs[i]})`;
+    overlay.style.transform = `scaleY(${remaining / SKILLS[loadout[i]].cooldown})`;
     label.textContent = remaining > 0 ? (remaining / 1000).toFixed(1) : "";
   }
 }
@@ -412,8 +458,10 @@ function hubPortalDistance() {
 
 addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+  if(trainerOpen){if(key==="escape")closeTrainer(false);return}
   keys.add(key);
 
+  if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
   if (mode === "hub" && key === "e" && hubPortalDistance() <= 3) {
     enterEncounter();
     return;
@@ -454,8 +502,10 @@ function updateHub(deltaSeconds: number) {
     hubPlayerRing.position.z = hubPlayer.position.z;
   }
 
+  const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
+  trainerPrompt.classList.toggle("hidden",!nearTrainer);
   const nearGate = hubPortalDistance() <= 3;
-  status.textContent = nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
+  status.textContent = nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.08;
   portalRing.scaling.set(pulse, 1, pulse);
@@ -465,7 +515,7 @@ setMode("hub");
 
 engine.runRenderLoop(() => {
   const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (mode === "hub") updateHub(deltaSeconds);
+  if (mode === "hub" && !trainerOpen) updateHub(deltaSeconds);
   else if (snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }

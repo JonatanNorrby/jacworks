@@ -16,7 +16,9 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0006](0006-support-solo-and-multiplayer.md) | Accepted | Support both solo and multiplayer play |
 | [0007](0007-use-babylonjs-for-game-client.md) | Accepted | Use Babylon.js for the game client |
 
-| [0008](0008-five-prototype-classes.md) | Accepted | Five class-restricted prototype kits |
+| [0008](0008-five-prototype-classes.md) | Superseded (roster size) | Five class-restricted prototype kits |
+
+| [0009](0009-defender-rogue-hard-warden.md) | Accepted | Defender, Rogue and separate Hard Warden tier |
 
 ## Workflow
 

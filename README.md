@@ -85,12 +85,14 @@ Options opens from the top-right button in either scene. Follow Player gently tr
 
 Warrior offers Sword Slash (38 damage, 3-unit 120-degree frontal cleave, 1.1s cooldown) and Charging Stab (5-unit directional charge, 60 damage in a narrow 2.2-unit endpoint stab, 3.6s cooldown). Charge stops at arena walls, the boss, or living cone adds. Both attacks and their effects are broadcast by the shared authoritative simulation. The charge is an immediate server-resolved dash with a short visual trail.
 
-### Five selectable classes
+### Seven selectable classes
 
-Choose class from the hub button or gold Trainer, then Save loadout. Class choice persists in `jacworks-class-v1`; the existing loadout and inventory keys remain. Missing/invalid/old `prototype` IDs migrate to Lightning Mage. A class has exactly its own three skills plus Dash; rearranging slots is allowed, cross-class mixing is rejected by the server. No mandatory tank/healer party composition exists: every class has repeatable damage, mobility and solo-capable boss targeting.
+Choose class from the hub button or gold Trainer, then Save loadout. Class choice persists in `jacworks-class-v1`; the existing loadout and inventory keys remain. Missing/invalid/old `prototype` IDs migrate to Lightning Mage. A class has exactly its own three skills plus Dash (Vanish temporarily becomes Backstab); rearranging slots is allowed, cross-class mixing is rejected by the server. No mandatory tank/healer party composition exists: every class has repeatable damage, mobility and solo-capable boss targeting.
 
 | Class | Skill 1 | Skill 2 | Skill 3 | Skill 4 |
 | --- | --- | --- | --- | --- |
+| Defender | Stab | Bulwark | Heroic Shield | Dash |
+| Rogue | Quick Stab | Vanish / Backstab | Poison Enchant | Dash |
 | Warrior | Sword Slash (`swordSwing`) | Charging Stab | Guard | Dash |
 | Priest | Holy Nova (`pulseNova`) | Targeted Heal | Holy Light | Dash |
 | Lightning Mage | Arc Blast (`arcBolt`) | Lightning Storm | Lightning Shield | Dash |
@@ -107,4 +109,17 @@ Primitive Wand is eligible for Priest and both Mages. Only Lightning Mage receiv
 
 Class definitions, eligibility, persistence and gear mutation resolution live in `shared/classes.ts`. New class skill execution/timing lives in `shared/classCombat.ts`, separate from shared boss simulation. This leaves room for optional class-specific skills and gear mutations without permitting cross-class skill mixing. See [ADR-0008](DOCS/ADR/0008-five-prototype-classes.md) for the approved prototype boundary.
 
-Validation: `npm test` covers all five loadouts, isolated solo damage, targeting, casts/channels and interrupts, effects, cooldowns, gear/inventory migration and existing boss mechanics. `node scripts/smoke-combat.mjs` starts a disposable local server and verifies two real WebSocket clients with Warrior, Priest + Lightning Mage, and Ranger + Fire Mage, including shared snapshots and matching FX. These checks do not establish final encounter balance or replace human playtesting. `npm run build` validates TypeScript and produces the Vite client.
+Validation: `npm test` covers all seven loadouts, isolated solo damage, targeting, casts/channels and interrupts, effects, cooldowns, gear/inventory migration and existing boss mechanics. `node scripts/smoke-combat.mjs` starts a disposable local server and verifies two real WebSocket clients with Warrior, Priest + Lightning Mage, and Ranger + Fire Mage, including shared snapshots and matching FX. These checks do not establish final encounter balance or replace human playtesting. `npm run build` validates TypeScript and produces the Vite client.
+
+
+### Defender, Rogue and Hard Warden
+
+Defender Stab deals 32 frontal damage at 2.8-unit reach (0.9s cooldown). Bulwark lasts 6s, halves walking speed and incoming damage (10s cooldown). Heroic Shield targets a living ally within 11 units, jumping along a collision-tested path; self targeting stays still. It absorbs 80 damage on the caster and 40 on a separate ally for 6s (9s cooldown). Shields refresh to the larger amount, never stack; mitigation applies before absorption. Aim at an ally or hold Shift for self.
+
+Rogue Quick Stab deals 24 frontal damage at 2.8-unit reach (0.6s cooldown). Vanish makes the Rogue invisible to enemy target selection and pursuit for exactly 4s (8s cooldown), replacing its own slot with Backstab. Allies still see a translucent avatar; existing area attacks still hit. Backstab ends Vanish and restores its skill without resetting cooldown: 80 damage from behind, otherwise 24. Rear position is evaluated against the nearest visible living player's direction from the enemy; a solo invisible Rogue receives the rear bonus. Poison Enchant lasts 6s (9s cooldown); successful stabs apply four server-resolved 6-damage ticks, one per second. Separate stab applications coexist. Death, retry and encounter end clear temporary buffs and restore Vanish.
+
+The red **Hard Warden** circle is right of the normal Warden circle in the hub; press E there to enter directly. The original gate selection still offers all bosses. As before, an occupied shared room retains its first entrant's selection. Hard Warden has 3000 HP and 64 damage per hit, compared with normal Warden's 1800 HP and 48 damage. Its targeted blast has 4.2-unit radius. Triple scatter marks one fixed target position and hits three times at 0.5s intervals. Its 360-degree sweep covers the arena; hide behind either of the two cylindrical pillars at (-4, 0) and (4, 0). The server tests pillar occlusion at impact. Both pillars block walking, Dash, Charging Stab and Heroic Shield movement; their visible radius matches cover geometry.
+
+Hard victory grants **Large Cylinder**, separately from normal Warden's **Cylinder Tube**. The Crafter exchanges **3 Large Cylinders → Redtube Armour**, reusable chest gear for Warrior, Defender and Rogue. Armour reduces boss damage by 5% (does not reduce add damage), and expands Warrior Sword Swing from 3 units / 120 degrees to 4 units / 180 degrees. Owned armour, equipped slot and spent materials persist under the existing inventory save key. Switching to an ineligible class makes saved armour inactive without deleting it. Shields, invisibility, poison, class swaps, movement, damage and gear eligibility are server authoritative; the existing unauthenticated browser-local receipt boundary remains unchanged.
+
+Validation includes shield mitigation/expiry, Vanish targeting and slot restoration, poison timing, pillar collision/occlusion, hard attacks/loot, recipe persistence, armour restrictions and cleave. The WebSocket smoke also exercises Defender + Rogue in Hard Warden with matching FX and shared buff/shield/equipment snapshots. These automated checks do not replace human visual QA or multiplayer balance playtesting. See [ADR-0009](DOCS/ADR/0009-defender-rogue-hard-warden.md).

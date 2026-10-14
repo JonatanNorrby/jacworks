@@ -11,13 +11,16 @@ export function beamHits(from:Vec2, dir:Vec2, target:Vec2, length=14, radius=1.6
   const x=target.x-from.x,z=target.z-from.z,t=Math.max(0,Math.min(length,x*dir.x+z*dir.z));
   return Math.hypot(x-dir.x*t,z-dir.z*t)<=radius;
 }
+import { HARD_PILLARS } from './protocol';
+export { HARD_PILLARS } from './protocol';
+export function pillarOccludes(from:Vec2,to:Vec2){return HARD_PILLARS.some(c=>{const dx=to.x-from.x,dz=to.z-from.z,l=dx*dx+dz*dz,t=l?((c.x-from.x)*dx+(c.z-from.z)*dz)/l:0;return t>0&&t<1&&Math.hypot(from.x+t*dx-c.x,from.z+t*dz-c.z)<=1;});}
 // Sweep in small steps to prevent tunnelling, then project onto the collision boundary for sliding.
-export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2):Vec2 {
+export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2,pillars:Vec2[]=[]):Vec2 {
   let p={...pos}; const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
   for(let i=0;i<steps;i++) {
     p={x:clamp(p.x+delta.x/steps),z:clamp(p.z+delta.z/steps)};
-    const dx=p.x-boss.x,dz=p.z-boss.z,l=Math.hypot(dx,dz);
-    if(l<1.73) p={x:clamp(boss.x+(l?dx/l:1)*1.73),z:clamp(boss.z+(l?dz/l:0)*1.73)};
+    for(const body of [boss,...pillars]){const radius=body===boss?1.73:1.48;const dx=p.x-body.x,dz=p.z-body.z,l=Math.hypot(dx,dz);
+    if(l<radius)p={x:clamp(body.x+(l?dx/l:1)*radius),z:clamp(body.z+(l?dz/l:0)*radius)};}
   } return p;
 }
 // Center-based 120-degree cleave; a stab uses a narrower forward reach.
@@ -25,10 +28,10 @@ export function meleeHits(from:Vec2,dir:Vec2,target:Vec2,reach=3,cosine=.5){
  const d=distance(from,target);return d>0&&d<=reach&&((target.x-from.x)*dir.x+(target.z-from.z)*dir.z)/d>=cosine;
 }
 // Charge stops at the first solid body rather than sliding or tunnelling through it.
-export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5):Vec2 {
+export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,pillars:Vec2[]=[]):Vec2 {
  let p={...from};for(let travelled=0;travelled<length;travelled+=.05){
   const step=Math.min(.05,length-travelled),next={x:p.x+dir.x*step,z:p.z+dir.z*step};
-  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||adds.some(a=>a.hp>0&&distance(next,a.pos)<.9))break;
+  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||pillars.some(c=>distance(next,c)<1.48)||adds.some(a=>a.hp>0&&distance(next,a.pos)<.9))break;
   p=next;
  }return p;
 }
@@ -47,14 +50,14 @@ export class Game {
   uuid:()=>string;
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
-    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
+    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
     this.players.set(id,p);return p;
   }
-  remove(id:string) {this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.reset();this.boss.id='warden';this.selectionLocked=false;}}
+  remove(id:string) {this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
-    this.effects=[];for(const p of this.players.values())p.cast=undefined;this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
-    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
+    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
@@ -63,11 +66,11 @@ export class Game {
       this.initialized.add(id);
       if(typeof v.name==='string')p.name=v.name.slice(0,24);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
-      p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
-      p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
+      this.clearBuffs(p);p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
+      p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:1800;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;
@@ -90,10 +93,10 @@ export class Game {
     if((skill==='arcBolt'||skill==='arcSpear')&&(!target||distance(p.pos,target.pos)>11))return;
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
-    if(skill==='dash')p.pos=moveSolid(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.boss.pos);
-    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.boss.pos,this.adds);
+    if(skill==='dash')p.pos=moveSolid(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.boss.pos,this.pillars());
+    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.boss.pos,this.adds,5,this.pillars());
     if(skill==='swordSwing'||skill==='chargingStab') {
-      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:3,angle=skill==='chargingStab'?.85:.5;
+      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour?4:3,angle=skill==='chargingStab'?.85:p.armour?0:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
       if(meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
       for(const a of this.adds)if(a.hp>0&&meleeHits(origin,p.facing,a.pos,reach,angle))a.hp=Math.max(0,a.hp-(skill==='swordSwing'?38:60));
@@ -124,15 +127,26 @@ export class Game {
     const slot=p.loadout.indexOf('dash');
     if(slot>=0)p.cooldowns[slot]=p.dashCharges?0:p.dashRechargeAt;
   }
-  hurt(p:PlayerState,now:number) {p.hp=Math.max(0,p.hp-(p.guardUntil>now?12:48));p.alive=p.hp>0;if(!p.alive)p.cast=undefined;}
+  pillars(){return this.boss.id==='hardWarden'?HARD_PILLARS:[]}
+  clearBuffs(p:PlayerState){p.bulwarkUntil=p.invisibleUntil=p.poisonUntil=p.shield=p.shieldUntil=0;const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}
+  hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
+    let damage=amount*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?.5:1)*(bossDamage&&p.armour?.95:1);
+    if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
+    p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
+  }
   schedule(now:number) {
-    const alive=[...this.players.values()].filter(p=>p.alive);if(!alive.length)return;
+    const alive=[...this.players.values()].filter(p=>p.alive&&p.invisibleUntil<=now);if(!alive.length)return;
     const target=alive[this.mechanic++%alive.length];let t:Telegraph;
     const dir=unit({x:target.pos.x-this.boss.pos.x,z:target.pos.z-this.boss.pos.z});
     if(this.boss.id==='greenCone') {
       t={id:this.uuid(),kind:'circle',pos:{...this.boss.pos},radius:3,resolvesAt:now+1500};
       this.emit({type:'event',text:'Green Cone: close-range slam!'});
       if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:54,maxHp:54,attackAt:now+1500});
+    } else if(this.boss.id==='hardWarden') {
+      const kind=this.mechanic%3;
+      t={id:this.uuid(),kind:'circle',pos:kind===2?{...this.boss.pos}:{...target.pos},radius:kind===2?35:kind===1?4.2:2.6,resolvesAt:now+1500,sweep:kind===2};
+      if(kind===0)for(let i=1;i<=2;i++)this.telegraphs.push({...t,id:this.uuid(),resolvesAt:t.resolvesAt+i*500});
+      this.emit({type:'event',text:kind===2?'Hard Warden: hide behind a pillar!':kind===0?'Triple scatter — move!':'Large marked blast!'});
     } else if(this.boss.id==='yellowBall') {
       const roll=this.mechanic%2===1;
       t=roll?{id:this.uuid(),kind:'line',pos:{...this.boss.pos},direction:dir,width:3.5,length:10,resolvesAt:now+1500}:{id:this.uuid(),kind:'circle',pos:{...target.pos},radius:3.2,resolvesAt:now+1500};
@@ -148,7 +162,7 @@ export class Game {
   tick(now=Date.now()):Snapshot {
     if(this.phase==='fight') {
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
-      for(const p of this.players.values())this.recharge(p,now);
+      for(const p of this.players.values()){this.recharge(p,now);if(p.invisibleUntil<=now){const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}if(p.shieldUntil<=now)p.shield=0;}
       this.tickClassEffects(now);
       // Each caster refreshes only their own four-tick burn on a target.
       for(const [key,b] of this.burns) {
@@ -160,10 +174,10 @@ export class Game {
         if(!b.remaining)this.burns.delete(key);
       }
       const alive=[...this.players.values()].filter(p=>p.alive);
-      const chase=(pos:Vec2,speed:number,stop:number)=>{const target=alive.filter(p=>p.alive).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
+      const chase=(pos:Vec2,speed:number,stop:number)=>{const target=alive.filter(p=>p.alive&&p.invisibleUntil<=now).sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
       if(this.boss.id==='greenCone'&&!this.telegraphs.length&&this.boss.hp>0)chase(this.boss.pos,.9,1.73);
       this.adds=this.adds.filter(a=>a.hp>0);
-      for(const a of this.adds){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){target.hp=Math.max(0,target.hp-(target.guardUntil>now?3:12));target.alive=target.hp>0;if(!target.alive)target.cast=undefined;a.attackAt=now+1200;}}
+      for(const a of this.adds){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){this.hurt(target,now,12,false);a.attackAt=now+1200;}}
       if(this.motion) {
         const m=this.motion,t=Math.min(1,(now-m.start)/(m.end-m.start)),previous={...this.boss.pos};
         this.boss.pos={x:m.from.x+(m.to.x-m.from.x)*t,z:m.from.z+(m.to.z-m.from.z)*t};this.boss.height=m.kind==='bounce'?Math.sin(t*Math.PI)*4:0;
@@ -172,7 +186,7 @@ export class Game {
       }
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
-        p.pos=moveSolid(p.pos,{x:v.x*.22,z:v.z*.22},this.boss.pos);
+        p.pos=moveSolid(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)},this.boss.pos,this.pillars());
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(now>=this.next)this.schedule(now);
@@ -182,14 +196,14 @@ export class Game {
           // Leave enough space between boss and arena wall for player separation.
           this.motion={kind:t.kind==='line'?'roll':'bounce',from:{...this.boss.pos},to:{x:Math.max(-10,Math.min(10,destination.x)),z:Math.max(-10,Math.min(10,destination.z))},start:now,end:now+(t.kind==='line'?800:1000),hit:new Set()};
         }
-        else for(const p of this.players.values())if(p.alive&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);
+        else for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.boss.hp<=0) {
-        this.phase='won';this.effects=[];for(const p of this.players.values())p.cast=undefined;this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
-        this.reward={id:this.fightId,material:this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
+        this.phase='won';this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.reward={id:this.fightId,material:this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry Â· H: hub'});
-      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.effects=[];for(const p of this.players.values())p.cast=undefined;}
+      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
     return {type:'snapshot',now,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.ready.size,reward:this.reward,effects:this.effects};
   }

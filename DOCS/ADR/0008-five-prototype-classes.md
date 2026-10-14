@@ -1,6 +1,6 @@
 # ADR-0008: Five class-restricted prototype kits
 
-- **Status:** Accepted (user-approved prototype roster)
+- **Status:** Superseded by ADR-0009 for roster size; original authority, eligibility and persistence rules retained
 - **Date:** 2026-10-14
 - **Decision owners:** JAC Works user-approved implementation request
 

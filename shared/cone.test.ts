@@ -8,7 +8,7 @@ const owned=()=>{const v=emptyInventory();v.rewards={w:'cylinderTube',b:'spheric
 test('all recipes consume exact materials, equipment persists and legacy saves migrate',()=>{
  const v=owned();assert.ok(craft(v));assert.ok(craft(v,'pointyHat'));assert.ok(craft(v,'pointyOrb'));assert.equal(craft(v,'pointyOrb'),false);
  for(const [slot,item] of [['weapon','primitiveWand'],['head','pointyHat'],['offhand','pointyOrb']] as const)assert.ok(equip(v,slot,item));
- assert.deepEqual(readInventory(JSON.stringify(v)),v);assert.deepEqual(countInventory(v),{cylinderTube:0,sphericalBall:0,conicalTaper:0,primitiveWand:1,pointyHat:1,pointyOrb:1});
+ assert.deepEqual(readInventory(JSON.stringify(v)),v);assert.deepEqual(countInventory(v),{largeCylinder:0,redtubeArmour:0,cylinderTube:0,sphericalBall:0,conicalTaper:0,primitiveWand:1,pointyHat:1,pointyOrb:1});
  for(const slot of ['weapon','head','offhand'] as const)assert.ok(equip(v,slot,null));assert.equal(countInventory(v).pointyHat,1);
  assert.equal(readInventory(JSON.stringify({rewards:{a:'cylinderTube',b:'sphericalBall'},crafted:1,weapon:'primitiveWand'})).weapon,'primitiveWand');
  assert.equal(readInventory(JSON.stringify({rewards:{},crafted:1,hats:3,orbs:2,head:'pointyHat',offhand:'pointyOrb'})).head,null);

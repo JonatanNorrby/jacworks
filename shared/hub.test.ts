@@ -15,7 +15,7 @@ test('camera preferences persist, tolerate invalid storage and bound gentle foll
 });
 test('inventory views separate materials from owned gear and preserve receipts on equip',()=>{
  const v=emptyInventory();v.rewards={a:'cylinderTube',b:'sphericalBall',c:'conicalTaper'};assert.equal(inventoryView(v).gear.length,0);craft(v);equip(v,'weapon','primitiveWand');
- assert.deepEqual(inventoryView(v).materials.map(x=>x.count),[0,0,1]);assert.equal(inventoryView(v).gear[0].equipped,true);equip(v,'weapon',null);assert.equal(inventoryView(v).gear[0].equipped,false);assert.deepEqual(readInventory(JSON.stringify(v)).rewards,v.rewards);
+ assert.deepEqual(inventoryView(v).materials.map(x=>x.count),[0,0,0,1]);assert.equal(inventoryView(v).gear[0].equipped,true);equip(v,'weapon',null);assert.equal(inventoryView(v).gear[0].equipped,false);assert.deepEqual(readInventory(JSON.stringify(v)).rewards,v.rewards);
 });
 test('class eligibility restricts base skills before gear transformations',()=>{
  assert.equal(skillEligible(CLASS_DEFINITIONS.warrior,'lazor'),false);

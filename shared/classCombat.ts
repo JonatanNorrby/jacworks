@@ -1,3 +1,4 @@
+import { meleeHits,chargeEnd } from './game';
 import type { Game } from './game';
 import type { PlayerState,Vec2 } from './protocol';
 import { SKILLS } from './protocol';
@@ -6,6 +7,31 @@ const distance=(a:Vec2,b:Vec2)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 export function classAbility(this:Game,p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){
     const skill=p.loadout[slot-1];
+    if(['stab','bulwark','heroicShield','quickStab','vanish','backstab','poisonEnchant'].includes(skill)){
+      if(now<p.cooldowns[slot-1]&&skill!=='backstab')return true;
+      if(skill==='backstab'&&p.invisibleUntil<=now)return true;
+      const from={...p.pos};let to={...p.pos};
+      if(skill==='heroicShield'){
+        const ally=targetId===undefined?p:this.players.get(String(targetId));if(!ally?.alive||distance(p.pos,ally.pos)>11)return true;
+        if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.boss.pos,this.adds,d,this.pillars());ally.shield=Math.max(ally.shield,40);ally.shieldUntil=now+6000;}
+        p.shield=Math.max(p.shield,80);p.shieldUntil=now+6000;to={...p.pos};
+      }else if(skill==='bulwark')p.bulwarkUntil=now+6000;
+      else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
+      else if(skill==='vanish'){p.invisibleUntil=now+4000;p.loadout[slot-1]='backstab';}
+      else {
+        for(const t of this.targets())if(meleeHits(p.pos,p.facing,t.pos,2.8,.75)){
+          // Boss faces its current target; rear attack requires opposite side of that facing.
+          const victim=[...this.players.values()].filter(a=>a.alive&&a.invisibleUntil<=now).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
+          const behind=!victim||((p.pos.x-t.pos.x)*(victim.pos.x-t.pos.x)+(p.pos.z-t.pos.z)*(victim.pos.z-t.pos.z))<0;
+          this.damageTarget(t.id,skill==='stab'?32:skill==='backstab'&&behind?80:24);
+          if(p.poisonUntil>now)this.effects.push({id:this.uuid(),owner:p.id,skill:'poisonEnchant',targetId:t.id,pos:{...t.pos},next:now+1000,remaining:4,expires:now+5000});
+        }
+        if(skill==='backstab'){p.invisibleUntil=0;p.loadout[slot-1]='vanish';}
+        to={x:p.pos.x+p.facing.x*2.8,z:p.pos.z+p.facing.z*2.8};
+      }
+      if(skill!=='backstab')p.cooldowns[slot-1]=now+SKILLS[skill].cooldown;
+      this.emit({type:'abilityFx',skill,playerId:p.id,from,to});return true;
+    }
     if(!['targetedHeal','holyLight','lightningStorm','lightningShield','aimedShot','arrowRain','splitShot','fireball','fireMine'].includes(skill))return false;
     if(now<p.cooldowns[slot-1])return true;
     let pos:Vec2;
@@ -49,7 +75,8 @@ export function tickClassEffects(this:Game,now:number){
         if(this.targets().some(t=>distance(e.pos,t.pos)<=2)){this.area(e.pos,3,95);this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});return false;}return true;
       }
       while(e.remaining&&now>=e.next){
-        if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6)this.damageTarget(t.id,58);}
+        if(e.skill==='poisonEnchant')this.damageTarget(e.targetId!,6);
+        else if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6)this.damageTarget(t.id,58);}
         else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:28);
         if(e.skill!=='aimedShot')this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});e.remaining--;e.next+=e.skill==='arrowRain'?600:1000;
       }return e.remaining>0;

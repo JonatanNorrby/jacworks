@@ -2,6 +2,8 @@ import { baseLoadout, encounterLoadout } from './protocol';
 import type { Loadout, SkillId, Weapon } from './protocol';
 export type ClassDefinition={id:string;name:string;skills:readonly SkillId[]};
 export const CLASS_DEFINITIONS={
+ defender:{id:'defender',name:'Defender',skills:['stab','bulwark','heroicShield','dash']},
+ rogue:{id:'rogue',name:'Rogue',skills:['quickStab','vanish','poisonEnchant','dash']},
  warrior:{id:'warrior',name:'Warrior',skills:['swordSwing','chargingStab','guard','dash']},
  priest:{id:'priest',name:'Priest',skills:['pulseNova','targetedHeal','holyLight','dash']},
  lightningMage:{id:'lightningMage',name:'Lightning Mage',skills:['arcBolt','lightningStorm','lightningShield','dash']},
@@ -18,7 +20,7 @@ export function eligibleLoadout(definition:ClassDefinition,value:unknown):Loadou
  if(selected.length!==4)throw new Error('A playable class must allow four base skills');
  return selected as Loadout;
 }
-export function gearEligible(id:ClassId,item:string){return item==='pointyHat'||(item==='primitiveWand'&&['priest','lightningMage','fireMage'].includes(id))||(item==='pointyOrb'&&['lightningMage','fireMage'].includes(id))}
+export function gearEligible(id:ClassId,item:string){return (item==='redtubeArmour'&&['warrior','defender','rogue'].includes(id))||item==='pointyHat'||(item==='primitiveWand'&&['priest','lightningMage','fireMage'].includes(id))||(item==='pointyOrb'&&['lightningMage','fireMage'].includes(id))}
 export function resolveClassLoadout(id:ClassId,value:unknown,weapon:Weapon):Loadout {return encounterLoadout(eligibleLoadout(CLASS_DEFINITIONS[id],value),id==='lightningMage'?weapon:null)}
 
 export const CLASS_STORAGE_KEY='jacworks-class-v1';

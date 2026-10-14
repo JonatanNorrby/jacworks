@@ -1,3 +1,4 @@
+import { HARD_PILLARS } from '../../shared/protocol';
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
 import type { ClassId } from '../../shared/classes';
 import { CLASS_DEFINITIONS, loadClass, saveClass, readClass, gearEligible, resolveClassLoadout, skillEligible } from '../../shared/classes';
@@ -75,15 +76,15 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'First entrant selects the shared room boss. An occupied room keeps its current boss.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
- const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['yellowBall','Yellow Ball'],['greenCone','Green Cone']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
+ const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['hardWarden','Hard Warden'],['yellowBall','Yellow Ball'],['greenCone','Green Cone']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
  const button=document.createElement('button');button.textContent='Enter encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
  for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
- for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand']] as const){
+ for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour']] as const){
   const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[gear]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
@@ -94,7 +95,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb'] as const){
+ for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour'] as const){
   const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
@@ -237,10 +238,11 @@ hubPlayer.position.set(0, 0.85, 6.2);
 hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
-function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown}){
- if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,offhand:gearEligible(selectedClass,'pointyOrb')?gear.offhand:null};
- const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand]);if(parent.metadata?.gear===signature)return;
+function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown}){
+ if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gearEligible(selectedClass,'pointyOrb')?gear.offhand:null};
+ const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
+ if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=bossMat;}
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
  if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
@@ -285,6 +287,9 @@ for (const [x, z] of [
   pillar.material = arenaStoneMat;
 }
 
+const hardPillars=HARD_PILLARS.map((p,i)=>{const mesh=pushArena(MeshBuilder.CreateCylinder('hard-pillar-'+i,{diameter:2,height:3},scene));mesh.position.set(p.x,1.5,p.z);mesh.material=arenaStoneMat;return mesh});
+const hardGate=pushHub(MeshBuilder.CreateCylinder('hard-warden-circle',{diameter:3.5,height:.08},scene));hardGate.position.set(5,.06,-6.4);hardGate.material=bossMat;
+const normalGate=pushHub(MeshBuilder.CreateCylinder('normal-warden-circle',{diameter:3.5,height:.08},scene));normalGate.position.set(0,.06,-6.4);normalGate.material=bossMat;
 const bossMesh = pushArena(MeshBuilder.CreateCylinder("boss", { diameter: 2.5, height: 2.9, tessellation: 12 }, scene));
 bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
@@ -405,13 +410,14 @@ function connectEncounter() {
       if (me) {
         renderAbilityBar(me.loadout);
         hpFill.style.width = `${Math.max(0, me.hp / me.maxHp * 100)}%`;
-        hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}${me.cast?` - ${SKILLS[me.cast.skill].name} ${(Math.max(0,me.cast.endsAt-packet.now)/1000).toFixed(1)}s`:""}`;
+        hpText.textContent = `${Math.ceil(me.hp)} / ${me.maxHp}${me.shield>0?` +${Math.ceil(me.shield)} shield`:''}${me.invisibleUntil>packet.now?' - Invisible':''}${me.poisonUntil>packet.now?' - Poison enchanted':''}${me.cast?` - ${SKILLS[me.cast.skill].name} ${(Math.max(0,me.cast.endsAt-packet.now)/1000).toFixed(1)}s`:""}`;
       }
     }
   };
 }
 
 function syncEncounter(state: Snapshot) {
+ for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
  const yellow=state.boss.id==='yellowBall',green=state.boss.id==='greenCone';
  coneBoss.setEnabled(green&&state.phase!=='won');coneBoss.position.set(state.boss.pos.x,1.45,state.boss.pos.z);
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
@@ -420,8 +426,9 @@ function syncEncounter(state: Snapshot) {
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?'YELLOW BALL':green?'GREEN CONE':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=yellow?'YELLOW BALL':green?'GREEN CONE':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
+ dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
  dropTube.position.set(state.boss.pos.x,.35,state.boss.pos.z);dropBall.position.set(state.boss.pos.x,.3,state.boss.pos.z);
   const combatTelegraphs:Telegraph[]=state.effects.filter(e=>['fireMine','arrowRain','lightningShield','fireball','aimedShot'].includes(e.skill)).map(e=>({id:'effect-'+e.id,kind:'circle',pos:e.pos,radius:e.skill==='fireMine'?2:e.skill==='arrowRain'?3.5:e.skill==='lightningShield'?3:e.skill==='fireball'?2:1,resolvesAt:e.expires}));
   for(const p of state.players)if(p.cast)combatTelegraphs.push({id:'cast-'+p.id,kind:'circle',pos:p.cast.skill==='lightningStorm'?p.cast.target:p.pos,radius:p.cast.skill==='lightningStorm'?3:1,resolvesAt:p.cast.endsAt});
@@ -449,7 +456,10 @@ function syncEncounter(state: Snapshot) {
     mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);
     syncGear(mesh,p);
     mesh.material = p.alive ? (p.id === myId ? meMat : otherMat) : deadMat;
-    mesh.scaling.y = p.guardUntil > state.now ? 1.25 : 1;
+    mesh.scaling.y = p.guardUntil > state.now || p.bulwarkUntil>state.now ? 1.25 : 1;
+    mesh.visibility=p.invisibleUntil>state.now?.35:1;
+    for(const child of mesh.getChildMeshes())child.visibility=mesh.visibility;
+    let shield=mesh.getChildMeshes().find(m=>m.name==='absorb-shield');if(p.shield>0&&!shield){shield=MeshBuilder.CreateSphere('absorb-shield',{diameter:2},scene);shield.parent=mesh;shield.material=arcMat;shield.visibility=.3;}shield?.setEnabled(p.shield>0);
   }
 
   const telegraphIds = new Set(allTelegraphs.map((t) => t.id));
@@ -515,9 +525,10 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
     mesh=MeshBuilder.CreateTorus(skill,{diameter:6,thickness:.15},scene);mesh.material=skill==='fireMine'?dangerMat:arcMat;start.copyFrom(end);duration=500;
   }else if(skill==='swordSwing'){
  const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize(),side=new Vector3(dir.z,0,-dir.x),points=[];
- for(let i=0;i<=20;i++){const angle=-Math.PI/3+i/20*Math.PI*2/3;points.push(start.add(dir.scale(Math.cos(angle)*3)).add(side.scale(Math.sin(angle)*3)))}
+ const reach=Vector3.Distance(start,end),halfAngle=reach>3.5?Math.PI/2:Math.PI/3;
+ for(let i=0;i<=20;i++){const angle=-halfAngle+i/20*halfAngle*2;points.push(start.add(dir.scale(Math.cos(angle)*reach)).add(side.scale(Math.sin(angle)*reach)))}
  mesh=MeshBuilder.CreateTube('sword-cleave',{path:points,radius:.09},scene);mesh.material=holyMat;duration=350;
- }else if(skill==='chargingStab'){
+ }else if(['chargingStab','stab','quickStab','backstab','heroicShield'].includes(skill)){
  mesh=MeshBuilder.CreateBox('charging-stab',{width:.22,height:.3,depth:Vector3.Distance(start,end)},scene);mesh.position.copyFrom(Vector3.Center(start,end));mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);mesh.material=spearMat;duration=400;
  }else if(skill==='lazor'){
  mesh=MeshBuilder.CreateBox('lazor-beam',{width:.7,height:.5,depth:Vector3.Distance(start,end)},scene);mesh.material=holyMat;mesh.position.copyFrom(Vector3.Center(start,end));mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);duration=450;
@@ -540,7 +551,7 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
     mesh.material = guardMat;
     duration = 700;
   }
-  if(!['lazor','swordSwing','chargingStab','splitShot'].includes(skill))mesh.position.copyFrom(start);
+  if(!['lazor','swordSwing','chargingStab','stab','quickStab','backstab','heroicShield','splitShot'].includes(skill))mesh.position.copyFrom(start);
   if (skill === "dash") mesh.position.copyFrom(end);
   fx.push({ mesh, born: performance.now(), duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
@@ -602,8 +613,9 @@ addEventListener("keydown", (event) => {
   if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
 
   if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
+  if(mode==='hub'&&key==='e'&&Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2){selectedBoss='hardWarden';enterEncounter();return;}
   if (mode === "hub" && key === "e" && hubPortalDistance() <= 3) {
-    openHubPanel('gate');
+    selectedBoss='warden';openHubPanel('gate');
     return;
   }
 
@@ -614,7 +626,7 @@ addEventListener("keydown", (event) => {
       const pick=scene.pick(scene.pointerX,scene.pointerY,m=>m===arenaGround);
       const target=pick?.pickedPoint?{x:pick.pickedPoint.x,z:pick.pickedPoint.z}:undefined;
       const me=snapshot?.players.find(p=>p.id===myId),skill=me?.loadout[Number(event.key)-1];
-      const friendly=skill==='targetedHeal'||skill==='lightningShield';
+      const friendly=skill==='targetedHeal'||skill==='lightningShield'||skill==='heroicShield';
       const ally=target?snapshot?.players.filter(p=>p.alive&&Math.hypot(p.pos.x-target.x,p.pos.z-target.z)<1.5).sort((a,b)=>Math.hypot(a.pos.x-target.x,a.pos.z-target.z)-Math.hypot(b.pos.x-target.x,b.pos.z-target.z))[0]:undefined;
       send({type:'ability',slot:Number(event.key),target:friendly?undefined:target,targetId:friendly?(event.shiftKey?myId:ally?.id??myId):undefined});
     }
@@ -654,8 +666,8 @@ function updateHub(deltaSeconds: number) {
 
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
-  const nearGate = hubPortalDistance() <= 3;
-  status.textContent = nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
+  const nearGate = hubPortalDistance() <= 3 || Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2;
+  status.textContent = Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2?'Hard Warden - E to enter':nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
   if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';

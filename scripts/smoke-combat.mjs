@@ -59,4 +59,32 @@ try{
   for(const c of pairClients)c.ws.close();await delay(200);
  }
 
+ const duo=[];
+ for(const classId of ['defender','rogue']){
+  const c={ws:new WebSocket(`ws://localhost:${port}`),packets:[],id:null,snapshot:null};clients.push(c);duo.push(c);
+  c.ws.on('message',raw=>{const m=JSON.parse(String(raw));c.packets.push(m);if(m.type==='welcome')c.id=m.id;if(m.type==='snapshot')c.snapshot=m});
+  await waitFor(()=>c.id,'new kit welcome');
+  c.ws.send(JSON.stringify({type:'join',classId,boss:'hardWarden',loadout:classId==='defender'?['stab','bulwark','heroicShield','dash']:['quickStab','vanish','poisonEnchant','dash'],inventory:{rewards:{a:'largeCylinder',b:'largeCylinder',c:'largeCylinder'},armours:1,armour:'redtubeArmour'}}));
+ }
+ await waitFor(()=>duo.every(c=>c.snapshot?.players.length===2&&c.snapshot.boss.id==='hardWarden'),'hard room');
+ for(const c of duo)c.ws.send(JSON.stringify({type:'ready'}));
+ await waitFor(()=>duo.every(c=>c.snapshot?.phase==='fight'),'hard fight');
+ const [defender,rogue]=duo;
+ for(let seq=0;seq<28;seq++){for(const c of duo)c.ws.send(JSON.stringify({type:'input',seq,move:{x:0,z:-1}}));await delay(50)}
+ for(const c of duo)c.ws.send(JSON.stringify({type:'input',seq:28,move:{x:0,z:0}}));
+ defender.ws.send(JSON.stringify({type:'ability',slot:3,targetId:rogue.id}));
+ defender.ws.send(JSON.stringify({type:'ability',slot:2}));
+ rogue.ws.send(JSON.stringify({type:'ability',slot:3}));
+ rogue.ws.send(JSON.stringify({type:'ability',slot:2,invisibleUntil:9999999999999}));
+ await waitFor(()=>duo.every(c=>{const d=c.snapshot.players.find(p=>p.id===defender.id),r=c.snapshot.players.find(p=>p.id===rogue.id);return d.shield===80&&r.shield===40&&d.bulwarkUntil>c.snapshot.now&&r.loadout[1]==='backstab'&&r.invisibleUntil-c.snapshot.now<=4000&&r.armour==='redtubeArmour'}),'shared shields, buffs, armour and skill swap');
+ for(const c of duo)c.ws.send(JSON.stringify({type:'ability',slot:1,damage:999999}));
+ rogue.ws.send(JSON.stringify({type:'ability',slot:2}));
+ await waitFor(()=>duo.every(c=>c.snapshot.boss.hp<3000&&c.snapshot.boss.hp>2500&&c.snapshot.players.find(p=>p.id===rogue.id).loadout[1]==='vanish'),'authoritative stabs and restoration');
+ for(const c of duo)c.ws.send(JSON.stringify({type:'ability',slot:4}));
+ for(const [sender,skills] of [[defender,['stab','bulwark','heroicShield','dash']],[rogue,['quickStab','vanish','poisonEnchant','backstab','dash']]])for(const skill of skills){
+  await waitFor(()=>duo.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill)),skill+' broadcast');
+  assert.deepEqual(duo[0].packets.filter(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill),duo[1].packets.filter(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill));
+ }
+ console.log('HARD_DUO_SMOKE_OK: Defender + Rogue, Hard Warden, shields, buffs, invisibility, skill swap, armour, damage and synchronized FX');
+
 }finally{for(const c of clients)c.ws.close();server.kill()}

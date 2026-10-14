@@ -87,12 +87,12 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
  for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour']] as const){
   const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[gear]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
-  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};doll.append(button);
+  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
  const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
  const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
  if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
- for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
+ for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
@@ -130,7 +130,7 @@ function renderSkills(){
   }
 }
 function closeTrainer(save:boolean){
-  if(save){selectedClass=draftClass;saveClass(localStorage,selectedClass);loadout=[...draft];renderAbilityBar();syncGear(hubPlayer,inventory);localStorage.setItem("jacworks-loadout",JSON.stringify(loadout))}
+  if(save){selectedClass=draftClass;saveClass(localStorage,selectedClass);loadout=[...draft];renderAbilityBar();syncGear(hubPlayer,inventory);localStorage.setItem("jacworks-loadout",JSON.stringify(loadout));syncJoin()}
   trainerOpen=false;skillPanel.classList.add("hidden");keys.clear();
 }
 document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
@@ -345,6 +345,29 @@ function clearEncounterMeshes() {
   telegraphMeshes.clear();
 }
 
+const roomUrl=new URL(location.href);
+const newCode=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),v=>v.toString(16).padStart(2,'0')).join('');
+if(!/^[a-zA-Z0-9_-]{6,64}$/.test(roomUrl.searchParams.get('room')??'')){
+ roomUrl.searchParams.set('room',newCode());history.replaceState(null,'',roomUrl);
+}
+const roomCode=roomUrl.searchParams.get('room')!;
+let playerName=localStorage.getItem('jacworks-name')||'Player-'+newCode().slice(0,4);
+localStorage.setItem('jacworks-name',playerName);
+const roomPanel=document.createElement('section');roomPanel.id='room-panel';
+const connectionLabel=document.createElement('p');connectionLabel.textContent='Connecting...';
+const roomLabel=document.createElement('p');roomLabel.textContent='Room: '+roomCode;
+const nameInput=document.createElement('input');nameInput.setAttribute('aria-label','Player name');nameInput.value=playerName;nameInput.maxLength=24;
+nameInput.onchange=()=>{playerName=nameInput.value.trim()||playerName;localStorage.setItem('jacworks-name',playerName);syncJoin()};
+const share=document.createElement('button');share.textContent='Copy room link';share.onclick=()=>{navigator.clipboard.writeText(location.href).then(()=>{share.textContent='Link copied'},()=>{share.textContent='Copy the address bar link'})};
+const roster=document.createElement('div');roster.id='room-roster';
+roomPanel.append(connectionLabel,roomLabel,nameInput,share,roster);document.body.append(roomPanel);
+function syncHub(state:Snapshot){
+ const me=state.players.find(p=>p.id===myId);
+ hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
+ if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
+ for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
+ for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=p.id===myId?meMat:otherMat;syncGear(mesh,p)}
+}
 const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',yellowBall:'Yellow Ball',greenCone:'Green Cone'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
@@ -358,7 +381,7 @@ function syncVote(state:Snapshot){
  for(const id of vote.voters){const row=document.createElement('p');row.textContent=(state.players.find(p=>p.id===id)?.name??'Player')+': '+(vote.accepted.includes(id)?'Accepted':'Waiting');votePanel.append(row);}
  for(const accept of [true,false]){const button=document.createElement('button');button.textContent=accept?'Accept':'Decline';button.disabled=accept&&vote.accepted.includes(myId);button.onclick=()=>{syncJoin();send({type:'vote',proposalId:vote.id,accept});};votePanel.append(button);}
 }
-function syncJoin(){send({type:'join',name:'Player-'+myId.slice(0,4),classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
+function syncJoin(){send({type:'join',name:playerName,classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
 function enterEncounter() {
   if(ws?.readyState!==WebSocket.OPEN){message.textContent='Room disconnected. Reload to reconnect.';return;}
   syncJoin();send({type:'propose',boss:selectedBoss});
@@ -372,25 +395,35 @@ function connectEncounter() {
   const wsHost = location.hostname || "localhost";
   const localVite = location.port === "5173";
   const endpoint = localVite ? `${wsProto}://${wsHost}:8787` : `${wsProto}://${location.host}/ws`;
-  const socket = new WebSocket(endpoint);
+  const socket = new WebSocket(endpoint+'?room='+encodeURIComponent(roomCode));
+  connectionLabel.textContent='Connecting...';gateButton.disabled=true;
   ws = socket;
+  let lastPacket=Date.now(),disconnected=false;
+  const watchdog=setInterval(()=>{if(Date.now()-lastPacket>8000)disconnect()},1000);
+  function disconnect(){
+    if(ws!==socket||disconnected)return;disconnected=true;clearInterval(watchdog);
+    socket.close();
+    snapshot=undefined;myId='';syncVote({vote:undefined} as Snapshot);clearEncounterMeshes();roster.textContent='';
+    connectionLabel.textContent='Disconnected · reconnecting...';gateButton.disabled=true;keys.clear();
+    setTimeout(()=>{if(ws===socket)connectEncounter()},1000);
+  }
 
   socket.onopen = () => {
     if (ws !== socket) return;
-    status.textContent = "Connected · press R when ready";
-    socket.send(JSON.stringify({ type: "join", name: `Player-${Math.floor(Math.random() * 999)}`,classId:selectedClass,loadout,boss:selectedBoss,inventory:readInventory(localStorage.getItem(inventoryKey)) }));
+    connectionLabel.textContent='Connected';
+    seq=0;
   };
 
-  socket.onclose = () => {
-    if (ws === socket && mode === "encounter") status.textContent = "Disconnected";
-  };
+  socket.onclose = disconnect;
+  socket.onerror = disconnect;
 
   socket.onmessage = (event) => {
-    if (ws !== socket) return;
+    if (ws !== socket||disconnected) return;
+    lastPacket=Date.now();
 
     const packet = JSON.parse(event.data) as ServerMessage;
 
-    if (packet.type === "welcome") myId = packet.id;
+    if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
     if (packet.type === "abilityFx" && mode === "encounter") {
       spawnAbilityFx(packet.skill, packet.from, packet.to);
@@ -407,9 +440,11 @@ function connectEncounter() {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
       snapshot = packet;syncVote(packet);
+      connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
+      roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.textContent=p.name+(p.id===myId?' (you)':'');row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub')setMode('encounter');
       if(packet.phase==='lobby'&&mode==='encounter'){clearEncounterMeshes();setMode('hub');}
-      if(mode==='hub')return;
+      if(mode==='hub'){syncHub(packet);return;}
       bossFill.style.width = `${(packet.boss.hp / packet.boss.maxHp) * 100}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);
@@ -616,6 +651,7 @@ function hubPortalDistance() {
 
 addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+  if(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement)return;
   if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
   if(optionsOpen){if(key==='escape')closeOptions();return}
   if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
@@ -652,30 +688,15 @@ addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
 addEventListener("blur",()=>keys.clear());
 
 setInterval(() => {
-  if (mode !== "encounter" || ws?.readyState !== WebSocket.OPEN) return;
+  if (ws?.readyState !== WebSocket.OPEN) return;
 
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
   const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  send({ type: "input", seq: seq++, move: { x, z } });
+  const blocked=trainerOpen||hubPanelOpen||optionsOpen||!!snapshot?.vote;
+  send({ type: "input", seq: seq++, move: blocked?{x:0,z:0}:{ x, z } });
 }, 50);
 
-function updateHub(deltaSeconds: number) {
-  const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-  const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  const length = Math.hypot(x, z);
-
-  if (length > 0) {
-    const old=hubPlayer.position.clone();
-    const speed = 5.4;
-    hubPlayer.position.x += (x / length) * speed * deltaSeconds;
-    hubPlayer.position.z += (z / length) * speed * deltaSeconds;
-    hubPlayer.position.x = Math.max(-11.5, Math.min(11.5, hubPlayer.position.x));
-    hubPlayer.position.z = Math.max(-9.5, Math.min(9.5, hubPlayer.position.z));
-    hubPlayerRing.position.x = hubPlayer.position.x;
-    hubPlayerRing.position.z = hubPlayer.position.z;
-    const dx=hubPlayer.position.x-old.x,dz=hubPlayer.position.z-old.z;if(Math.hypot(dx,dz)>.001)hubPlayer.rotation.y=Math.atan2(dx,dz);
-  }
-
+function updateHub() {
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
   const nearGate = hubPortalDistance() <= 3 || Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2;
@@ -693,7 +714,7 @@ connectEncounter();
 
 engine.runRenderLoop(() => {
   const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen && !snapshot?.vote) updateHub(deltaSeconds);
+  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen && !snapshot?.vote) updateHub();
   else if (snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }

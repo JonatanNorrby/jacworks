@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { Game } from '../shared/game';
+import { roomFromUrl } from '../shared/room';
 
 interface Env {
   GAME_ROOM: DurableObjectNamespace<GameRoom>;
@@ -12,7 +13,9 @@ export default {
       if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
         return new Response('Expected WebSocket upgrade', { status: 426 });
       }
-      return env.GAME_ROOM.getByName('prototype-01').fetch(request);
+      const room = roomFromUrl(request.url);
+      if (!room) return new Response('Invalid room code', { status: 400 });
+      return env.GAME_ROOM.getByName(room).fetch(request);
     }
     return env.ASSETS.fetch(request);
   },

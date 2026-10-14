@@ -57,6 +57,7 @@ export class Game {
   add(id:string) {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
+    if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
     this.players.set(id,p);return p;
   }
   remove(id:string) {this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
@@ -183,6 +184,13 @@ export class Game {
   }
   tick(now=Date.now()):Snapshot {
     if(this.vote&&now>=this.vote.expires)this.cancelVote();
+    if(this.phase==='lobby') {
+      const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
+      for(const p of this.players.values()) {
+        const move=this.moves.get(p.id);
+        if(move&&now-move.at<250){p.pos={x:Math.max(-11.5,Math.min(11.5,p.pos.x+move.v.x*5.4*dt)),z:Math.max(-9.5,Math.min(9.5,p.pos.z+move.v.z*5.4*dt))};if(Math.hypot(move.v.x,move.v.z)>0)p.facing={...move.v};}
+      }
+    }
     if(this.phase==='fight') {
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
       for(const p of this.players.values()){this.recharge(p,now);if(p.invisibleUntil<=now){const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}if(p.shieldUntil<=now)p.shield=0;}

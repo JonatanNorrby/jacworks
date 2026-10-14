@@ -12,13 +12,15 @@
     "dev:cloudflare": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "test": "node --import ./scripts/test-register.mjs --test shared/*.test.ts",
-    "smoke": "node scripts/smoke-combat.mjs && node scripts/smoke-vote-totems.mjs"
+    "smoke": "node scripts/smoke-combat.mjs && node scripts/smoke-vote-totems.mjs && node scripts/smoke-rooms.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@babylonjs/core": "^8.0.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.0.0",
     "@types/ws": "^8.18.0",
     "concurrently": "^9.2.0",

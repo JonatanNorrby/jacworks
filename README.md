@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in multiple browser windows. The local prototype WebSocket server listens on port `8787`.
+Open `http://localhost:5173`, then use **Copy room link** and open that full URL on all three devices/windows. A visit without a room code creates a new private room; independently opening the bare URL creates separate rooms. The local prototype WebSocket server listens on port `8787`.
 
 Cloudflare Worker development:
 
@@ -26,7 +26,7 @@ npm install
 npm run dev:cloudflare
 ```
 
-The deployed build serves the Vite client as Worker static assets and routes `/ws` to the shared Prototype 01 game room.
+The deployed build serves the Vite client as Worker static assets and routes `/ws?room=<code>` to the Durable Object named by that room code. The local server uses the same room routing. Room links are bearer invitations, not accounts or matchmaking. Keep the complete host and query string: production, branch previews and immutable preview hosts are different deployment surfaces.
 
 For testing from other devices on the LAN, open the Vite host address on those devices and ensure TCP 5173/8787 are reachable.
 
@@ -127,7 +127,7 @@ Validation includes shield mitigation/expiry, Vanish targeting and slot restorat
 
 ### Room votes, attack cover and Shaman
 
-Hub tabs stay connected to the existing room; this does not add matchmaking or a global hub. **Propose boss** or the gate opens selection. The vote panel names the proposed boss and shows each connected player's acceptance. Nobody, including the proposer, is implicitly accepted. Decline, joining/leaving connections, returning to the hub or 30 seconds without unanimity cancels. Retry also requires a new vote. Proposal IDs, strict boolean votes and socket-bound player identity reject stale, duplicate and spoofed acceptance. A legacy `ready` message can propose but cannot accept. Returning to the hub resets the shared encounter for this thin room prototype; late arrivals during a fight join the current encounter. Reload a disconnected tab to reconnect. All connected hub tabs count toward unanimity.
+Hub tabs stay connected to the existing room; this does not add matchmaking or a global hub. **Propose boss** or the gate opens selection. The vote panel names the proposed boss and shows each connected player's acceptance. Nobody, including the proposer, is implicitly accepted. Decline, joining/leaving connections, returning to the hub or 30 seconds without unanimity cancels. Retry also requires a new vote. Proposal IDs, strict boolean votes and socket-bound player identity reject stale, duplicate and spoofed acceptance. A legacy `ready` message can propose but cannot accept. Returning to the hub resets the shared encounter for this thin room prototype; late arrivals during a fight join the current encounter. Disconnected or stalled connections show their status and automatically reconnect to the same room, obtaining a new socket identity; a membership change cancels any pending vote. Saved names and loadouts are resent after welcome. Hub avatars and movement now use shared server snapshots, and the room panel shows names and connected player count. All connected hub tabs count toward unanimity.
 
 Hard pillars block melee hits, direct targeted attacks, projectiles, Split Shot and LAZOR (including burn application). Shared first-intersection geometry clips rendered beams/arrows/projectiles. A projectile whose path hits cover produces no damage or Fireball splash through it. Ground-area placement requires caster line of sight; AoE damage/healing requires line of sight from its epicentre to the recipient. Existing poison/burn already applied to a target continues ticking. Boss marked circles remain dangerous around cover; the Hard Warden sweep is the boss attack explicitly blocked by pillars.
 
@@ -136,3 +136,14 @@ Shaman adds **Earth Shock** (36 instant targeted damage, 11-unit range, 1s coold
 Vanish and Backstab descriptions show the server's shared 24 normal / 80 rear damage values, the rear/solo condition, ending Vanish and the optional four 6-damage Poison Enchant ticks (24 additional damage over time). Descriptions are also available as ability tooltips.
 
 Validation: `npm test`, `npm run build`, `node scripts/smoke-combat.mjs`, and `node scripts/smoke-vote-totems.mjs`. The latter runs two actual WebSocket clients through decline, unanimous acceptance, stale/duplicate/spoofed votes, disconnect, two Shamans' owned totems, damage, healing and FX, then verifies three Hard Warden marker deployments and their independently tracked positions. Set `SMOKE_WS_URL` to a quiet preview WebSocket endpoint to run the same checks on Cloudflare. Timings are resolved on the 50ms simulation tick; server stalls delay deployment while preserving 0.5s separation and a full telegraph rather than retroactively guessing player positions. Tests and browser QA establish functionality, not final balance or four-person human playtesting.
+
+
+### Three-player hub regression checks
+
+`npm run smoke` also runs `scripts/smoke-rooms.mjs`: three real WebSocket clients, a fourth isolated room, named membership, synchronized hub movement, shared proposal ID, two votes waiting for the third, decline, disconnect/rejoin, stale votes, join cancellation and shared return. `SMOKE_WS_URL=ws://localhost:8787/ws` (or a `wss://` preview endpoint) targets another server; it generates disposable room codes and never uses an active human room.
+
+Run `npx playwright install chromium`, then `npm run test:browser` for three independent browser contexts plus an isolated fourth. The same UI suite can target a built Worker using `BROWSER_URL=http://localhost:18790` or the branch preview HTTPS URL. For the actual Durable Object runtime: run `npm run dev:cloudflare -- --port 18790` (or `npx wrangler dev --port 18790`), then set `SMOKE_WS_URL=ws://localhost:18790/ws` and run `node scripts/smoke-rooms.mjs`.
+
+Live investigation on 2026-10-14: the branch preview served the vote-enabled game; `https://jacworks.jacworks2026.workers.dev` served only `Hello world`. The old Worker routed every socket on a deployment to `prototype-01`, so unrelated visitors could block unanimity. Hub rendering discarded lobby snapshots and moved only a local avatar, giving connected humans the appearance of different hubs. Hub disconnections were invisible and never reconnected. No three-voter arithmetic defect was found in the authoritative vote state; fixed membership, explicit proposer acceptance, strict booleans and proposal IDs remain enforced. The reported session's exact URLs/connections were not recorded, so its precise sequence cannot be reconstructed.
+
+Use **https://prototype-01-chris-hub-pass-jacworks.jacworks2026.workers.dev** for this branch, create a room once, and share its full room link. The legacy no-code WebSocket route remains solely for existing protocol clients; current browser visits always generate or retain an explicit room code.

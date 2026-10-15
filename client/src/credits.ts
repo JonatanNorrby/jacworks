@@ -7,7 +7,7 @@ export const assetCredits = [
     license: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
     modifications: 'Modified: converted/optimized to GLB, animated for JAC Works.',
-    notes: 'Concept: BABAGANOOSH99. The model is currently available in local development only; public builds use a procedural placeholder.',
+    notes: 'Concept: BABAGANOOSH99. Used in the JAC Works public preview under CC BY 4.0.',
   },
 ];
 

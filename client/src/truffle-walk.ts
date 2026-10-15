@@ -33,7 +33,7 @@ export function createTruffleWalk(root:TransformNode,nodes:TransformNode[]){
   const delta=Quaternion.Identity();Quaternion.FromUnitVectorsToRef(current,direction,delta);
   node.rotationQuaternion=delta.multiply(q);node.computeWorldMatrix(true);
  }
- return {apply(distance:number,moving:boolean){
+ return {leftFootY(){const foot=chains[0].foot;foot.computeWorldMatrix(true);return foot.getAbsolutePosition().y;},apply(distance:number,moving:boolean){
   // Reset to the sampled source idle pose, never accumulate quaternion deltas.
   for(const r of rest){r.node.position.copyFrom(r.p);if(r.q)r.node.rotationQuaternion!.copyFrom(r.q);}
   if(!moving)return;

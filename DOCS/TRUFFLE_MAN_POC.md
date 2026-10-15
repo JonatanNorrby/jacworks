@@ -1,3 +1,40 @@
+# Public preview update (2026-10-15)
+
+The user explicitly approved public distribution and confirmed CC BY 4.0 via
+screenshot. The current build ships `client/public/assets/truffle-man/truffle.glb`
+and adjacent `ATTRIBUTION.txt`. Persistent Options > Credits identifies dotflare,
+source, license, BABAGANOOSH99 concept credit and modifications. Production and
+development use the same loader and real procedural skeletal walk. A failed
+request retains the procedural placeholder. Multiplayer authority is unchanged.
+
+Inspection: ZIP contains one FBX and eight mushroom textures only. GLB v2 has ten
+character meshes, two mushroom materials, six embedded images and one embedded
+buffer; no external URIs, cameras or extensions. No separately sourced props,
+audio or backgrounds were found. This inventory does not independently establish
+ownership; distribution relies on the confirmed license and user authorization.
+GLB SHA-256: `9bbf2e49d792c9cbd6203254f0b79bc63386d5b3941a05157e4d363a02419014`.
+
+The existing Cloudflare Workers Builds integration deploys this branch on push
+using the configured preview command (`npm run build && npx wrangler preview`).
+Its alias is https://prototype-01-chris-hub-pass-jacworks.jacworks2026.workers.dev.
+A local `npx wrangler preview` also requires Cloudflare authentication;
+do not use `wrangler deploy` for this preview-only work. The historical local-only instructions below are
+superseded by this public packaging update. Browser tests use the public GLB;
+no local model environment settings are needed.
+
+Validation (2026-10-15): `npm test` passes 108 tests; `npm run build` passes
+with the existing large-chunk warning. The real-rig browser test verifies
+alternating lift, planted stance, deforming endpoints and idle. Built-Worker
+browser checks pass Credits, small viewport, multiplayer votes/reconnects/room
+isolation, HTTP 200 GLB parsing, changing real-foot positions, shared patrol,
+failed fetch fallback and malformed HTTP 200 fallback. The four-browser hub
+scenario exceeded the default 60-second test limit and passed with
+`--timeout 180000`. `scripts/smoke-truffle.mjs` accepts `SMOKE_WS_URL` for
+local or preview checks: two sockets verify matching NPC snapshots and drive a
+player into collision contact without penetrating its 1.33-unit boundary.
+
+---
+
 # Truffle Man local asset PoC
 
 Temporary integration test on `prototype/01-chris-hub-pass`, authorized as an exception to Prototype 01's limited hub scope. Babylon.js remains the client engine (Accepted ADR-0007). No permanent art or NPC-system decision is implied.
@@ -12,7 +49,7 @@ Only code, tooling, tests and documentation are committed. FBX, textures, conver
 
 ## Inspection and conversion
 
-Blender 4.5.3 imported FBX 7400: 10 mesh objects, 33,201 vertices, 65,040 triangles, two materials (`MatMushroom`, `MatMushroomBody`), one armature with 89 bones. Two generically named actions: `Armature.001|Armature.001|Armature.001Action` (frames 1–121), and `Armature.001|Armature.001|Shader NodetreeAction.003` (frames 1–2). Export contains skeletal translation/rotation/scale channels. The original clip is idle-like, not a travelling walk; see the diagnosis and replacement below.
+Blender 4.5.3 imported FBX 7400: 10 mesh objects, 33,201 vertices, 65,040 triangles, two materials (`MatMushroom`, `MatMushroomBody`), one armature with 89 bones. Two generically named actions: `Armature.001|Armature.001|Armature.001Action` (frames 1Ã¢â‚¬â€œ121), and `Armature.001|Armature.001|Shader NodetreeAction.003` (frames 1Ã¢â‚¬â€œ2). Export contains skeletal translation/rotation/scale channels. The original clip is idle-like, not a travelling walk; see the diagnosis and replacement below.
 
 Eight 2048-square source textures are resized to 1024-square; base color, normal, roughness and metallic maps are reconstructed into PBR materials. GLB embeds textures (JPEG quality 85 where exporter supports it), mesh and rig; result 4,127,216 bytes. Mesh topology is retained for this single-NPC PoC. Exporter reduces vertices with more than four joint influences to the four largest normalized weights. Check deformation before promoting this to production. Full local inspection is in `inspection.json`; no source metadata is intentionally stripped from the original archive.
 

@@ -1,7 +1,8 @@
-import {MeshBuilder,TransformNode,StandardMaterial,Color3,ImportMeshAsync,Vector3,type Scene} from '@babylonjs/core';
+import {MeshBuilder,TransformNode,StandardMaterial,Color3,LoadAssetContainerAsync,Vector3,type AssetContainer,type Scene} from '@babylonjs/core';
 import {createTruffleWalk} from './truffle-walk';
 import type {HubNpc} from '../../shared/truffle';
 export function createTruffle(scene:Scene){
+ let loaded:AssetContainer|undefined;
  let walk:ReturnType<typeof createTruffleWalk>,lastTime=performance.now(),displayStride:number|undefined;
  const root=new TransformNode('truffle-man',scene),visual=new TransformNode('truffle-visual',scene);visual.parent=root;
  const stem=MeshBuilder.CreateCapsule('truffle-placeholder-stem',{height:1.35,radius:.35},scene);stem.parent=visual;stem.position.y=.7;
@@ -9,13 +10,16 @@ export function createTruffle(scene:Scene){
  const brown=new StandardMaterial('truffle-placeholder-brown',scene);brown.diffuseColor=new Color3(.48,.22,.08);cap.material=brown;
  const cream=new StandardMaterial('truffle-placeholder-cream',scene);cream.diffuseColor=new Color3(.85,.72,.44);stem.material=cream;
  const label=document.createElement('p');label.id='truffle-status';label.textContent='Truffle Man - procedural placeholder';document.querySelector('#hub-card')!.append(label);
- // The model is only served by the local development middleware. Never request it in a production build.
- if(import.meta.env.DEV&&import.meta.env.VITE_TRUFFLE_LOCAL==='true'){
-  label.textContent='Truffle Man - loading local model';
-  import('@babylonjs/loaders/glTF').then(()=>fetch('/__local-assets/truffle.glb',{signal:AbortSignal.timeout(10000)})).then(async response=>{
-   if(!response.ok)throw Error('Local model unavailable');
-   return ImportMeshAsync(new Uint8Array(await response.arrayBuffer()),scene,{pluginExtension:'.glb'});
+ // Ship the self-contained licensed asset in both development and production.
+ {
+  label.textContent='Truffle Man - loading model';
+  import('@babylonjs/loaders/glTF').then(()=>fetch('/assets/truffle-man/truffle.glb',{signal:AbortSignal.timeout(10000)})).then(async response=>{
+   if(!response.ok)throw Error('Model unavailable');
+   const bytes=await response.arrayBuffer(),header=new DataView(bytes);
+   if(bytes.byteLength<12||header.getUint32(0,true)!==0x46546c67||header.getUint32(4,true)!==2||header.getUint32(8,true)!==bytes.byteLength)throw Error('Invalid GLB');
+   return LoadAssetContainerAsync(new Uint8Array(bytes),scene,{pluginExtension:'.glb'});
   }).then(result=>{
+   loaded=result;result.addAllToScene();
    const container=new TransformNode('truffle-model',scene);container.parent=visual;
    for(const m of result.meshes)if(!m.parent)m.parent=container;
    for(const a of result.animationGroups)a.stop();
@@ -34,11 +38,12 @@ export function createTruffle(scene:Scene){
    container.computeWorldMatrix(true);
    for(const node of result.transformNodes)node.computeWorldMatrix(true);
    walk=createTruffleWalk(root,result.transformNodes);
+   label.dataset.rig=walk?'skeletal':'unsupported';
    root.position.copyFrom(previousPosition);root.rotation.copyFrom(previousRotation);
    stem.setEnabled(false);cap.setEnabled(false);
-   label.textContent='Truffle Man - local model - '+(walk?'procedural skeletal walk':'rig unsupported - static idle');root.metadata={asset:'local-model'};
-   const credit=document.createElement('a');credit.href='https://sketchfab.com/3d-models/truffle-man-e41c6781e4854a1fbe5cdf24a0029aab';credit.textContent=' - dotflare / CC Attribution (Sketchfab)';label.append(credit);
-  }).catch(()=>{label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={asset:'fallback'};});
+   label.textContent='Truffle Man - '+(walk?'procedural skeletal walk':'rig unsupported - static idle');root.metadata={asset:'public-model'};
+   const credit=document.createElement('a');credit.href='https://sketchfab.com/3d-models/truffle-man-e41c6781e4854a1fbe5cdf24a0029aab';credit.textContent=' - dotflare / CC BY 4.0 (Sketchfab)';label.append(credit);
+  }).catch(()=>{loaded?.dispose();walk=undefined;stem.setEnabled(true);cap.setEnabled(true);label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={asset:'fallback'};});
  }
  return {update(state:HubNpc|undefined,visible:boolean){
   const now=performance.now(),dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;
@@ -50,6 +55,7 @@ export function createTruffle(scene:Scene){
   else {root.position.x+=(state.pos.x-root.position.x)*alpha;root.position.z+=(state.pos.z-root.position.z)*alpha;displayStride+=(state.stride-displayStride)*alpha;}
   root.rotation.y=state.heading;root.computeWorldMatrix(true);
   walk?.apply(displayStride,state.walking);
+  if(walk)label.dataset.leftFootY=String(walk.leftFootY());
   visual.position.y=!walk&&state.walking?Math.abs(Math.sin(displayStride*9))*.09:0;
   visual.rotation.z=!walk&&state.walking?Math.sin(displayStride*9)*.055:0;
   label.dataset.x=String(state.pos.x);label.dataset.z=String(state.pos.z);label.dataset.walking=String(state.walking);

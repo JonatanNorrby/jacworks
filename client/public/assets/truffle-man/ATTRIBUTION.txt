@@ -5,6 +5,7 @@ https://creativecommons.org/licenses/by/4.0/
 Concept: BABAGANOOSH99.
 Modified for JAC Works: converted FBX to GLB, rebuilt PBR materials,
 resized textures to 1024, compressed textures, and added procedural skeletal
-walking driven by server-authoritative patrol distance. No endorsement implied.
+walking driven by server-authoritative patrol distance, and a procedural
+skeletal boss smash aligned to server-authoritative damage. No endorsement implied.
 License confirmed by the owner's screenshot supplied by the user, 2026-10-15.
 Optimized GLB SHA-256: 9bbf2e49d792c9cbd6203254f0b79bc63386d5b3941a05157e4d363a02419014

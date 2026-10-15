@@ -83,7 +83,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
  const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
- const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['hardWarden','Hard Warden'],['yellowBall','Yellow Ball'],['hardYellowBall','Hard Yellow Ball'],['greenCone','Green Cone']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
+ const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['hardWarden','Hard Warden'],['yellowBall','Yellow Ball'],['hardYellowBall','Hard Yellow Ball'],['greenCone','Truffle Man']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
  const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
@@ -302,7 +302,6 @@ bossMesh.material = bossMat;
 const yellowMat=material('yellow-ball',new Color3(1,.85,.02),new Color3(.5,.32,0));
 const yellowBoss=pushArena(MeshBuilder.CreateSphere('yellow-boss',{diameter:2.5,segments:24},scene));yellowBoss.material=yellowMat;
 const greenMat=material('green-cone',new Color3(.1,.8,.2),new Color3(.02,.25,.04));
-const coneBoss=pushArena(MeshBuilder.CreateCylinder('green-cone',{height:2.9,diameterTop:0,diameterBottom:2.5,tessellation:24},scene));coneBoss.material=greenMat;
 const dropCone=pushArena(MeshBuilder.CreateCylinder('conical-taper-drop',{height:.65,diameterTop:0,diameterBottom:.5},scene));dropCone.material=greenMat;
 const dropTube=pushArena(MeshBuilder.CreateCylinder('cylinder-tube-drop',{diameter:.4,height:.65},scene));dropTube.material=bossMat;
 const dropBall=pushArena(MeshBuilder.CreateSphere('spherical-ball-drop',{diameter:.5},scene));dropBall.material=yellowMat;
@@ -319,7 +318,7 @@ function setMode(next: ClientMode) {
 
   for (const mesh of hubMeshes) mesh.setEnabled(inHub);
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
-  dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);coneBoss.setEnabled(false);yellowBoss.setEnabled(false);
+  dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);yellowBoss.setEnabled(false);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
   for (const effect of fx) effect.mesh.setEnabled(!inHub);
@@ -372,7 +371,7 @@ function syncHub(state:Snapshot){
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=p.id===myId?meMat:otherMat;syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Green Cone'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -469,14 +468,13 @@ function syncEncounter(state: Snapshot) {
 
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=state.boss.id==='greenCone';
- coneBoss.setEnabled(green&&state.phase!=='won');coneBoss.position.set(state.boss.pos.x,1.45,state.boss.pos.z);
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
  for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):MeshBuilder.CreateCylinder('cone-add-'+a.id,{height:1.1,diameterTop:0,diameterBottom:.9,tessellation:16},scene);mesh.material=a.kind==='ball'?yellowMat:greenMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=.85;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):.55,a.pos.z);mesh.getChildMeshes()[0].scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?'GREEN CONE':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?'TRUFFLE MAN':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
@@ -716,6 +714,8 @@ function updateHub() {
 
 setMode("hub");
 const truffle=createTruffle(scene);
+const truffleBoss=createTruffle(scene,{boss:true});
+let bossPacket:Snapshot|undefined,bossReceived=0;
 connectEncounter();
 
 engine.runRenderLoop(() => {
@@ -728,6 +728,9 @@ engine.runRenderLoop(() => {
   const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
   camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
   truffle.update(snapshot?.hubNpc,mode==='hub');
+  if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
+  const b=snapshot?.boss;
+  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,mode==='encounter'&&b?.id==='greenCone'&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   updateEffects();
   updateCooldowns();
   scene.render();

@@ -102,3 +102,32 @@ Read-only source diagnosis:
 ```
 
 Checks: 108/108 unit tests pass; all WebSocket smoke checks pass; the focused actual-model gait and shared-hub browser tests pass (2/2). Production build passes with the existing large-bundle warning. The historical four-client software-rendering limitation above has not been revalidated by this fix.
+
+### Truffle Man encounter (2026-10-15)
+
+Truffle Man replaces Green Cone's presentation and selection label while retaining
+`greenCone` as its protocol/selection ID and Conical Taper as its reward. HP,
+damage, collision radius, adds, warning radius/duration and other difficulty modes
+are unchanged. A 650ms stationary recovery follows impact before pursuit resumes;
+the existing 3.6s attack cadence remains unchanged.
+
+The published licensed GLB is reused at boss scale, with the existing procedural
+skeletal walk. A new smash pose resets to the source pose each frame, crouches via
+spine and leg IK with planted feet, raises both arms, drives both deforming arm
+chains and independent hand controls down, then recovers. The model root never
+bounces during the attack. Heading, stride and smash start/contact/recovery times
+are server snapshot state, including for late arrivals. Actual damage resolution
+publishes contact and recovery timestamps; stalled ticks delay contact together
+with damage. Clients reconstruct pose using snapshot time plus bounded monotonic
+interpolation, without depending on local wall-clock agreement or event delivery.
+
+The Guide no longer displays NPC status/attribution. Hidden diagnostic elements
+support existing asset regression checks. Options > Credits and the adjacent
+ATTRIBUTION.txt remain, including source, author, license and modifications.
+
+Validation: 110 shared tests, including stalled contact/recovery and three actual
+WebSocket clients (one arriving during windup); production build; real-GLB browser
+pose captures/assertions, existing skeletal walk, shared patrol, malformed/missing
+asset fallback, Credits/mobile Credits, actual boss selection and late browser
+join. Browser rig captures are a controlled pose fixture; socket tests establish
+shared authoritative timing, not final human balance or network-latency elimination.

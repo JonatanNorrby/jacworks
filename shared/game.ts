@@ -67,7 +67,7 @@ export class Game {
   remove(id:string) {this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
-    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
     for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
@@ -179,7 +179,9 @@ export class Game {
     const dir=unit({x:target.pos.x-this.boss.pos.x,z:target.pos.z-this.boss.pos.z});
     if(this.boss.id==='greenCone') {
       t={id:this.uuid(),kind:'circle',pos:{...this.boss.pos},radius:3,resolvesAt:now+1500};
-      this.emit({type:'event',text:'Green Cone: close-range slam!'});
+      this.boss.heading=Math.atan2(dir.x,dir.z);
+      this.boss.smash={startedAt:now,impactAt:t.resolvesAt,recoverAt:t.resolvesAt+650};
+      this.emit({type:'event',text:'Truffle Man: close-range smash!'});
       if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:54,maxHp:54,attackAt:now+1500});
     } else if(this.boss.id==='hardWarden') {
       const kind=this.mechanic%3;
@@ -218,7 +220,12 @@ export class Game {
       }
       const alive=[...this.players.values()].filter(p=>p.alive);
       const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
-      if(this.boss.id==='greenCone'&&!this.telegraphs.length&&this.boss.hp>0)chase(this.boss.pos,.9,1.73);
+      if(this.boss.id==='greenCone'){
+        const before={...this.boss.pos};this.boss.walking=false;
+        if(!this.telegraphs.length&&this.boss.hp>0&&(!this.boss.smash||now>=this.boss.smash.recoverAt))chase(this.boss.pos,.9,1.73);
+        const travelled=distance(before,this.boss.pos);this.boss.stride=(this.boss.stride??0)+travelled;this.boss.walking=travelled>0;
+        if(travelled>0)this.boss.heading=Math.atan2(this.boss.pos.x-before.x,this.boss.pos.z-before.z);
+      }
       this.adds=this.adds.filter(a=>a.hp>0);
       for(const a of this.adds.filter(a=>a.kind!=='ball')){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
       for(const p of this.players.values()) {
@@ -238,6 +245,8 @@ export class Game {
       }
 
       for(const t of this.telegraphs.filter(t=>!t.ownerId&&t.resolvesAt<=now)) {
+        // Publish the actual damage tick; a stalled server must not show an early slam.
+        if(this.boss.id==='greenCone'&&this.boss.smash&&!this.boss.smash.impacted){this.boss.smash.impactAt=now;this.boss.smash.recoverAt=now+650;this.boss.smash.impacted=true;}
         for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);

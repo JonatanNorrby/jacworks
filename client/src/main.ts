@@ -399,7 +399,7 @@ function connectEncounter() {
   const wsProto = location.protocol === "https:" ? "wss" : "ws";
   const wsHost = location.hostname || "localhost";
   const localVite = location.port === "5173";
-  const endpoint = localVite ? `${wsProto}://${wsHost}:8787` : `${wsProto}://${location.host}/ws`;
+  const endpoint = localVite ? `${wsProto}://${wsHost}:${import.meta.env.VITE_WS_PORT??"8787"}` : `${wsProto}://${location.host}/ws`;
   const socket = new WebSocket(endpoint+'?room='+encodeURIComponent(roomCode));
   connectionLabel.textContent='Connecting...';gateButton.disabled=true;
   ws = socket;

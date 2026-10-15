@@ -2,9 +2,9 @@
 
 ## Prototype 01
 
-Base prototype branch: `prototype/01-babylon-multiplayer-boss`
+Version **0.1.0** consolidates the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
 
-This stacked prototype pass adds a deliberately small **Sanctum Hub** shell before the encounter so the team can evaluate the intended loop without turning Prototype 01 into a world-building project:
+The prototype includes a deliberately small **Sanctum Hub** shell before the encounter so the team can evaluate the intended loop without turning Prototype 01 into a world-building project:
 
 `Hub → Expedition Gate → boss encounter → retry / return to hub`
 
@@ -34,7 +34,7 @@ For testing from other devices on the LAN, open the Vite host address on those d
 
 Hub:
 - WASD — move
-- E — enter the encounter when standing near the Expedition Gate
+- E — propose a boss when standing near the Expedition Gate
 - E at the gold Skill Trainer — choose a class and rearrange its four skills
 - E at the purple Crafter — craft Primitive Wand from boss materials
 
@@ -44,14 +44,14 @@ Encounter:
 - Aim the pointer at ground for area skills; at enemies for single-target spells/arrows
 - Aim at an ally for Targeted Heal / Lightning Shield; Shift forces self, empty ground defaults to self
 - WASD or Dash interrupts Aimed Shot, Fireball and Lightning Storm; interruption spends the started cooldown
-- R — ready; after a win/wipe, reset and ready again
+- R — propose a retry; everyone in the room must accept a new vote
 - H — return to the hub
 
 ### What this proves
 
 The prototype intentionally focuses on the Prototype 01 hypothesis: server-authoritative multiplayer movement/combat, a shared boss, readable telegraphs, learnable mechanics, coordination, failure and fast retry.
 
-The gate opens boss selection: Warden (red cylinder) or Yellow Ball (yellow sphere). Selecting a boss proposes an encounter to every connected player in the existing room. The proposer and all other players must explicitly accept before the server starts it. Yellow Ball alternates a telegraphed rolling charge and a bouncing slam. Movement, boss separation, dash, damage, cooldowns and beam intersection are calculated by one shared server simulation used by the local WebSocket server and Cloudflare Durable Object.
+The gate offers Warden, Hard Warden, Yellow Ball, Hard Yellow Ball and Truffle Man (`greenCone`). Selecting a boss proposes an encounter to every connected player in the existing room. The proposer and all other players must explicitly accept before the server starts it. Yellow Ball alternates a telegraphed rolling charge and a bouncing slam. Movement, boss separation, dash, damage, cooldowns and beam intersection are calculated by one shared server simulation used by the local WebSocket server and Cloudflare Durable Object.
 
 LAZOR fires a 14-unit forward beam, dealing 90 damage on intersection with the boss, with a 2.4-second cooldown. Player noses show actual movement direction and keep their facing when stopped. It belongs to Fire Mage; choose that class at the Skill Trainer before entering.
 
@@ -62,7 +62,9 @@ Validation: `npm test` runs collision, facing, input validation, directional att
 
 ### Cloudflare deployment
 
-The branch now includes `wrangler.jsonc` and a Cloudflare Worker entry point in `worker/index.ts`. The multiplayer room is hosted in a Durable Object so connected players share the same boss state instead of relying on the old local Node process.
+The repository includes `wrangler.jsonc` and a Cloudflare Worker entry point in `worker/index.ts`. The multiplayer room is hosted in a Durable Object so connected players share the same boss state instead of relying on the old local Node process.
+
+External Workers Builds may deploy on main pushes. The following is an explicit manual deployment command, not part of consolidation verification:
 
 ```bash
 npm run deploy
@@ -146,7 +148,7 @@ Run `npx playwright install chromium`, then `npm run test:browser` for three ind
 
 Live investigation on 2026-10-14: the branch preview served the vote-enabled game; `https://jacworks.jacworks2026.workers.dev` served only `Hello world`. The old Worker routed every socket on a deployment to `prototype-01`, so unrelated visitors could block unanimity. Hub rendering discarded lobby snapshots and moved only a local avatar, giving connected humans the appearance of different hubs. Hub disconnections were invisible and never reconnected. No three-voter arithmetic defect was found in the authoritative vote state; fixed membership, explicit proposer acceptance, strict booleans and proposal IDs remain enforced. The reported session's exact URLs/connections were not recorded, so its precise sequence cannot be reconstructed.
 
-Use **https://prototype-01-chris-hub-pass-jacworks.jacworks2026.workers.dev** for this branch, create a room once, and share its full room link. The legacy no-code WebSocket route remains solely for existing protocol clients; current browser visits always generate or retain an explicit room code.
+The historical hub preview is **https://prototype-01-chris-hub-pass-jacworks.jacworks2026.workers.dev**. For the current deployment, create a room once on its host and share the full room link. The legacy no-code WebSocket route remains solely for existing protocol clients; current browser visits always generate or retain an explicit room code.
 
 ### Yellow Ball splits and Hard Yellow Ball
 
@@ -175,3 +177,5 @@ Game Dev opens a separate in-game Labs area with player VFX and character/enemy/
 The consolidated scope includes accepted ADR extensions and prototype browser-local economy. Authenticated persistence and skill-mutation crafting proposals are future work. Source rights remain unchanged; no project license is assigned. Preserve the separate Truffle Man attribution and Credits UI.
 
 Version/release policy: [DOCS/RELEASE_RULES.md](DOCS/RELEASE_RULES.md). Deployment uses externally configured Workers Builds; pushing main may deploy production. Never assume a source merge preserves in-memory Durable Object sessions.
+
+For isolated local browser checks when port 8787 is occupied, set `TEST_WS_PORT=18791` before `npm run test:browser`. The runner starts its own Node backend and passes that port to Vite through `VITE_WS_PORT`; deployed `/ws` routing is unchanged. The four-context hub regression allows 180 seconds for software-rendered scenes.

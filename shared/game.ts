@@ -1,3 +1,4 @@
+import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffle';
 import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
@@ -39,6 +40,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
+  hubNpc=new TrufflePatrol();
   balls=new BallEncounter(this);
   players=new Map<string,PlayerState>();
   moves=new Map<string,{v:Vec2;at:number;seq:number}>();
@@ -67,7 +69,7 @@ export class Game {
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
-    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
+    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
@@ -196,9 +198,10 @@ export class Game {
     if(this.vote&&now>=this.vote.expires)this.cancelVote();
     if(this.phase==='lobby') {
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
+      this.hubNpc.tick(dt,[...this.players.values()].map(p=>p.pos));
       for(const p of this.players.values()) {
         const move=this.moves.get(p.id);
-        if(move&&now-move.at<250){p.pos={x:Math.max(-11.5,Math.min(11.5,p.pos.x+move.v.x*5.4*dt)),z:Math.max(-9.5,Math.min(9.5,p.pos.z+move.v.z*5.4*dt))};if(Math.hypot(move.v.x,move.v.z)>0)p.facing={...move.v};}
+        if(move&&now-move.at<250){p.pos=moveHubPlayer(p.pos,{x:move.v.x*5.4*dt,z:move.v.z*5.4*dt},this.hubNpc.state.pos);if(Math.hypot(move.v.x,move.v.z)>0)p.facing={...move.v};}
       }
     }
     if(this.phase==='fight') {
@@ -244,6 +247,6 @@ export class Game {
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

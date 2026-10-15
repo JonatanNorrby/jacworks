@@ -1,3 +1,4 @@
+import {createTruffle} from './truffle';
 import {clipPillars} from '../../shared/cover';
 import { HARD_PILLARS } from '../../shared/protocol';
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
@@ -711,6 +712,7 @@ function updateHub() {
 }
 
 setMode("hub");
+const truffle=createTruffle(scene);
 connectEncounter();
 
 engine.runRenderLoop(() => {
@@ -722,6 +724,7 @@ engine.runRenderLoop(() => {
   const tracked=mode==='hub'?hubPlayer.position:snapshot?.players.find(p=>p.id===myId)?.pos;
   const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
   camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
+  truffle.update(snapshot?.hubNpc,mode==='hub');
   updateEffects();
   updateCooldowns();
   scene.render();

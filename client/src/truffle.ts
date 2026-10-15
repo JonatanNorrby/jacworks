@@ -1,14 +1,12 @@
-import {MeshBuilder,TransformNode,StandardMaterial,Color3,LoadAssetContainerAsync,Vector3,type AssetContainer,type Scene} from '@babylonjs/core';
+import {createMushroom} from './mushroom';
+import {TransformNode,LoadAssetContainerAsync,Vector3,type AssetContainer,type Scene} from '@babylonjs/core';
 import {createTruffleWalk} from './truffle-walk';
 import type {HubNpc} from '../../shared/truffle';
 export function createTruffle(scene:Scene,options:{boss?:boolean}={}){
  let loaded:AssetContainer|undefined;
  let walk:ReturnType<typeof createTruffleWalk>,lastTime=performance.now(),displayStride:number|undefined;
  const root=new TransformNode('truffle-man',scene),visual=new TransformNode('truffle-visual',scene);visual.parent=root;
- const stem=MeshBuilder.CreateCapsule('truffle-placeholder-stem',{height:1.35,radius:.35},scene);stem.parent=visual;stem.position.y=.7;
- const cap=MeshBuilder.CreateSphere('truffle-placeholder-cap',{diameter:1.6,segments:16},scene);cap.parent=visual;cap.position.y=1.55;cap.scaling.y=.45;
- const brown=new StandardMaterial('truffle-placeholder-brown',scene);brown.diffuseColor=new Color3(.48,.22,.08);cap.material=brown;
- const cream=new StandardMaterial('truffle-placeholder-cream',scene);cream.diffuseColor=new Color3(.85,.72,.44);stem.material=cream;
+ const placeholder=createMushroom(scene,'truffle-placeholder',options.boss?3.82:1.91);placeholder.parent=visual;
  const label=document.createElement('p');label.id=options.boss?'truffle-boss-status':'truffle-status';label.textContent='Truffle Man - procedural placeholder';label.style.display='none';document.body.append(label);
  // Ship the self-contained licensed asset in both development and production.
  {
@@ -32,7 +30,7 @@ export function createTruffle(scene:Scene,options:{boss?:boolean}={}){
    root.position.setAll(0);root.rotation.setAll(0);
    root.computeWorldMatrix(true);visual.computeWorldMatrix(true);container.computeWorldMatrix(true);
    for(const mesh of result.meshes)mesh.computeWorldMatrix(true);
-   const bounds=container.getHierarchyBoundingVectors(true),size=bounds.max.subtract(bounds.min),scale=Math.min((options.boss?3.4:2)/size.y,(options.boss?2.5:1.7)/Math.hypot(size.x,size.z));
+   const bounds=container.getHierarchyBoundingVectors(true),size=bounds.max.subtract(bounds.min),scale=Math.min((options.boss?6.8:2)/size.y,(options.boss?5:1.7)/Math.hypot(size.x,size.z));
    if(!Number.isFinite(scale)||scale<=0){for(const m of result.meshes)m.dispose();container.dispose();throw Error('Invalid model bounds');}
    container.scaling.setAll(scale);container.position=new Vector3(-(bounds.min.x+bounds.max.x)*scale/2,-bounds.min.y*scale,-(bounds.min.z+bounds.max.z)*scale/2);
    container.computeWorldMatrix(true);
@@ -40,10 +38,10 @@ export function createTruffle(scene:Scene,options:{boss?:boolean}={}){
    walk=createTruffleWalk(root,result.transformNodes);
    label.dataset.rig=walk?'skeletal':'unsupported';
    root.position.copyFrom(previousPosition);root.rotation.copyFrom(previousRotation);
-   stem.setEnabled(false);cap.setEnabled(false);
+   placeholder.setEnabled(false);
    label.textContent='Truffle Man - '+(walk?'procedural skeletal walk':'rig unsupported - static idle');root.metadata={asset:'public-model'};
    const credit=document.createElement('a');credit.href='https://sketchfab.com/3d-models/truffle-man-e41c6781e4854a1fbe5cdf24a0029aab';credit.textContent=' - dotflare / CC BY 4.0 (Sketchfab)';label.append(credit);
-  }).catch(()=>{loaded?.dispose();walk=undefined;stem.setEnabled(true);cap.setEnabled(true);label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={asset:'fallback'};});
+  }).catch(()=>{loaded?.dispose();walk=undefined;placeholder.setEnabled(true);label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={asset:'fallback'};});
  }
  return {update(state:HubNpc|undefined,visible:boolean,smash?:import('../../shared/protocol').Snapshot['boss']['smash'],attackNow=0){
   const now=performance.now(),dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;

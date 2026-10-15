@@ -1,3 +1,4 @@
+import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
 import {createCreditsDialog} from './credits';
 import {clipPillars} from '../../shared/cover';
@@ -470,7 +471,7 @@ function syncEncounter(state: Snapshot) {
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=state.boss.id==='greenCone';
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
- for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):MeshBuilder.CreateCylinder('cone-add-'+a.id,{height:1.1,diameterTop:0,diameterBottom:.9,tessellation:16},scene);mesh.material=a.kind==='ball'?yellowMat:greenMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=.85;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):.55,a.pos.z);mesh.getChildMeshes()[0].scaling.x=a.hp/a.maxHp;}
+ for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;

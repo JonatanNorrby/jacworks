@@ -68,6 +68,20 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #options-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;width:min(360px,80vw);padding:24px;background:#141d2a;border:1px solid #8dc9e088;border-radius:14px}
 #options-panel label{display:block;margin:14px 0}#camera-zoom{width:100%}
 #options-button,#options-panel button{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;cursor:pointer}
+#options-panel button+button{margin-left:10px}
+#credits-panel{box-sizing:border-box;width:min(640px,calc(100vw - 32px));max-height:85dvh;padding:0;color:#f5f1e9;background:#141d2a;border:1px solid #8dc9e088;border-radius:14px;box-shadow:0 20px 80px #000b}
+#credits-panel[open]{display:flex;flex-direction:column}
+#credits-panel::backdrop{background:#05070bcc}
+#credits-panel header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid #78b4c744}
+#credits-panel h2{font-size:22px;margin:0}
+#credits-panel button{font:inherit;color:inherit;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;cursor:pointer;flex-shrink:0}
+.credits-scroll{overflow-y:auto;min-height:0;padding:8px 24px 24px;line-height:1.6;overflow-wrap:anywhere;overscroll-behavior:contain}
+.credits-scroll article{padding:10px 0;border-top:1px solid #78b4c744}
+.credits-scroll h3{color:#c8efff;margin-bottom:4px}
+.credits-scroll p{margin:10px 0}
+#credits-panel a{color:#9edfff;text-decoration:underline;text-underline-offset:3px}
+#credits-panel :focus-visible{outline:3px solid #e4c77b;outline-offset:3px}
+@media(max-width:480px){#credits-panel header{padding:14px;gap:10px}#credits-panel h2{font-size:18px}.credits-scroll{padding:8px 16px 16px}}
 .gear-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gear-card{padding:12px;background:#202c3c;border:1px solid #78b4c755;border-radius:8px}.gear-card strong,.gear-card small{display:block;margin-bottom:8px}.gear-card small{text-transform:capitalize;color:#b4bfcb}.material-inventory{padding:10px;background:#202c3c;border-radius:8px}
 
 #hub-card button{pointer-events:auto;cursor:pointer;margin-top:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px}

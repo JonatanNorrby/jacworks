@@ -1,4 +1,5 @@
 import {createTruffle} from './truffle';
+import {createCreditsDialog} from './credits';
 import {clipPillars} from '../../shared/cover';
 import { HARD_PILLARS } from '../../shared/protocol';
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
@@ -40,6 +41,8 @@ function refreshOptions(){follow.checked=preferences.followPlayer;zoom.value=Str
 function closeOptions(){optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();optionsButton.focus()}
 optionsButton.onclick=()=>{closeHubPanel();if(trainerOpen)closeTrainer(false);optionsOpen=true;keys.clear();refreshOptions();optionsPanel.classList.remove('hidden');follow.focus()};
 optionsPanel.querySelector('button')!.onclick=closeOptions;
+const creditsButton=document.createElement('button');creditsButton.type='button';creditsButton.textContent='Credits';creditsButton.setAttribute('aria-haspopup','dialog');optionsPanel.insertBefore(creditsButton,optionsPanel.querySelector('button'));
+createCreditsDialog(creditsButton);
 function changeCamera(){preferences=readCamera(JSON.stringify({followPlayer:follow.checked,zoom:Number(zoom.value)}));saveCamera(localStorage,preferences);refreshOptions()}
 follow.onchange=changeCamera;zoom.oninput=changeCamera;refreshOptions();
 

@@ -44,7 +44,7 @@ The goal is not bureaucracy. The goal is that all three humans and all agents ca
 
 ## Current project status
 
-The project is in early concept/design and infrastructure planning. Do not treat brainstormed ideas as final design unless they are explicitly recorded as an accepted decision.
+The project has a playable browser multiplayer prototype and remains in early design. Do not treat brainstormed ideas as final design unless they are explicitly recorded as an accepted decision.
 
 Current game direction being explored:
 - Browser-first multiplayer game.
@@ -56,7 +56,7 @@ Current game direction being explored:
 
 ## First prototype
 
-Prototype 01 is defined in `DOCS/PROTOTYPE_01.md`. Keep early implementation focused on proving multiplayer boss combat, class/combat feel, readability, learning, coordination, and fast retry. Do not expand prototype scope into progression, loot, AI companions, PvP, lore, or other later systems unless the humans explicitly change the prototype scope.
+Prototype 01 is defined in `DOCS/PROTOTYPE_01.md`. Keep early implementation focused on proving multiplayer boss combat, class/combat feel, readability, learning, coordination, and fast retry. Approved extensions include eight classes, multiple bosses, shared hub/votes, browser-local inventory/crafting, Truffle Man and connected Game Dev Labs; see the approved extensions in the scope document and ADRs 0008–0012. Authenticated progression, AI companions, PvP and lore remain outside this prototype. Proposed skill-mutation crafting is not accepted design.
 
 ## Proposed infrastructure
 

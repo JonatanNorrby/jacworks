@@ -24,6 +24,8 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 
 | [0011](0011-yellow-ball-splits.md) | Accepted | Yellow Ball split encounters and Large Sphere |
 
+| [0012](0012-connected-development-labs.md) | Accepted | Connected development Labs and consolidation |
+
 ## Workflow
 
 1. Check this index and relevant Accepted ADRs before making architectural or durable game-system changes.

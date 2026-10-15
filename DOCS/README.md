@@ -20,3 +20,9 @@ Ideas being discussed should be marked as proposals or drafts. Once the team agr
 ## Shared AI context
 
 See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI coding agents should read before working on the repository.
+
+## Consolidation and releases
+
+- [Connected Labs decision](ADR/0012-connected-development-labs.md)
+- [Version and release rules](RELEASE_RULES.md)
+- [Historical branch audit](BRANCH_CONSOLIDATION_AUDIT.md)

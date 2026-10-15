@@ -36,8 +36,14 @@ It is not intended to prove the full progression, loot, world, AI, PvP, crafting
 
 Final balance and final-quality art are not required.
 
-## Explicitly out of scope
-Do not delay Prototype 01 for loot, crafting, long-term progression, talent/build progression, Codex, story/lore, housing/base, a large hub/world, matchmaking, AI companions, PvP, multiple classes, multiple bosses, cosmetics/transmog, final account systems, or broad content production.
+## Approved prototype extensions (2026-10-15 consolidation)
+
+ADRs 0008–0011 extend this original minimum with eight classes, multiple encounters, unanimous live-room votes and a shared hub. The Truffle Man proof of concept replaces Green Cone presentation, including its animated licensed model and mushroom summons; `greenCone` remains the protocol/save ID. Browser-local inventory, rewards and crafting are approved prototype experiments, not authenticated progression or final economy design.
+
+Game Dev Labs v2 is a separate in-game presentation/testing area. It retains room membership and voting: combat continues and the player remains vulnerable. Movement/abilities are blocked while inspecting Labs; returning restores the latest scene. Keep speed/scale VFX controls and character health-bar visibility. Boss studies are illustrative, not a combat authority. Skill-mutation crafting proposals remain Proposed.
+
+## Remaining scope boundaries
+Do not delay Prototype 01 for loot, crafting, long-term progression, talent/build progression, Codex, story/lore, housing/base, a large hub/world, matchmaking, AI companions, PvP, cosmetics/transmog, final account systems, or broad content production.
 
 Minimal infrastructure needed to run the multiplayer test is in scope.
 

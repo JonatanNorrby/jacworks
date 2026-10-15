@@ -74,7 +74,7 @@ npm run deploy
 Primitive Wand is reusable Weapon equipment. Old crafted contraptions migrate one-for-one to owned wands, initially unequipped. Arc Spear is unavailable at the trainer; equipping a wand transforms Lightning Mage Arc Blast (`arcBolt`) in any slot for the encounter. Unequipping restores the base skill. The shared server validates saved material receipts and crafting counts before accepting an equipped wand and derives the encounter loadout and damage itself. As before, browser-local saves are not authenticated account ownership; forged local reward ledgers are outside this prototype economy boundary.
 
 
-Green Cone is the third gate selection. It slowly pursues the nearest living player, stops to telegraph a 3-unit slam for 1.5 seconds, and summons two smaller cones every third slam (up to six alive). Adds pursue and attack for 12 damage every 1.2 seconds, have 54 HP, and can be hit by Arc Blast / Arc Spear (nearest target), LAZOR, and Holy Nova. Victory grants **Conical Taper**; no separate triangle material exists.
+Truffle Man is the third gate selection. It slowly pursues the nearest living player, stops to telegraph a 3-unit slam for 1.5 seconds, and summons two mushrooms every third slam (up to six alive). Adds pursue and attack for 12 damage every 1.2 seconds, have 54 HP, and can be hit by Arc Blast / Arc Spear (nearest target), LAZOR, and Holy Nova. Victory grants **Conical Taper**; no separate triangle material exists.
 
 The Crafter also offers **3 Conical Tapers -> Pointy Hat** (Head) and **1 Conical Taper + 1 Spherical Ball -> Pointy Orb** (Offhand). The Wardrobe paperdoll equips and unequips all three reusable items. Gear appears on the hub avatar and on every encounter player from server snapshots. The existing browser save key is preserved; legacy wand ownership and equipment migrate without refunding spent materials.
 
@@ -83,7 +83,7 @@ Pointy Hat gives Dash three independently usable charges. One charge returns eve
 
 Options opens from the top-right button in either scene. Follow Player gently tracks at 20% of player displacement, capped at two units from arena center; zoom ranges from 29 to 40 (default 31). Preferences use a separate browser-local save and do not change inventory receipts. Material counts live at the Crafter. Wardrobe slots show their equipped item or Empty; the owned-gear grid supports equip/unequip while preserving ownership.
 
-Warrior offers Sword Slash (38 damage, 3-unit 120-degree frontal cleave, 1.1s cooldown) and Charging Stab (5-unit directional charge, 60 damage in a narrow 2.2-unit endpoint stab, 3.6s cooldown). Charge stops at arena walls, the boss, or living cone adds. Both attacks and their effects are broadcast by the shared authoritative simulation. The charge is an immediate server-resolved dash with a short visual trail.
+Warrior offers Sword Slash (38 damage, 3-unit 120-degree frontal cleave, 1.1s cooldown) and Charging Stab (5-unit directional charge, 60 damage in a narrow 2.2-unit endpoint stab, 3.6s cooldown). Charge stops at arena walls, the boss, or living mushroom summons. Both attacks and their effects are broadcast by the shared authoritative simulation. The charge is an immediate server-resolved dash with a short visual trail.
 
 ### Eight selectable classes
 
@@ -164,3 +164,14 @@ Balls alternate rolls and slams, selecting the nearest living visible player or 
 Normal victory still grants Spherical Ball. Hard victory grants **Large Sphere**, represented by a larger sphere drop and shown separately at the Crafter. It has no recipe yet and cannot substitute for Spherical Ball. The existing inventory key, old receipts, equipment and recipes remain compatible. Receipt replay never grants a second material.
 
 Validation adds threshold/overkill, generation, projectile/AoE, targeting, collision, bounce-chain and reward tests. Two real WebSocket clients receive identical serialized split IDs, positions, heights, HP and rewards from a controlled authoritative fixture. The browser suite exercises real hard-boss selection/voting, then uses received-snapshot fixtures for eight-ball presentation and receipt persistence; it is not a human-played eight-ball victory. Existing real-server combat, votes/totems and room smokes remain required. Tuning is a playable prototype proposal, not a completed solo/four-player balance study.
+
+
+### Consolidated prototype 0.1.0
+
+Game Dev opens a separate in-game Labs area with player VFX and character/enemy/boss presentation studies. VFX speed/scale and character health-bar controls are available. Truffle Man uses the same licensed animated model as gameplay, with mushroom summons; the internal `greenCone` ID and existing save keys remain stable. Boss studies are illustrative, not authoritative combat simulations.
+
+**Labs remains connected to the live room.** Combat continues, your character remains vulnerable and your vote is required. Movement and ability input are blocked during inspection. Return to live room restores its current state, including an encounter started while Labs was open. Share the full host plus room link; different preview hosts do not share rooms.
+
+The consolidated scope includes accepted ADR extensions and prototype browser-local economy. Authenticated persistence and skill-mutation crafting proposals are future work. Source rights remain unchanged; no project license is assigned. Preserve the separate Truffle Man attribution and Credits UI.
+
+Version/release policy: [DOCS/RELEASE_RULES.md](DOCS/RELEASE_RULES.md). Deployment uses externally configured Workers Builds; pushing main may deploy production. Never assume a source merge preserves in-memory Durable Object sessions.

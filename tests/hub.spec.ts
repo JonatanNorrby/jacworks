@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 test('three humans share visible hub, vote, reconnect and isolated rooms',async({browser,baseURL},testInfo)=>{
+ // Four software-rendered Babylon scenes already exceeded 60s on the hub baseline.
+ test.setTimeout(180000);
  const contexts=await Promise.all([0,1,2,3].map(()=>browser.newContext()));
  try{
  const pages=await Promise.all(contexts.map(c=>c.newPage()));

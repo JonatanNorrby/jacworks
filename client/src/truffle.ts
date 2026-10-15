@@ -2,12 +2,12 @@ import {createMushroom} from './mushroom';
 import {TransformNode,LoadAssetContainerAsync,Vector3,type AssetContainer,type Scene} from '@babylonjs/core';
 import {createTruffleWalk} from './truffle-walk';
 import type {HubNpc} from '../../shared/truffle';
-export function createTruffle(scene:Scene,options:{boss?:boolean}={}){
+export function createTruffle(scene:Scene,options:{boss?:boolean;lab?:boolean}={}){
  let loaded:AssetContainer|undefined;
  let walk:ReturnType<typeof createTruffleWalk>,lastTime=performance.now(),displayStride:number|undefined;
- const root=new TransformNode('truffle-man',scene),visual=new TransformNode('truffle-visual',scene);visual.parent=root;
+ const root=new TransformNode('truffle-man',scene),visual=new TransformNode('truffle-visual',scene);visual.parent=root;if(options.lab){root.metadata={gameDevLab:true};root.setEnabled(false);}
  const placeholder=createMushroom(scene,'truffle-placeholder',options.boss?3.82:1.91);placeholder.parent=visual;
- const label=document.createElement('p');label.id=options.boss?'truffle-boss-status':'truffle-status';label.textContent='Truffle Man - procedural placeholder';label.style.display='none';document.body.append(label);
+ const label=document.createElement('p');label.id=options.lab?'truffle-lab-status':options.boss?'truffle-boss-status':'truffle-status';label.textContent='Truffle Man - procedural placeholder';label.style.display='none';document.body.append(label);
  // Ship the self-contained licensed asset in both development and production.
  {
   label.textContent='Truffle Man - loading model';
@@ -39,11 +39,11 @@ export function createTruffle(scene:Scene,options:{boss?:boolean}={}){
    label.dataset.rig=walk?'skeletal':'unsupported';
    root.position.copyFrom(previousPosition);root.rotation.copyFrom(previousRotation);
    placeholder.setEnabled(false);
-   label.textContent='Truffle Man - '+(walk?'procedural skeletal walk':'rig unsupported - static idle');root.metadata={asset:'public-model'};
+   label.textContent='Truffle Man - '+(walk?'procedural skeletal walk':'rig unsupported - static idle');root.metadata={gameDevLab:!!options.lab,asset:'public-model'};
    const credit=document.createElement('a');credit.href='https://sketchfab.com/3d-models/truffle-man-e41c6781e4854a1fbe5cdf24a0029aab';credit.textContent=' - dotflare / CC BY 4.0 (Sketchfab)';label.append(credit);
-  }).catch(()=>{loaded?.dispose();walk=undefined;placeholder.setEnabled(true);label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={asset:'fallback'};});
+  }).catch(()=>{loaded?.dispose();walk=undefined;placeholder.setEnabled(true);label.textContent='Truffle Man - model unavailable - procedural placeholder';root.metadata={gameDevLab:!!options.lab,asset:'fallback'};});
  }
- return {update(state:HubNpc|undefined,visible:boolean,smash?:import('../../shared/protocol').Snapshot['boss']['smash'],attackNow=0){
+ return {root,update(state:HubNpc|undefined,visible:boolean,smash?:import('../../shared/protocol').Snapshot['boss']['smash'],attackNow=0){
   const now=performance.now(),dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;
   root.setEnabled(visible);label.hidden=!visible;if(!state)return;
   // Interpolate position and travelled distance together, keeping stance feet

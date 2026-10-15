@@ -23,6 +23,7 @@ import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protoc
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
 import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
+import { installGameDevLabs } from './gameDevLabs';
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -429,7 +430,7 @@ function connectEncounter() {
 
     if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
-    if (packet.type === "abilityFx" && mode === "encounter") {
+    if (packet.type === "abilityFx" && mode === "encounter" && !gameDevLabs.isOpen()) {
       spawnAbilityFx(packet.skill, packet.from, packet.to);
     }
 
@@ -446,8 +447,8 @@ function connectEncounter() {
       snapshot = packet;syncVote(packet);
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.textContent=p.name+(p.id===myId?' (you)':'');row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
-      if(packet.phase==='fight'&&mode==='hub')setMode('encounter');
-      if(packet.phase==='lobby'&&mode==='encounter'){clearEncounterMeshes();setMode('hub');}
+      if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
+      if(packet.phase==='lobby'&&mode==='encounter'&&!gameDevLabs.isOpen()){clearEncounterMeshes();setMode('hub');}
       if(mode==='hub'){syncHub(packet);return;}
       bossFill.style.width = `${((packet.boss.hp+packet.adds.filter(a=>a.kind==='ball').reduce((n,a)=>n+a.hp,0)) / packet.boss.maxHp) * 100}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
@@ -603,11 +604,27 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   }
   if(!['lazor','swordSwing','chargingStab','stab','quickStab','backstab','heroicShield','splitShot'].includes(skill))mesh.position.copyFrom(start);
   if (skill === "dash") mesh.position.copyFrom(end);
-  fx.push({ mesh, born: performance.now(), duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal","fireTotem"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
+  fx.push({ mesh, born: effectNow, duration, start, end, kind: ["arcBolt","arcSpear","aimedShot","fireball","holyLight","targetedHeal","fireTotem"].includes(skill) ? 1 : skill === "dash" ? 2 : skill === "pulseNova" || skill === "holyNova" ? 3 : 4 });
 }
 
+const gameDevLabs=installGameDevLabs({
+  scene,
+  camera,
+  spawnAbilityFx,
+  clearAbilityFx:()=>{for(const effect of fx)effect.mesh.dispose();fx.length=0;},
+  onOpen:()=>{
+    if(optionsOpen)closeOptions();
+    closeHubPanel();
+    if(trainerOpen)closeTrainer(false);
+    keys.clear();
+  },
+  onClose:()=>{if(snapshot?.phase==='lobby')clearEncounterMeshes();setMode(snapshot&&snapshot.phase!=='lobby'?'encounter':'hub');if(snapshot){if(mode==='hub')syncHub(snapshot);else syncEncounter(snapshot);}},
+});
+
+let effectNow=0;
 function updateEffects() {
-  const now = performance.now();
+  effectNow += engine.getDeltaTime() * (gameDevLabs.isOpen()?gameDevLabs.vfxSpeed():1);
+  const now = effectNow;
   for (let i = fx.length - 1; i >= 0; i--) {
     const effect = fx[i];
     const t = Math.min(1, (now - effect.born) / effect.duration);
@@ -629,6 +646,7 @@ function updateEffects() {
       effect.mesh.scaling.setAll(1 + 0.15 * Math.sin(t * Math.PI));
       effect.mesh.visibility = 1 - t * 0.75;
     }
+    if(gameDevLabs.isOpen())effect.mesh.scaling.scaleInPlace(gameDevLabs.vfxScale());
   }
 }
 
@@ -655,6 +673,10 @@ function hubPortalDistance() {
 
 addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
+  if(gameDevLabs.isOpen()){
+    if(key==='escape')gameDevLabs.back();
+    return;
+  }
   if(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement)return;
   if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
   if(optionsOpen){if(key==='escape')closeOptions();return}
@@ -696,7 +718,7 @@ setInterval(() => {
 
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
   const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  const blocked=trainerOpen||hubPanelOpen||optionsOpen||!!snapshot?.vote;
+  const blocked=trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
   send({ type: "input", seq: seq++, move: blocked?{x:0,z:0}:{ x, z } });
 }, 50);
 
@@ -721,20 +743,24 @@ connectEncounter();
 
 engine.runRenderLoop(() => {
   const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-  if (mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen && !snapshot?.vote) updateHub();
-  else if (snapshot) {
+  if (!gameDevLabs.isOpen() && mode === "hub" && !trainerOpen && !hubPanelOpen && !optionsOpen && !snapshot?.vote) updateHub();
+  else if (!gameDevLabs.isOpen() && snapshot) {
     bossRing.rotation.y += deltaSeconds * 0.5;
   }
-  const tracked=mode==='hub'?hubPlayer.position:snapshot?.players.find(p=>p.id===myId)?.pos;
-  const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
-  camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
-  truffle.update(snapshot?.hubNpc,mode==='hub');
+  if(!gameDevLabs.isOpen()){
+    const tracked=mode==='hub'?hubPlayer.position:snapshot?.players.find(p=>p.id===myId)?.pos;
+    const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
+    camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
+  }
+  truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');
   if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
   const b=snapshot?.boss;
-  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,mode==='encounter'&&b?.id==='greenCone'&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
+  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,!gameDevLabs.isOpen()&&mode==='encounter'&&b?.id==='greenCone'&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
+  gameDevLabs.tick(deltaSeconds);
+
   updateEffects();
   updateCooldowns();
-  scene.render();
+  try {scene.render();} finally {gameDevLabs.restoreFrame();}
 });
 
 addEventListener("resize", () => engine.resize());

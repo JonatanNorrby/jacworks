@@ -92,3 +92,48 @@ kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px
 #encounter-vote button { margin: 8px; padding: 10px 20px; }
 
 #room-panel{position:fixed;right:16px;top:115px;z-index:25;background:#141d2aee;padding:12px;border:1px solid #78b4c777;border-radius:8px;max-width:280px;font-size:12px} #room-panel p{margin:6px 0;overflow-wrap:anywhere} #room-panel input{width:130px} #room-panel button{margin-left:6px}
+
+
+/* Game Dev Labs */
+#game-dev-button{pointer-events:auto;cursor:pointer;margin-top:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px 14px;font:inherit;font-weight:700}
+#game-dev-button:hover{background:#31465c}
+#game-dev-labs{position:fixed;inset:0;z-index:1000;pointer-events:auto;background:linear-gradient(90deg,#080b10e8 0,#080b10c4 23%,transparent 48%,#080b1099 100%);color:#f5f1e9}
+.devlab-topbar{position:absolute;left:22px;right:22px;top:18px;display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.devlab-topbar h1{margin:3px 0 0;font:700 26px Georgia,serif;color:#f0e7d1}
+#game-dev-labs button,#game-dev-labs select,#game-dev-labs input{font:inherit}
+#game-dev-labs button{cursor:pointer;color:#f5f1e9;background:#1b2633;border:1px solid #78b4c766;border-radius:8px;padding:9px 12px}
+#game-dev-labs button:hover,#game-dev-labs button.active{background:#29425a;border-color:#8ed7ee99}
+.devlab-menu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;width:min(780px,calc(100vw - 40px))}
+.devlab-card{min-height:160px;text-align:left;padding:22px!important;background:linear-gradient(150deg,#182534f2,#111722f2)!important;box-shadow:0 20px 60px #000a}
+.devlab-card strong{display:block;font:700 22px Georgia,serif;color:#f0e7d1;margin-bottom:10px}
+.devlab-card span{display:block;color:#b7c1c8;line-height:1.5;font-size:13px}
+.devlab-panel{position:absolute;left:22px;top:88px;width:min(330px,calc(100vw - 44px));max-height:calc(100vh - 130px);overflow:auto;box-sizing:border-box;padding:18px;background:linear-gradient(155deg,#15202bea,#0d1219ee);border:1px solid #78b4c755;border-radius:12px;box-shadow:0 18px 60px #000a}
+.devlab-panel h2{font:700 21px Georgia,serif;margin:5px 0 15px}
+.devlab-back{margin-bottom:13px}
+.devlab-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+.devlab-tabs button{font-size:11px;padding:8px 6px!important}
+.devlab-field{display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#bfcbd3}
+.devlab-field select{width:100%;box-sizing:border-box;background:#0b1118;color:#f5f1e9;border:1px solid #78b4c766;border-radius:7px;padding:9px;text-transform:none;letter-spacing:0}
+.devlab-field input[type="range"]{width:100%}
+.devlab-check{display:flex;align-items:center;gap:8px;margin:13px 0;color:#d5d9dc;font-size:12px}
+.devlab-primary{width:100%;margin:4px 0 8px;background:#285c74!important;border-color:#8ed7ee99!important;font-weight:800}
+#dev-vfx-description{min-height:42px;color:#b8c3ca;font-size:12px;line-height:1.45}
+.devlab-note{border-top:1px solid #ffffff14;margin-top:14px;padding-top:12px;color:#89959e;font-size:11px;line-height:1.45}
+.devlab-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.devlab-stage-label{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);padding:8px 13px;border:1px solid #ffffff1c;border-radius:8px;background:#070a0ed9;color:#d8d4ca;font-size:12px;white-space:nowrap}
+@media(max-width:720px){
+  .devlab-topbar{left:12px;right:12px;top:10px}
+  .devlab-topbar h1{font-size:19px}
+  .devlab-menu{grid-template-columns:1fr;top:48%}
+  .devlab-card{min-height:120px}
+  .devlab-panel{left:12px;top:72px;width:min(285px,calc(100vw - 24px));max-height:calc(100vh - 118px)}
+  .devlab-stage-label{bottom:10px;max-width:calc(100vw - 30px);overflow:hidden;text-overflow:ellipsis}
+}
+
+.devlab-room-warning{position:absolute;top:65px;left:380px;right:22px;color:#ffd58a;font-size:12px;background:#151c28df;padding:10px;border-radius:8px}
+body:has(#game-dev-labs:not(.hidden)) #encounter-vote{z-index:1100}
+body:has(#game-dev-labs:not(.hidden)) #room-panel{z-index:1001;top:auto;bottom:65px}
+@media(max-width:700px){.devlab-room-warning{left:12px;top:auto;bottom:40px;right:12px;font-size:10px}}
+
+body:has(#game-dev-labs:not(.hidden)) #hud{visibility:hidden}
+body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}

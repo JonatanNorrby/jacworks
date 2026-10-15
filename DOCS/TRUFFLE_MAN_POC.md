@@ -2,17 +2,17 @@
 
 Temporary integration test on `prototype/01-chris-hub-pass`, authorized as an exception to Prototype 01's limited hub scope. Babylon.js remains the client engine (Accepted ADR-0007). No permanent art or NPC-system decision is implied.
 
-## License / provenance blocker
+## License / provenance
 
-Supplied archive: `T:\TEMP\ART_ASSETS\truffle-man.zip`.
-SHA-256: `FACC30BD122596A498BA531BD3FB84C211CB47765ED498CAEABA6071FD1552C3`.
-Archive contains only `source/Shroom.fbx` and eight texture PNGs. No license, author credit, source URL or redistribution grant accompanies it. FBX metadata identifies Blender 3.0.1 / stable FBX IO and Blender Foundation as exporter author; this is tool metadata, not character authorship or a redistribution license. Imported object custom properties are empty. No license/copyright grant was found in readable FBX metadata. **Redistribution rights remain unverified. Do not commit/upload/deploy the FBX, textures, derived GLB or screenshots of this model until its provenance and terms are supplied and reviewed.** Preserve the original ZIP unchanged. No third-party license is asserted here.
+Source: [Truffle Man by dotflare on Sketchfab](https://sketchfab.com/3d-models/truffle-man-e41c6781e4854a1fbe5cdf24a0029aab). The listing retrieved on 2026-10-15 identifies **CC Attribution**, credits dotflare for models/textures/sculpt and BABAGANOOSH99 for the concept. Direct page retrieval returned 403; the search-indexed source page supplied those details. Its exact license version/link was not verified. [Sketchfab attribution guidance](https://sketchfab.com/developers/download-api/guidelines) requires creator, source and license credit to accompany use. Do not substitute the paid Sketchfab Standard License for this Creative Commons listing.
 
-The repo contains only integration code and an original primitive mushroom fallback. The supplied model and inspection JSON remain outside the checkout at `T:\TEMP\ART_ASSETS\truffle-man-local`. Production builds never request or bundle this local asset. There is no new hosted real-model preview.
+Supplied archive: `T:\TEMP\ART_ASSETS\truffle-man.zip`, SHA-256 `FACC30BD122596A498BA531BD3FB84C211CB47765ED498CAEABA6071FD1552C3`. Its mesh counts/material names match the listing, but the archive contains no attribution or license. Preserve the ZIP unchanged. Before public asset distribution, verify the exact license link/version and carry attribution and modification notices with it.
+
+Only code, tooling, tests and documentation are committed. FBX, textures, converted GLB and model screenshots stay outside tracked files. Production builds never request or bundle the local asset. Local screenshots are ignored under `test-results/`; no public model preview is created by this fix.
 
 ## Inspection and conversion
 
-Blender 4.5.3 imported FBX 7400: 10 mesh objects, 33,201 vertices, 65,040 triangles, two materials (`MatMushroom`, `MatMushroomBody`), one armature with 89 bones. Two generically named actions: `Armature.001|Armature.001|Armature.001Action` (frames 1–121), and `Armature.001|Armature.001|Shader NodetreeAction.003` (frames 1–2). Export contains skeletal translation/rotation/scale channels. The longest included clip is sampled by patrol distance and freezes when stopped. Its generic name does not prove it is an authored walk cycle. The fallback instead uses explicitly procedural bob/rock animation.
+Blender 4.5.3 imported FBX 7400: 10 mesh objects, 33,201 vertices, 65,040 triangles, two materials (`MatMushroom`, `MatMushroomBody`), one armature with 89 bones. Two generically named actions: `Armature.001|Armature.001|Armature.001Action` (frames 1–121), and `Armature.001|Armature.001|Shader NodetreeAction.003` (frames 1–2). Export contains skeletal translation/rotation/scale channels. The original clip is idle-like, not a travelling walk; see the diagnosis and replacement below.
 
 Eight 2048-square source textures are resized to 1024-square; base color, normal, roughness and metallic maps are reconstructed into PBR materials. GLB embeds textures (JPEG quality 85 where exporter supports it), mesh and rig; result 4,127,216 bytes. Mesh topology is retained for this single-NPC PoC. Exporter reduces vertices with more than four joint influences to the four largest normalized weights. Check deformation before promoting this to production. Full local inspection is in `inspection.json`; no source metadata is intentionally stripped from the original archive.
 
@@ -43,3 +43,25 @@ NPC radius 0.85 plus player radius 0.48 defines solid contact. Player and NPC mo
 
 
 Recorded checks (2026-10-15): 108/108 unit tests pass; production build passes (large bundle warning remains); all `npm run smoke` WebSocket checks pass. Focused real-model browser test passes, including skeletal-clip loading, two-client patrol agreement, late joining, failed-load fallback and screenshot inspection. Both existing hub browser tests pass with `VITE_TRUFFLE_LOCAL=false` (the production fallback path); both also pass on untouched baseline c7d2b20. An earlier four-client real-model run failed the existing disconnect/vote cancellation assertion. This remains a local software-rendered stress-test limitation; do not claim the full real-model multiplayer browser suite is green. Animation sampling was subsequently reduced to once per changed patrol stride instead of every render frame.
+
+## Walking correction (2026-10-15)
+
+Read-only Blender inspection with `scripts/inspect-truffle.py` confirms both foot controls (`IKLeg.L/R`) and foot bones (`Foot.L/R`) have **zero translation range in both original FBX actions**. The longer action moves the spine about 0.028 source units vertically and bends the legs slightly. The GLB preserves this idle-like motion: 2.0167 seconds, 270 TRS channels, stationary foot channels. The previous client sampled valid skeletal targets but misclassified this clip as walking, stretching a loop over three metres (3.75 seconds at the patrol's unchanged 0.8 units/sec).
+
+`client/src/truffle-walk.ts` retains the first source pose and drives the actual linked glTF bones with procedural two-segment IK: `Leg1.L/R -> Leg2.L/R -> Leg2.L/R_end`. The separate `IKLeg.L/R` chains parent the weighted foot bones. Moving only these controls would not bend the exported deforming legs: Blender IK constraints do not run in glTF, so both chains are driven explicitly. No regenerated or replacement model is needed.
+
+One complete left/right gait covers 0.64 world units (0.8 seconds). Each stance foot retreats 0.32 units relative to the root over half a cycle, cancelling forward travel; the opposite foot swings forward with 0.12-unit lift. The spine lowers 0.07 units to keep the short legs within reach, with 0.036-unit bob and small alternating tilt. Only the seven modified transforms reset before each solve, preventing accumulated rotation error. Imported animation groups stop after the initial pose is sampled. Client root position and travelled distance are smoothed together between snapshots. Heading follows the authoritative travel direction. Patrol, collision, protocol and server code are unchanged.
+
+When stopped, the original static idle pose is restored, without phase advancement. This is **procedural skeletal animation**, not a new authored keyframe clip. Remaining limitations: square-route corners turn immediately and pivot feet; stop/resume changes directly between idle and gait without blending; no terrain adaptation or authored arm swing. The primitive placeholder retains bob/rock. An unexpected rig reports unsupported rather than claiming an included walk.
+
+### Validation
+
+The actual external GLB is loaded in a close-up Babylon scene by `tests/truffle-walk.spec.ts`, using a Playwright-only route. Across a full cycle it checks alternating lift, planted stance, deforming shin endpoints within 0.006 world units of foot targets, and stable idle. Four ignored local phase screenshots were visually inspected and show alternating legs. This test requires the local model settings above and intentionally fails when the model cannot load. `tests/truffle.spec.ts` checks real-model loading, two-client shared patrol, late join and failed-load fallback.
+
+Read-only source diagnosis:
+
+```powershell
+& '<blender.exe>' --background --python scripts/inspect-truffle.py -- 'T:\TEMP\ART_ASSETS\truffle-man-local\source\Shroom.fbx'
+```
+
+Checks: 108/108 unit tests pass; all WebSocket smoke checks pass; the focused actual-model gait and shared-hub browser tests pass (2/2). Production build passes with the existing large-bundle warning. The historical four-client software-rendering limitation above has not been revalidated by this fix.

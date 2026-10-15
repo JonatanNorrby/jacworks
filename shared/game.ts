@@ -1,3 +1,4 @@
+import {TrufflePoison} from './trufflePoison';
 import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffle';
 import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
@@ -40,6 +41,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
+  poison=new TrufflePoison();
   hubNpc=new TrufflePatrol();
   balls=new BallEncounter(this);
   players=new Map<string,PlayerState>();
@@ -64,8 +66,9 @@ export class Game {
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
     this.players.set(id,p);return p;
   }
-  remove(id:string) {this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
+  remove(id:string) {this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
+    this.poison.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
@@ -97,7 +100,7 @@ export class Game {
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';if(boss==='greenCone')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -234,6 +237,7 @@ export class Game {
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);
+      if(this.boss.id==='greenCone'&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
         this.scatter.shift();
@@ -251,11 +255,11 @@ export class Game {
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))) {
-        this.phase='won';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.phase='won';this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
         this.reward={id:this.fightId,material:this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
-      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
+      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

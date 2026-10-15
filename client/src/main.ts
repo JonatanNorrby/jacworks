@@ -1,3 +1,4 @@
+import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
 import {createCreditsDialog} from './credits';
@@ -312,6 +313,7 @@ const bossRing = pushArena(MeshBuilder.CreateTorus("boss-ring", { diameter: 3.6,
 bossRing.position.y = 0.08;
 bossRing.material = bossMat;
 
+const poisonVisuals=createTrufflePoisonVisuals(scene);
 function setMode(next: ClientMode) {
   closeHubPanel();keys.clear();
   if(trainerOpen)closeTrainer(false);
@@ -340,6 +342,7 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
+  poisonVisuals.clear();
   for(const mesh of totemMeshes.values())mesh.dispose();totemMeshes.clear();
   for (const effect of fx) effect.mesh.dispose();
   fx.length = 0;
@@ -752,6 +755,7 @@ engine.runRenderLoop(() => {
     const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
     camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
   }
+  poisonVisuals.sync(snapshot,!gameDevLabs.isOpen()&&mode==='encounter',myId,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');
   if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
   const b=snapshot?.boss;

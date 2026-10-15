@@ -2,7 +2,7 @@
 
 ## Prototype 01
 
-Version **0.1.0** consolidates the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
+Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
 
 The prototype includes a deliberately small **Sanctum Hub** shell before the encounter so the team can evaluate the intended loop without turning Prototype 01 into a world-building project:
 

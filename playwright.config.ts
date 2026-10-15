@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'./tests',workers:1,timeout:60000,use:{baseURL:process.env.BROWSER_URL??'http://localhost:5173',launchOptions:{args:['--use-angle=swiftshader']}},webServer:process.env.BROWSER_URL?undefined:[{command:'npm run dev:client',url:'http://localhost:5173',reuseExistingServer:false},{command:'npm run start',port:8787,reuseExistingServer:false}]});

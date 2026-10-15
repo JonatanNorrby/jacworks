@@ -1,0 +1,15 @@
+import {test,expect} from '@playwright/test';
+test('Hard Yellow Ball selection, eight sphere presentation and persisted Large Sphere receipt',async({page,baseURL},testInfo)=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{const Native=window.WebSocket;window.WebSocket=class extends Native {constructor(url:string|URL,protocols?:string|string[]){super(url,protocols);(window as any).testSocket=this;this.addEventListener('message',e=>{const p=JSON.parse(e.data);if(p.type==='snapshot')(window as any).lastSnapshot=p;if(p.type==='welcome')(window as any).testId=p.id;});}};});
+ await page.goto(baseURL+'/?room='+crypto.randomUUID());await expect(page.locator('#room-panel')).toContainText('Connected · 1 players');
+ await page.getByRole('button',{name:'Propose boss',exact:true}).click();await page.locator('#inventory-panel select').selectOption('hardYellowBall');await page.getByRole('button',{name:'Propose encounter',exact:true}).click();await expect(page.locator('#encounter-vote')).toContainText('Hard Yellow Ball');await page.getByRole('button',{name:'Accept',exact:true}).click();await expect(page.locator('#boss-label')).toContainText('HARD YELLOW BALL - 1 active');
+ // Inject a serialized authoritative fixture only into this browser's receive handler for visual QA.
+ await page.evaluate(()=>{const w=window as any;w.receive=w.testSocket.onmessage;w.testSocket.onmessage=null;const s=structuredClone(w.lastSnapshot);s.boss.hp=0;s.boss.height=0;s.telegraphs=[];s.adds=Array.from({length:8},(_,i)=>({id:'visual-'+i,kind:'ball',generation:3,radius:.46656,height:i%2?1:0,pos:{x:(i%4-1.5)*3,z:i<4?-3:3},hp:37.5,maxHp:37.5,attackAt:s.now+2000}));w.visualSnapshot=s;w.receive({data:JSON.stringify(s)});});
+ await expect(page.locator('#boss-label')).toContainText('8 active');await expect(page.locator('#boss-fill')).toHaveAttribute('style',/12.5%/);await page.screenshot({path:testInfo.outputPath('hard-yellow-eight-balls.png')});
+ await page.evaluate(()=>{const w=window as any,s=w.visualSnapshot;s.phase='won';s.adds=[];s.reward={id:'browser-ball-receipt',material:'largeSphere',players:[w.testId]};w.receive({data:JSON.stringify(s)});w.receive({data:JSON.stringify(s)});});
+ await expect(page.locator('#message')).toContainText('Reward: Large Sphere');
+ expect(await page.evaluate(()=>Object.values(JSON.parse(localStorage.getItem('jacworks-inventory-v1')!).rewards).filter(x=>x==='largeSphere').length)).toBe(1);
+ await page.evaluate(()=>{const w=window as any,s=w.visualSnapshot;s.phase='lobby';s.players.find((p:any)=>p.id===w.testId).pos={x:4.3,z:3.5};w.receive({data:JSON.stringify(s)});});await page.keyboard.press('e');await expect(page.locator('.material-inventory')).toContainText('Large Sphere: 1');await expect(page.getByRole('button',{name:'Craft Primitive Wand',exact:true})).toBeDisabled();
+ await page.reload();expect(await page.evaluate(()=>Object.values(JSON.parse(localStorage.getItem('jacworks-inventory-v1')!).rewards).filter(x=>x==='largeSphere').length)).toBe(1);expect(errors).toEqual([]);
+});

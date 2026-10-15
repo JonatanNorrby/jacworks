@@ -1,0 +1,94 @@
+html,body,#game{width:100%;height:100%;margin:0;overflow:hidden}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f5f1e9;background:#0b0d12}
+body{background:#0b0d12}
+#game{display:block;outline:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+.hidden{display:none!important}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(#05070bcc,transparent);font-size:14px;letter-spacing:.03em}
+#topbar strong{font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+#prototype-label{margin-left:10px;color:#a8a394;font-size:12px}
+#status{color:#d8cfb4}
+.panel{position:absolute;left:24px;top:76px;width:min(340px,calc(100vw - 48px));padding:18px 18px 16px;border:1px solid #d4ba7240;background:linear-gradient(145deg,#171913e8,#10131ae8);box-shadow:0 16px 44px #0008,inset 0 1px #fff0;border-radius:12px;backdrop-filter:blur(6px)}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:.22em;color:#c6aa65}
+.panel-title{font-family:Georgia,serif;font-size:24px;font-weight:700;margin-top:3px;color:#f0e7d1}
+.panel-copy{margin-top:10px;line-height:1.45;color:#c9c7bf;font-size:13px}
+.prototype-note{margin-top:12px;padding-top:10px;border-top:1px solid #ffffff13;color:#858983;font-size:11px;line-height:1.4}
+#boss-wrap{position:absolute;top:58px;left:50%;transform:translateX(-50%);width:min(600px,72vw);text-align:center}
+#boss-label{font-family:Georgia,serif;font-weight:800;letter-spacing:.18em;font-size:14px;margin-bottom:6px;text-shadow:0 2px 10px #000}
+#boss-bar{height:15px;border:2px solid #e4d8bf99;background:#08080baa;border-radius:9px;overflow:hidden;box-shadow:0 7px 20px #0008}
+#boss-fill{height:100%;width:100%;background:linear-gradient(90deg,#8f2630,#d14d43)}
+#instructions,#encounter-instructions{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);background:#090b0fd9;border:1px solid #ffffff20;padding:8px 13px;border-radius:8px;color:#d4d0c6;font-size:12px;white-space:nowrap}
+#abilities{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+#abilities>div{display:flex;align-items:center;gap:8px;min-width:105px;background:linear-gradient(#191d25ed,#11141bed);border:1px solid #d8c99c35;border-radius:9px;padding:8px 10px;box-shadow:0 8px 22px #0007}
+#abilities span{display:flex;flex-direction:column;line-height:1.05}
+#abilities strong{font-size:12px;color:#eee9dc}
+#abilities small{font-size:9px;color:#888f98;margin-top:3px}
+kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:20px;background:#d9cfb7;color:#161717;padding:0 4px;border-radius:4px;font:700 11px/1 system-ui;box-shadow:inset 0 -2px #776f5d}
+#message{position:absolute;top:24%;left:50%;transform:translateX(-50%);font-family:Georgia,serif;font-size:28px;font-weight:900;text-shadow:0 3px 14px #000;text-align:center;color:#f6e7ba}
+@media(max-width:720px){
+  .panel{top:66px;left:14px;width:calc(100vw - 56px)}
+  #abilities{gap:4px;width:calc(100vw - 16px);justify-content:center}
+  #abilities>div{min-width:0;padding:7px}
+  #abilities small{display:none}
+  #instructions,#encounter-instructions{bottom:78px;font-size:10px}
+}
+
+#player-health{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);width:min(440px,80vw);filter:drop-shadow(0 4px 10px #0009)}
+.health-label{display:flex;justify-content:space-between;font-size:11px;color:#f5e6dc;margin-bottom:5px;letter-spacing:.07em}
+.health-track{height:14px;background:#240e16;border:1px solid #d6aaa080;border-radius:7px;overflow:hidden}
+#player-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#ad303b,#f26c67);transition:width .15s}
+#abilities>.ability-slot{position:relative;overflow:hidden}
+.cooldown-overlay{position:absolute;inset:0;background:#05070bbd;transform:scaleY(0);transform-origin:bottom;pointer-events:none}
+.cooldown-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-weight:800;font-size:14px;text-shadow:0 2px 5px #000;z-index:2;pointer-events:none}
+#encounter-instructions{bottom:128px}
+@media(max-width:720px){#player-health{bottom:72px}#encounter-instructions{bottom:118px}}
+
+#trainer-prompt{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);padding:9px 16px;background:#101c26eb;border:1px solid #63c6df88;border-radius:9px;font-size:13px}
+#skill-panel{pointer-events:auto;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,calc(100vw - 32px));max-height:calc(100vh - 36px);overflow:auto;box-sizing:border-box;padding:22px;background:linear-gradient(150deg,#202531,#10141d);border:1px solid #8dc9e088;border-radius:15px;box-shadow:0 25px 80px #000d;z-index:10}
+.skill-heading{display:flex;justify-content:space-between;gap:14px;align-items:start}.skill-heading h2{font:700 26px Georgia,serif;margin:5px 0}.skill-heading p,.skill-footer span{font-size:12px;color:#b4bfcb}
+#close-skills,#save-skills,.skill-choice{cursor:pointer;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:9px 13px}
+#skill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0}
+.skill-node{background:#161f2a;border:1px solid #4a667a;border-radius:10px;padding:12px;min-height:74px}.skill-node strong{display:block;color:#c8efff;font-size:14px;margin-bottom:7px}.skill-node small{font-size:11px;color:#b0bfc9;line-height:1.4}
+#skill-loadout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.skill-slot-label{font-size:11px;color:#d6bc7c;margin-bottom:5px}.skill-choice{width:100%;min-width:0;font-size:12px}
+.skill-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px}#save-skills{background:#276078;font-weight:700}
+@media(max-width:650px){#skill-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#skill-loadout{grid-template-columns:repeat(2,minmax(0,1fr))}#skill-panel{padding:14px}}
+#inventory-panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;background:#141d2a;border:1px solid #8dc9e088;padding:24px;border-radius:14px;width:min(480px,80vw);box-shadow:0 20px 80px #000b}
+#inventory-panel button,#inventory-panel select{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;margin:6px;cursor:pointer}
+#inventory-panel button:disabled{opacity:.4;cursor:default}
+
+.paperdoll{display:grid;grid-template-columns:1fr 90px 1fr;gap:8px;align-items:center}
+.paperdoll-body{grid-column:2;grid-row:2;position:relative;height:150px;color:#8dc9e0}
+.paperdoll-body span{position:absolute;background:currentColor;border-radius:12px}
+.doll-head{width:30px;height:30px;left:30px;top:5px}.doll-torso{width:38px;height:65px;left:26px;top:40px}
+.doll-arms{width:80px;height:12px;left:5px;top:50px}.doll-legs{width:14px;height:45px;left:27px;top:100px;box-shadow:22px 0 currentColor}
+.equipment-slot.head{grid-column:1/-1;grid-row:1}.equipment-slot.weapon{grid-column:1;grid-row:2}.equipment-slot.offhand{grid-column:3;grid-row:2}
+#inventory-panel{max-height:85vh;overflow:auto}
+
+#options-button{position:fixed;right:16px;top:65px;z-index:15}
+#options-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;width:min(360px,80vw);padding:24px;background:#141d2a;border:1px solid #8dc9e088;border-radius:14px}
+#options-panel label{display:block;margin:14px 0}#camera-zoom{width:100%}
+#options-button,#options-panel button{font:inherit;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;cursor:pointer}
+#options-panel button+button{margin-left:10px}
+#credits-panel{box-sizing:border-box;width:min(640px,calc(100vw - 32px));max-height:85dvh;padding:0;color:#f5f1e9;background:#141d2a;border:1px solid #8dc9e088;border-radius:14px;box-shadow:0 20px 80px #000b}
+#credits-panel[open]{display:flex;flex-direction:column}
+#credits-panel::backdrop{background:#05070bcc}
+#credits-panel header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid #78b4c744}
+#credits-panel h2{font-size:22px;margin:0}
+#credits-panel button{font:inherit;color:inherit;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px;cursor:pointer;flex-shrink:0}
+.credits-scroll{overflow-y:auto;min-height:0;padding:8px 24px 24px;line-height:1.6;overflow-wrap:anywhere;overscroll-behavior:contain}
+.credits-scroll article{padding:10px 0;border-top:1px solid #78b4c744}
+.credits-scroll h3{color:#c8efff;margin-bottom:4px}
+.credits-scroll p{margin:10px 0}
+#credits-panel a{color:#9edfff;text-decoration:underline;text-underline-offset:3px}
+#credits-panel :focus-visible{outline:3px solid #e4c77b;outline-offset:3px}
+@media(max-width:480px){#credits-panel header{padding:14px;gap:10px}#credits-panel h2{font-size:18px}.credits-scroll{padding:8px 16px 16px}}
+.gear-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.gear-card{padding:12px;background:#202c3c;border:1px solid #78b4c755;border-radius:8px}.gear-card strong,.gear-card small{display:block;margin-bottom:8px}.gear-card small{text-transform:capitalize;color:#b4bfcb}.material-inventory{padding:10px;background:#202c3c;border-radius:8px}
+
+#hub-card button{pointer-events:auto;cursor:pointer;margin-top:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;padding:10px}
+#skill-grid>select{grid-column:1/-1;padding:12px;color:#f5f1e9;background:#273646;border:1px solid #78b4c777;border-radius:8px;font:inherit}
+#encounter-instructions{white-space:normal;text-align:center;width:min(840px,90vw);box-sizing:border-box}
+
+#encounter-vote { position: fixed; z-index: 100; top: 18%; left: 50%; transform: translateX(-50%); background: #182126; border: 2px solid #c6a65e; border-radius: 12px; padding: 24px; min-width: 300px; color: white; }
+#encounter-vote button { margin: 8px; padding: 10px 20px; }
+
+#room-panel{position:fixed;right:16px;top:115px;z-index:25;background:#141d2aee;padding:12px;border:1px solid #78b4c777;border-radius:8px;max-width:280px;font-size:12px} #room-panel p{margin:6px 0;overflow-wrap:anywhere} #room-panel input{width:130px} #room-panel button{margin-left:6px}

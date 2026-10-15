@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>JAC Works — Prototype 01</title>
+  <link rel="stylesheet" href="/src/style.css"/>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div>
+        <strong>JAC Works</strong>
+        <span id="prototype-label">Prototype 01</span>
+      </div>
+      <span id="status">Sanctum Hub</span>
+    </div>
+
+    <div id="hub-card" class="hub-only panel">
+      <div class="eyebrow">SANCTUM HUB</div>
+      <div class="panel-title">Expedition Gate</div>
+      <div class="panel-copy">Press <kbd>E</kbd> at the gate to propose a boss; everyone in the room must accept. Visit the gold Skill Trainer to choose a class and arrange its skills, or the purple Crafter to combine boss materials.</div>
+      <div class="prototype-note">Prototype scope: a thin hub shell around the boss-combat test.</div>
+    </div>
+
+    <div id="boss-wrap" class="encounter-only hidden">
+      <div id="boss-label">THE WARDEN</div>
+      <div id="boss-bar"><div id="boss-fill"></div></div>
+    </div>
+
+    <div id="trainer-prompt" class="hub-only hidden">Skill Trainer · Press <kbd>E</kbd></div>
+    <section id="skill-panel" class="hidden" aria-label="Skill Trainer">
+      <div class="skill-heading"><div><div class="eyebrow">SANCTUM HUB · SKILL TRAINER</div><h2>Class & Loadout</h2><p>Choose your class, then arrange its four skills. No cross-class mixing.</p></div><button id="close-skills" type="button">✕</button></div>
+      <div id="skill-grid"></div><div id="skill-loadout"></div>
+      <div class="skill-footer"><span>Saved for your next encounter.</span><button id="save-skills" type="button">Save loadout</button></div>
+    </section>
+    <div id="message"></div>
+
+    <div id="instructions" class="hub-only">WASD move · E interact</div>
+    <div id="encounter-instructions" class="encounter-only hidden">WASD move · R propose retry · H return to hub</div>
+
+    <div id="player-health" class="encounter-only hidden">
+      <div class="health-label"><strong>YOUR HP</strong><span id="player-hp-text">100 / 100</span></div>
+      <div class="health-track"><div id="player-hp-fill"></div></div>
+    </div>
+    <div id="abilities" class="encounter-only hidden">
+      <div class="ability-slot" data-slot="1"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>1</kbd><span><strong>Arc Blast</strong><small>Ranged</small></span></div>
+      <div class="ability-slot" data-slot="2"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>2</kbd><span><strong>Dash</strong><small>Mobility</small></span></div>
+      <div class="ability-slot" data-slot="3"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>3</kbd><span><strong>Pulse Nova</strong><small>Close burst</small></span></div>
+      <div class="ability-slot" data-slot="4"><div class="cooldown-overlay"></div><span class="cooldown-text"></span><kbd>4</kbd><span><strong>Guard</strong><small>Mitigation</small></span></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

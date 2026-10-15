@@ -16,6 +16,14 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0006](0006-support-solo-and-multiplayer.md) | Accepted | Support both solo and multiplayer play |
 | [0007](0007-use-babylonjs-for-game-client.md) | Accepted | Use Babylon.js for the game client |
 
+| [0008](0008-five-prototype-classes.md) | Superseded (roster size) | Five class-restricted prototype kits |
+
+| [0009](0009-defender-rogue-hard-warden.md) | Superseded (selection and roster size) | Defender, Rogue and separate Hard Warden tier |
+
+| [0010](0010-room-votes-and-shaman.md) | Accepted | Unanimous room votes and Shaman |
+
+| [0011](0011-yellow-ball-splits.md) | Accepted | Yellow Ball split encounters and Large Sphere |
+
 ## Workflow
 
 1. Check this index and relevant Accepted ADRs before making architectural or durable game-system changes.

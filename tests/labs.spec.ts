@@ -26,8 +26,11 @@ test('Labs retains live membership, votes, current scene and late loaded model',
  await p.locator('#dev-health-bar').uncheck();await expect.poll(()=>p.evaluate(()=>(window as any).scene.getMeshByName('dev-health-bar').isEnabled())).toBe(false);
  await p.locator('[data-character-action="attack"]').click();await p.screenshot({path:info.outputPath('labs-truffle.png')});
  await p.locator('.devlab-characters [data-dev-action="menu"]').click();await p.locator('[data-dev-view="vfx"]').click();
- await p.locator('#dev-vfx-speed').fill('0.25');await p.locator('#dev-vfx-scale').fill('2');await p.locator('[data-dev-action="play-vfx"]').click();
+ await p.locator('#dev-player-spell').selectOption('guard');await p.locator('#dev-vfx-speed').fill('0.25');await p.locator('#dev-vfx-scale').fill('2');await p.locator('[data-dev-action="play-vfx"]').click();
  await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx&&m.scaling.x>=2))).toBe(true);
+ // Guard normally lives 700ms; quarter speed must keep it alive past that.
+ await p.waitForTimeout(900);expect(await p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(true);
+ await p.locator('#dev-vfx-speed').fill('2');await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(false);
  await p.locator('[data-vfx-tab="bosses"]').click();await p.locator('#dev-boss-mechanic').selectOption('green-adds');await p.locator('[data-dev-action="play-vfx"]').click();
  await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.filter((m:any)=>m.name==='dev-mushroom-add-cap').length)).toBe(2);
  await q.getByRole('button',{name:'Propose boss',exact:true}).click();await q.locator('#inventory-panel select').selectOption('greenCone');await q.getByRole('button',{name:'Propose encounter',exact:true}).click();

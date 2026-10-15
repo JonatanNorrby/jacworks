@@ -26,3 +26,4 @@ See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI c
 - [Connected Labs decision](ADR/0012-connected-development-labs.md)
 - [Version and release rules](RELEASE_RULES.md)
 - [Historical branch audit](BRANCH_CONSOLIDATION_AUDIT.md)
+- [0.1.0 consolidation verification](CONSOLIDATION_0_1_0.md)

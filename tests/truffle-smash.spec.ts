@@ -5,11 +5,11 @@ test('real Truffle rig winds up, slams with arms and legs, recovers without root
  await page.route('**/__smash',r=>r.fulfill({contentType:'text/html',body:`<canvas style="width:100vw;height:100vh"></canvas><script type="module">
  import {Engine,Scene,ArcRotateCamera,Vector3,HemisphericLight,MeshBuilder} from '${core}';import {createTruffle} from '/src/truffle.ts';
  const engine=new Engine(document.querySelector('canvas'),true),scene=new Scene(engine);new ArcRotateCamera('camera',-.9,1.2,6,new Vector3(0,1.3,0),scene);new HemisphericLight('light',new Vector3(0,1,0),scene);MeshBuilder.CreateGround('floor',{width:20,height:20},scene);
- const model=createTruffle(scene,{boss:true});let now=0,smash;window.rig={set(t){now=t;smash={startedAt:100,impactAt:1600,recoverAt:2250,impacted:t>=1600}},sample(){scene.render();return Object.fromEntries(['Sprine01','Arm1.L','Arm2.L','IKHand.L','Leg1.L','Leg2.L','IKLeg.L'].map(name=>{const n=scene.getTransformNodeByName(name);n.computeWorldMatrix(true);return [name,{q:n.rotationQuaternion.asArray(),p:n.getAbsolutePosition().asArray()}]}))}};
- engine.runRenderLoop(()=>{model.update({pos:{x:0,z:0},heading:0,stride:0,walking:false},true,smash,now);scene.render()});</script>`}));
+ const model=createTruffle(scene,{boss:true});let now=0,smash;const draw=()=>{model.update({pos:{x:0,z:0},heading:0,stride:0,walking:false},true,smash,now);scene.render()};window.rig={set(t){now=t;smash={startedAt:100,impactAt:1600,recoverAt:2250,impacted:t>=1600}},sample(){draw();return Object.fromEntries(['Sprine01','Arm1.L','Arm2.L','IKHand.L','Leg1.L','Leg2.L','IKLeg.L'].map(name=>{const n=scene.getTransformNodeByName(name);n.computeWorldMatrix(true);return [name,{q:n.rotationQuaternion.asArray(),p:n.getAbsolutePosition().asArray()}]}))}};
+ engine.runRenderLoop(draw);</script>`}));
  await page.goto('/__smash');await expect(page.locator('#truffle-boss-status')).toContainText('procedural skeletal walk',{timeout:30000});
  const samples:any[]=[];
- for(const t of [0,1150,1600,1900,2250]){await page.evaluate(t=>(window as any).rig.set(t),t);await page.waitForTimeout(100);samples.push(await page.evaluate(()=>(window as any).rig.sample()));await page.screenshot({path:info.outputPath(`smash-${t}.png`)});}
+ for(const t of [0,1150,1600,1900,2250]){await page.evaluate(t=>(window as any).rig.set(t),t);samples.push(await page.evaluate(()=>(window as any).rig.sample()));await page.screenshot({path:info.outputPath(`smash-${t}.png`)});}
  for(const bone of ['Arm1.L','Arm2.L','Leg1.L','Leg2.L'])expect(samples[1][bone].q).not.toEqual(samples[0][bone].q);
  expect(samples[1]['IKHand.L'].p[1]).toBeGreaterThan(samples[2]['IKHand.L'].p[1]+.5);
  expect(Math.abs(samples[2]['IKLeg.L'].p[1]-samples[0]['IKLeg.L'].p[1])).toBeLessThan(.01);

@@ -1,5 +1,7 @@
 # JAC Works
 
+Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_IDEAS/JAC_Works_Ability_Idea_Library.md) — Project Energy and earlier JAC ideas, with provenance and proposal status. [Browse guide / Excel companion](DOCS/ABILITY_IDEAS/README.md).
+
 ## Prototype 01
 
 Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.

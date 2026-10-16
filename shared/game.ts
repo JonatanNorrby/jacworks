@@ -1,9 +1,10 @@
+import {TrufflePoison} from './trufflePoison';
 import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffle';
 import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory } from './inventory';
-import { DEFAULT_LOADOUT, SKILLS } from './protocol';
+import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
@@ -40,6 +41,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
+  poison=new TrufflePoison();
   hubNpc=new TrufflePatrol();
   balls=new BallEncounter(this);
   players=new Map<string,PlayerState>();
@@ -51,6 +53,8 @@ export class Game {
   totems:import('./protocol').TotemState[]=[];
   scatter:{at:number;targetId:string}[]=[];
   initialized=new Set<string>();
+  chatSent=new Map<string,number>();
+  system(text:string){this.emit({type:"chat",senderId:null,name:"System",text})}
   effects:import('./protocol').CombatEffect[]=[];
   adds:AddState[]=[];lastTick=0;burns=new Map<string,{target:string;next:number;remaining:number}>();
   boss:Snapshot['boss']={id:'warden',hp:1800,maxHp:1800,pos:{x:0,z:0},height:0};
@@ -64,8 +68,9 @@ export class Game {
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
     this.players.set(id,p);return p;
   }
-  remove(id:string) {this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
+  remove(id:string) {const p=this.players.get(id);if(p&&this.initialized.has(id))this.system(`${p.name} left the room.`);this.chatSent.delete(id);this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
+    this.poison.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
@@ -74,9 +79,14 @@ export class Game {
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
     const v=m as Record<string,unknown>;
+    if(v.type==='chat'){
+      const text=cleanChat(v.text),last=this.chatSent.get(id);
+      if(text&&(last===undefined||now-last>=CHAT_INTERVAL_MS)){this.chatSent.set(id,now);this.emit({type:'chat',senderId:id,name:p.name,text});}return;
+    }
     if(v.type==='join'&&(!this.vote||!this.vote.accepted.includes(id))&&(!this.initialized.has(id)||(this.phase!=='fight'&&!this.ready.has(id)))) {
-      this.initialized.add(id);
-      if(typeof v.name==='string')p.name=v.name.slice(0,24);
+      const first=!this.initialized.has(id);this.initialized.add(id);
+      if(typeof v.name==='string')p.name=cleanChat(v.name,24)||'Player';
+      if(first)this.system(`${p.name} joined the room.`);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
       this.clearBuffs(p);p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
       p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
@@ -90,20 +100,21 @@ export class Game {
         const old=this.moves.get(id);if(!old||Number(v.seq)>old.seq)this.moves.set(id,{v:unit(move),at:now,seq:Number(v.seq)});
       }
     }
-    if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby')this.reset();return;}
+    if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby'){this.reset();this.system('Returned to the hub.');}return;}
     if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
     // Legacy ready may propose, but cannot cast an acceptance without the current proposal ID.
     if(v.type==='ready'&&!this.vote&&this.phase!=='fight')this.propose(this.boss.id,now);
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';this.system('Encounter started: '+boss);if(boss==='greenCone')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
-  cancelVote(){if(this.vote){this.vote=undefined;this.ready.clear();this.emit({type:'event',text:'Encounter vote cancelled.'});}}
+  cancelVote(){if(this.vote){this.vote=undefined;this.ready.clear();this.emit({type:'event',text:'Encounter vote cancelled.'});this.system('Encounter vote cancelled.');}}
   propose(boss:Snapshot['boss']['id'],now:number){
     if(this.phase==='fight'||this.vote)return;
+    this.system('Boss vote opened: '+boss);
     this.vote={id:this.uuid()+':'+(++this.voteSerial),boss,expires:now+30000,voters:[...this.players.keys()],accepted:[]};
   }
   visible(from:Vec2,to:Vec2){return this.boss.id!=='hardWarden'||!pillarOccludes(from,to)}
@@ -234,6 +245,7 @@ export class Game {
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);
+      if(this.boss.id==='greenCone'&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
         this.scatter.shift();
@@ -251,11 +263,11 @@ export class Game {
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))) {
-        this.phase='won';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.phase='won';this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
         this.reward={id:this.fightId,material:this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
-      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
+      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

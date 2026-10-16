@@ -4,7 +4,7 @@ Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_
 
 ## Prototype 01
 
-Version **0.1.0** consolidates the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
+Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
 
 The prototype includes a deliberately small **Sanctum Hub** shell before the encounter so the team can evaluate the intended loop without turning Prototype 01 into a world-building project:
 
@@ -36,7 +36,7 @@ For testing from other devices on the LAN, open the Vite host address on those d
 
 Hub:
 - WASD — move
-- E — propose a boss when standing near the Expedition Gate
+- E — open the named boss pedestal in the blue Normal (west) or red Hard (east) circle, then propose its encounter
 - E at the gold Skill Trainer — choose a class and rearrange its four skills
 - E at the purple Crafter — craft Primitive Wand from boss materials
 
@@ -53,7 +53,7 @@ Encounter:
 
 The prototype intentionally focuses on the Prototype 01 hypothesis: server-authoritative multiplayer movement/combat, a shared boss, readable telegraphs, learnable mechanics, coordination, failure and fast retry.
 
-The gate offers Warden, Hard Warden, Yellow Ball, Hard Yellow Ball and Truffle Man (`greenCone`). Selecting a boss proposes an encounter to every connected player in the existing room. The proposer and all other players must explicitly accept before the server starts it. Yellow Ball alternates a telegraphed rolling charge and a bouncing slam. Movement, boss separation, dash, damage, cooldowns and beam intersection are calculated by one shared server simulation used by the local WebSocket server and Cloudflare Durable Object.
+The west Normal circle contains Warden, Yellow Ball and Truffle Man (`greenCone`); the separate east Hard circle contains Hard Warden and Hard Yellow Ball. All five low pedestals are walkable and individually labeled. Follow the central aisle from spawn to reach either circle, clear of the NPC patrol and service stations. E opens only that pedestal's encounter for confirmation. The Propose boss button also offers the complete catalog grouped by difficulty. Selecting a boss proposes an encounter to every connected player in the existing room. The proposer and all other players must explicitly accept before the server starts it. Yellow Ball alternates a telegraphed rolling charge and a bouncing slam. Movement, boss separation, dash, damage, cooldowns and beam intersection are calculated by one shared server simulation used by the local WebSocket server and Cloudflare Durable Object.
 
 LAZOR fires a 14-unit forward beam, dealing 90 damage on intersection with the boss, with a 2.4-second cooldown. Player noses show actual movement direction and keep their facing when stopped. It belongs to Fire Mage; choose that class at the Skill Trainer before entering.
 
@@ -181,3 +181,9 @@ The consolidated scope includes accepted ADR extensions and prototype browser-lo
 Version/release policy: [DOCS/RELEASE_RULES.md](DOCS/RELEASE_RULES.md). Deployment uses externally configured Workers Builds; pushing main may deploy production. Never assume a source merge preserves in-memory Durable Object sessions.
 
 For isolated local browser checks when port 8787 is occupied, set `TEST_WS_PORT=18791` before `npm run test:browser`. The runner starts its own Node backend and passes that port to Vite through `VITE_WS_PORT`; deployed `/ws` routing is unchanged. The four-context hub regression allows 180 seconds for software-rendered scenes.
+
+### Room chat
+
+Press Enter to open the compact bottom-left chat, Enter to send, or Esc to cancel. Typing stops movement and captures gameplay keys. Recent messages fade after ten seconds; opening input reveals up to 60 messages retained in this tab. Chat stays with the current room through hub, fights and reconnects; offline sends are not queued and new connections do not receive past history. System messages announce named joins/leaves, votes, encounter starts, wipes, victories and return to hub.
+
+Both Node and Durable Object transports broadcast through the same room Game authority. Sender identity comes from the socket, text is trimmed, control and bidirectional formatting characters are removed, messages are capped at 240 UTF-16 code units, and each connection can send once per second. Empty/invalid/rate-limited messages are silently ignored. Names receive the same sanitizing with a 24-character limit. Messages render as DOM text. No global chat, direct messages or accounts are added.

@@ -1,3 +1,6 @@
+import {createRoomChat} from './roomChat';
+import {BOSS_CIRCLES,BOSS_PEDESTALS,nearbyBoss} from '../../shared/boss-layout';
+import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
 import {createCreditsDialog} from './credits';
@@ -10,6 +13,7 @@ import {
   ArcRotateCamera,
   Color3,
   Color4,
+  DynamicTexture,
   Engine,
   GlowLayer,
   HemisphericLight,
@@ -80,12 +84,13 @@ let inventory=readInventory(localStorage.getItem(inventoryKey));
 localStorage.setItem(inventoryKey,JSON.stringify(inventory));
 function renderInventory(){if(hubPanelOpen)closeHubPanel()}
 function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden');keys.clear()}
-function openHubPanel(kind:'gate'|'crafter'|'wardrobe'){
+function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
  const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
- const select=document.createElement('select');for(const [id,name] of [['warden','Warden'],['hardWarden','Hard Warden'],['yellowBall','Yellow Ball'],['hardYellowBall','Hard Yellow Ball'],['greenCone','Truffle Man']] as const){const o=document.createElement('option');o.value=id;o.textContent=name;o.selected=id===selectedBoss;select.append(o)}inventoryPanel.append(select);
+ const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
+ for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
  const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
@@ -150,6 +155,7 @@ const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
 const keys = new Set<string>();
+const roomChat=createRoomChat(payload=>send(payload),()=>{keys.clear();send({type:'input',seq:seq++,move:{x:0,z:0}})});
 const playerMeshes = new Map<string, Mesh>();
 const addMeshes=new Map<string,Mesh>();
 const telegraphMeshes = new Map<string, Mesh>();
@@ -222,8 +228,6 @@ hubPath.position.set(0, 0.03, 1);
 hubPath.material = hubStoneMat;
 
 for (const [x, z] of [
-  [-8.5, -5],
-  [8.5, -5],
   [-8, 5.5],
   [8, 5.5],
 ] as const) {
@@ -233,13 +237,24 @@ for (const [x, z] of [
   ruin.material = hubStoneMat;
 }
 
-const portalDisc = pushHub(MeshBuilder.CreateCylinder("expedition-gate", { diameter: 4.2, height: 0.08, tessellation: 48 }, scene));
-portalDisc.position.set(0, 0.05, -6.4);
-portalDisc.material = hubAccentMat;
-
-const portalRing = pushHub(MeshBuilder.CreateTorus("expedition-ring", { diameter: 4.8, thickness: 0.25, tessellation: 48 }, scene));
-portalRing.position.set(0, 0.12, -6.4);
-portalRing.material = hubAccentMat;
+// Shared geometry drives both rendering and keyboard selection.
+function hubLabel(name:string,text:string,x:number,z:number,width:number){
+ const texture=new DynamicTexture(name+'-text',{width:1024,height:192},scene,false);
+ const context=texture.getContext();context.font='bold 140px sans-serif';
+ const fontSize=Math.min(140,Math.floor(900/context.measureText(text).width*140));
+ texture.hasAlpha=true;texture.drawText(text,null,150,`bold ${fontSize}px sans-serif`,'#ffffff','transparent',true);
+ const mat=material(name+'-label',new Color3(1,1,1));mat.diffuseTexture=texture;mat.emissiveTexture=texture;mat.backFaceCulling=false;
+ const mesh=pushHub(MeshBuilder.CreatePlane(name,{width,height:width*192/1024},scene));mesh.rotation.x=Math.PI/2;mesh.position.set(x,.16,z);mesh.material=mat;
+}
+for(const circle of BOSS_CIRCLES){
+ const mat=circle.difficulty==='Normal'?hubAccentMat:bossMat;
+ const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
+ hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+3.3,3.5);
+ for(const pedestal of BOSS_PEDESTALS.filter(p=>p.difficulty===circle.difficulty)){
+  const disc=pushHub(MeshBuilder.CreateCylinder('boss-pedestal-'+pedestal.id,{diameter:1.3,height:.08,tessellation:40},scene));disc.position.set(pedestal.pos.x,.05,pedestal.pos.z);disc.material=mat;
+  hubLabel('boss-label-'+pedestal.id,pedestal.name,pedestal.pos.x,pedestal.pos.z,2.5);
+ }
+}
 
 const hubPlayer = pushHub(MeshBuilder.CreateCapsule("hub-player", { height: 1.7, radius: 0.48 }, scene));
 hubPlayer.position.set(0, 0.85, 6.2);
@@ -296,8 +311,6 @@ for (const [x, z] of [
 }
 
 const hardPillars=HARD_PILLARS.map((p,i)=>{const mesh=pushArena(MeshBuilder.CreateCylinder('hard-pillar-'+i,{diameter:2,height:3},scene));mesh.position.set(p.x,1.5,p.z);mesh.material=arenaStoneMat;return mesh});
-const hardGate=pushHub(MeshBuilder.CreateCylinder('hard-warden-circle',{diameter:3.5,height:.08},scene));hardGate.position.set(5,.06,-6.4);hardGate.material=bossMat;
-const normalGate=pushHub(MeshBuilder.CreateCylinder('normal-warden-circle',{diameter:3.5,height:.08},scene));normalGate.position.set(0,.06,-6.4);normalGate.material=bossMat;
 const bossMesh = pushArena(MeshBuilder.CreateCylinder("boss", { diameter: 2.5, height: 2.9, tessellation: 12 }, scene));
 bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
@@ -312,6 +325,7 @@ const bossRing = pushArena(MeshBuilder.CreateTorus("boss-ring", { diameter: 3.6,
 bossRing.position.y = 0.08;
 bossRing.material = bossMat;
 
+const poisonVisuals=createTrufflePoisonVisuals(scene);
 function setMode(next: ClientMode) {
   closeHubPanel();keys.clear();
   if(trainerOpen)closeTrainer(false);
@@ -340,6 +354,7 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
+  poisonVisuals.clear();
   for(const mesh of totemMeshes.values())mesh.dispose();totemMeshes.clear();
   for (const effect of fx) effect.mesh.dispose();
   fx.length = 0;
@@ -428,6 +443,7 @@ function connectEncounter() {
 
     const packet = JSON.parse(event.data) as ServerMessage;
 
+    if (packet.type === "chat") roomChat.receive(packet);
     if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
     if (packet.type === "abilityFx" && mode === "encounter" && !gameDevLabs.isOpen()) {
@@ -667,11 +683,8 @@ function send(payload: unknown) {
   if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
 
-function hubPortalDistance() {
-  return Math.hypot(hubPlayer.position.x, hubPlayer.position.z + 6.4);
-}
-
 addEventListener("keydown", (event) => {
+  if(roomChat.keydown(event))return;
   const key = event.key.toLowerCase();
   if(gameDevLabs.isOpen()){
     if(key==='escape')gameDevLabs.back();
@@ -687,11 +700,7 @@ addEventListener("keydown", (event) => {
   if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
 
   if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
-  if(mode==='hub'&&key==='e'&&Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2){selectedBoss='hardWarden';enterEncounter();return;}
-  if (mode === "hub" && key === "e" && hubPortalDistance() <= 3) {
-    selectedBoss='warden';openHubPanel('gate');
-    return;
-  }
+  if(mode==='hub'&&key==='e'&&!event.repeat){const pedestal=nearbyBoss(hubPlayer.position);if(pedestal){selectedBoss=pedestal.id;openHubPanel('gate',true);return}}
 
   if (mode !== "encounter") return;
 
@@ -718,21 +727,20 @@ setInterval(() => {
 
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
   const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  const blocked=trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
+  const blocked=roomChat.isOpen()||trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
   send({ type: "input", seq: seq++, move: blocked?{x:0,z:0}:{ x, z } });
 }, 50);
 
 function updateHub() {
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
-  const nearGate = hubPortalDistance() <= 3 || Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2;
-  status.textContent = Math.hypot(hubPlayer.position.x-5,hubPlayer.position.z+6.4)<=2?'Hard Warden - E to propose':nearTrainer ? "Skill Trainer · press E" : nearGate ? "Expedition Gate · press E" : "Sanctum Hub";
+  const pedestal=nearbyBoss(hubPlayer.position);
+  status.textContent=pedestal?pedestal.difficulty+' · '+pedestal.name+' · E to propose':nearTrainer?'Skill Trainer · press E':'Sanctum Hub · Normal west / Hard east';
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
   if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';
   status.textContent=CLASS_DEFINITIONS[selectedClass].name+' - '+status.textContent;
-  const pulse = 1 + Math.sin(performance.now() * 0.003) * 0.08;
-  portalRing.scaling.set(pulse, 1, pulse);
+
 }
 
 setMode("hub");
@@ -752,6 +760,7 @@ engine.runRenderLoop(() => {
     const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
     camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
   }
+  poisonVisuals.sync(snapshot,!gameDevLabs.isOpen()&&mode==='encounter',myId,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');
   if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
   const b=snapshot?.boss;

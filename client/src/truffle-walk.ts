@@ -31,7 +31,7 @@ export function createTruffleWalk(root:TransformNode,nodes:TransformNode[]){
   for(const n of [a.upper,a.lower,a.hand])n.computeWorldMatrix(true);
   const end=new TransformNode('smash-wrist-end',root.getScene());end.parent=a.lower;
   end.setAbsolutePosition(a.hand.getAbsolutePosition());
-  return {...a,end,upperLength:Vector3.Distance(local(a.upper),local(a.lower)),lowerLength:Vector3.Distance(local(a.lower),local(a.hand)),restHand:local(a.hand)};
+  return {...a,end,upperLength:Vector3.Distance(local(a.upper),local(a.lower)),lowerLength:Vector3.Distance(local(a.lower),local(a.hand)),restHand:local(a.hand),restShoulder:local(a.upper)};
  });
  function aim(node:TransformNode,child:TransformNode,target:Vector3){
   const parent=node.parent as TransformNode;
@@ -55,7 +55,7 @@ export function createTruffleWalk(root:TransformNode,nodes:TransformNode[]){
    // Hold just above contact until the authoritative damage snapshot arrives.
    if(!smash.impacted)hit=Math.min(hit,.94);
    const recovery=smash.impacted?smooth((now-smash.impactAt)/(smash.recoverAt-smash.impactAt)):0;
-   weight=1-recovery;crouch=(.12*raise+.32*hit)*weight;pitch=(-.22*raise+1.32*hit)*weight;
+   weight=1-recovery;crouch=(.08*raise+.5*hit)*weight;pitch=(.12*raise-1.07*hit)*weight;
    spine.computeWorldMatrix(true);spine.setAbsolutePosition(spine.getAbsolutePosition().add(new Vector3(0,-crouch,0)));
    const parent=chest.parent as TransformNode;
    const axis=Vector3.TransformNormal(Vector3.TransformNormal(new Vector3(1,0,0),root.computeWorldMatrix(true)),Matrix.Invert(parent.computeWorldMatrix(true))).normalize();
@@ -88,18 +88,21 @@ export function createTruffleWalk(root:TransformNode,nodes:TransformNode[]){
   });
   if(active){
    const world=root.computeWorldMatrix(true);
-   for(const [i,a] of armChains.entries()){
+   for(const a of armChains){
     // Both fists rise over the cap, then drive forward and down. The hands
     // have independent controls in this rig: solve the deforming arm to them.
-    const overhead=new Vector3(i===0?-.43:.43,2.65,-.12);
-    const contact=new Vector3(i===0?-.5:.5,.12,1.05);
+    // The imported rig has a mirrored model transform: L is +X in root
+    // space. Bone lengths run along local +Y, not a global Euler axis.
+    const side=Math.sign(a.restShoulder.x),length=a.upperLength+a.lowerLength;
+    const overhead=new Vector3(a.restShoulder.x+side*length*.18,a.restShoulder.y+length*.88,a.restShoulder.z+.2);
+    const contact=new Vector3(side*.8,.18,1.8);
     const raised=Vector3.Lerp(a.restHand,overhead,raise);
     const desired=Vector3.Lerp(a.restHand,Vector3.Lerp(raised,contact,hit),weight);
     a.upper.computeWorldMatrix(true);const shoulder=a.upper.getAbsolutePosition();
     const delta=Vector3.TransformCoordinates(desired,world).subtract(shoulder);
     const axis=delta.normalizeToNew(),reach=Math.min(delta.length(),a.upperLength+a.lowerLength-.00001);
     const along=(a.upperLength*a.upperLength-a.lowerLength*a.lowerLength+reach*reach)/(2*reach);
-    const bend=Vector3.TransformNormal(new Vector3(i===0?-1:1,0,-.4),world);
+    const bend=Vector3.TransformNormal(new Vector3(side,0,.4),world);
     bend.subtractInPlace(axis.scale(Vector3.Dot(bend,axis))).normalize();
     const knee=shoulder.add(axis.scale(along)).add(bend.scale(Math.sqrt(Math.max(0,a.upperLength*a.upperLength-along*along))));
     const target=shoulder.add(axis.scale(reach));
@@ -108,4 +111,3 @@ export function createTruffleWalk(root:TransformNode,nodes:TransformNode[]){
   }
  }};
 }
-

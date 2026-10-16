@@ -19,6 +19,8 @@ Ideas being discussed should be marked as proposals or drafts. Once the team agr
 
 ## Shared AI context
 
+Browse the [canonical skill & evolution idea library](ABILITY_IDEAS/JAC_Works_Ability_Idea_Library.md), combining Project Energy and earlier JAC brainstorms. The [library guide and Excel companion](ABILITY_IDEAS/README.md) cover 182 indexed ideas. All remain draft inspiration, not gameplay, class, acquisition, progression or balance decisions.
+
 See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI coding agents should read before working on the repository.
 
 ## Consolidation and releases

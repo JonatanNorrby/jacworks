@@ -1,5 +1,7 @@
 # JAC Works
 
+Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_IDEAS/JAC_Works_Ability_Idea_Library.md) — Project Energy and earlier JAC ideas, with provenance and proposal status. [Browse guide / Excel companion](DOCS/ABILITY_IDEAS/README.md).
+
 ## Prototype 01
 
 Version **0.1.0** consolidates the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.

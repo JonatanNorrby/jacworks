@@ -1,5 +1,7 @@
 # Skill Mutation & Crafting Proposals (DRAFT — NOT APPROVED)
 
+**Historical proposal / provenance:** The skill ideas and combination examples are now indexed in the [single canonical skill & evolution idea library](ABILITY_IDEAS/JAC_Works_Ability_Idea_Library.md). Browse and develop ideas there. This document preserves the earlier brainstorm and recipe aliases; its crafting, drops, class labels, numerical suggestions and stacking rules are not accepted decisions. The unified library selects no acquisition model.
+
 **Status:** Design suggestions for Axel, Jonatan, Chris, and coding agents. **Do not implement automatically.** Obtain design approval before changing game rules, class kits, slots, recipes, or progression. This is a proposal document, not an accepted ADR.
 
 ## Fundamental direction

@@ -1,3 +1,4 @@
+import {createRoomChat} from './roomChat';
 import {BOSS_CIRCLES,BOSS_PEDESTALS,nearbyBoss} from '../../shared/boss-layout';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
@@ -154,6 +155,7 @@ const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
 const keys = new Set<string>();
+const roomChat=createRoomChat(payload=>send(payload),()=>{keys.clear();send({type:'input',seq:seq++,move:{x:0,z:0}})});
 const playerMeshes = new Map<string, Mesh>();
 const addMeshes=new Map<string,Mesh>();
 const telegraphMeshes = new Map<string, Mesh>();
@@ -441,6 +443,7 @@ function connectEncounter() {
 
     const packet = JSON.parse(event.data) as ServerMessage;
 
+    if (packet.type === "chat") roomChat.receive(packet);
     if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
     if (packet.type === "abilityFx" && mode === "encounter" && !gameDevLabs.isOpen()) {
@@ -681,6 +684,7 @@ function send(payload: unknown) {
 }
 
 addEventListener("keydown", (event) => {
+  if(roomChat.keydown(event))return;
   const key = event.key.toLowerCase();
   if(gameDevLabs.isOpen()){
     if(key==='escape')gameDevLabs.back();
@@ -723,7 +727,7 @@ setInterval(() => {
 
   const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
   const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  const blocked=trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
+  const blocked=roomChat.isOpen()||trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
   send({ type: "input", seq: seq++, move: blocked?{x:0,z:0}:{ x, z } });
 }, 50);
 

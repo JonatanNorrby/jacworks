@@ -40,7 +40,7 @@ test('Truffle encounter selection, Guide cleanup and late browser join',async({b
   await a.goto(url);await expect(a.locator('#room-panel')).toContainText('Connected');
   await expect(a.locator('#hub-card')).not.toContainText('procedural skeletal walk');
   await a.getByRole('button',{name:'Propose boss',exact:true}).click();
-  await expect(a.locator('#inventory-panel select option[value="greenCone"]')).toHaveText('Truffle Man');
+  await expect(a.locator('#inventory-panel select option[value="greenCone"]')).toHaveText(/Truffle Man$/);
   await a.locator('#inventory-panel select').selectOption('greenCone');await a.getByRole('button',{name:'Propose encounter',exact:true}).click();
   await expect(a.locator('#encounter-vote')).toContainText('Truffle Man');await a.getByRole('button',{name:'Accept',exact:true}).click();
   await expect(a.locator('#boss-label')).toHaveText('TRUFFLE MAN');await expect(a.locator('#truffle-boss-status')).toContainText('procedural skeletal walk');

@@ -137,3 +137,13 @@ body:has(#game-dev-labs:not(.hidden)) #room-panel{z-index:1001;top:auto;bottom:6
 
 body:has(#game-dev-labs:not(.hidden)) #hud{visibility:hidden}
 body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
+
+#room-chat{position:fixed;left:14px;bottom:156px;width:min(350px,calc(100vw - 28px));z-index:15;font-size:12px;pointer-events:none;text-shadow:0 1px 3px #000}
+#chat-log{max-height:120px;overflow:hidden;overflow-wrap:anywhere}
+.chat-row{padding:3px 6px;background:#090c12b0;transition:opacity 1s}
+.chat-row strong{color:#a9d8ff}.chat-row.system{color:#d5c49b}.chat-row.old{opacity:0}
+#room-chat small{color:#bdc5d0;background:#090c1280;padding:3px 6px}
+#room-chat.open{background:#090c12e8;border:1px solid #ffffff30;border-radius:5px;pointer-events:auto}
+#room-chat.open #chat-log{max-height:220px;overflow-y:auto}
+#room-chat.open .chat-row.old{opacity:1;height:auto;padding:3px 6px}
+#chat-input{box-sizing:border-box;width:100%;padding:8px;color:#fff;background:#141b28;border:1px solid #7491ad;font:inherit}

@@ -179,3 +179,9 @@ The consolidated scope includes accepted ADR extensions and prototype browser-lo
 Version/release policy: [DOCS/RELEASE_RULES.md](DOCS/RELEASE_RULES.md). Deployment uses externally configured Workers Builds; pushing main may deploy production. Never assume a source merge preserves in-memory Durable Object sessions.
 
 For isolated local browser checks when port 8787 is occupied, set `TEST_WS_PORT=18791` before `npm run test:browser`. The runner starts its own Node backend and passes that port to Vite through `VITE_WS_PORT`; deployed `/ws` routing is unchanged. The four-context hub regression allows 180 seconds for software-rendered scenes.
+
+### Room chat
+
+Press Enter to open the compact bottom-left chat, Enter to send, or Esc to cancel. Typing stops movement and captures gameplay keys. Recent messages fade after ten seconds; opening input reveals up to 60 messages retained in this tab. Chat stays with the current room through hub, fights and reconnects; offline sends are not queued and new connections do not receive past history. System messages announce named joins/leaves, votes, encounter starts, wipes, victories and return to hub.
+
+Both Node and Durable Object transports broadcast through the same room Game authority. Sender identity comes from the socket, text is trimmed, control and bidirectional formatting characters are removed, messages are capped at 240 UTF-16 code units, and each connection can send once per second. Empty/invalid/rate-limited messages are silently ignored. Names receive the same sanitizing with a 24-character limit. Messages render as DOM text. No global chat, direct messages or accounts are added.

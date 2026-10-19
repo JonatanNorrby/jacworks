@@ -147,3 +147,13 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 #room-chat.open #chat-log{max-height:220px;overflow-y:auto}
 #room-chat.open .chat-row.old{opacity:1;height:auto;padding:3px 6px}
 #chat-input{box-sizing:border-box;width:100%;padding:8px;color:#fff;background:#141b28;border:1px solid #7491ad;font:inherit}
+
+/* Rebindable controls */
+#keybindings{margin:1rem 0;padding-top:.7rem;border-top:1px solid #53606c}
+#keybindings h3{margin:.3rem 0}
+#keybinding-feedback{font-size:.85rem;min-height:2em}
+.keybinding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem 1rem;margin:.8rem 0}
+.keybinding-grid label{display:flex;align-items:center;justify-content:space-between;gap:.4rem;font-size:.86rem}
+.keybinding-grid button{min-width:5.3rem;padding:.35rem .45rem;white-space:nowrap}
+.keybinding-grid button:focus-visible{outline:2px solid #f9c66e}
+@media(max-width:620px){.keybinding-grid{grid-template-columns:1fr}}

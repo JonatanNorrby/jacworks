@@ -699,8 +699,8 @@ function send(payload: unknown) {
 
 addEventListener("keydown", (event) => {
   if(rebinding){event.preventDefault();event.stopImmediatePropagation();if(event.key==='Escape'){rebinding=null;keybindHelp.textContent='Rebinding cancelled.';renderBindings();return;}if(event.repeat||event.ctrlKey||event.altKey||event.metaKey)return;const result=rebind(bindings,rebinding,event.key);if(result.conflict){keybindHelp.textContent=displayKey(normalizeBinding(event.key))+' is already assigned to '+BINDING_LABELS[result.conflict]+'. Choose another key.';return;}if(result.error){keybindHelp.textContent=result.error;return;}bindings=result.bindings;rebinding=null;keys.clear();localStorage.setItem(BINDING_STORAGE_KEY,JSON.stringify(bindings));keybindHelp.textContent='Keybinding saved.';renderBindings();renderAbilityBar();return;}
-  if(roomChat.keydown(event))return;
-  const key = event.key.toLowerCase();
+  if(!optionsOpen&&!hubPanelOpen&&!trainerOpen&&!gameDevLabs.isOpen()&&roomChat.keydown(event))return;
+  const key = normalizeBinding(event.key);
   if(gameDevLabs.isOpen()){
     if(key==='escape')gameDevLabs.back();
     return;
@@ -735,7 +735,7 @@ addEventListener("keydown", (event) => {
   if (bound('hub',key)&&!event.repeat) returnToHub();
 });
 
-addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
+addEventListener("keyup", (event) => keys.delete(normalizeBinding(event.key)));
 addEventListener("blur",()=>keys.clear());
 
 setInterval(() => {

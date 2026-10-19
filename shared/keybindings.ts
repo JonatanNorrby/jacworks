@@ -22,13 +22,12 @@ export function parseBindings(raw:string|null):Bindings {
  try {
   const data:unknown=JSON.parse(raw);
   if(!data||typeof data!=='object')return defaults;
+  const candidate={...defaults};
   for(const action of BINDING_ACTIONS){
-   const candidate=(data as Record<string,unknown>)[action];
-   if(typeof candidate==='string'){
-    const key=normalizeBinding(candidate);
-    if(allowedKey(key)&&!Object.entries(defaults).some(([other,value])=>other!==action&&value===key))defaults[action]=key;
-   }
+   const value=(data as Record<string,unknown>)[action];
+   if(typeof value==='string'&&allowedKey(normalizeBinding(value)))candidate[action]=normalizeBinding(value);
   }
+  if(new Set(Object.values(candidate)).size===BINDING_ACTIONS.length)return candidate;
  }catch{}
  return defaults;
 }

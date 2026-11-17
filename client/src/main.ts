@@ -323,6 +323,13 @@ for(const x of [4.95,6.05]){
 }
 const arenaGround = pushArena(MeshBuilder.CreateGround("arena", { width: 26, height: 26 }, scene));
 arenaGround.material = arenaGroundMat;
+const fractureWarningMat=material('fracture-warning',new Color3(.5,.25,.02),new Color3(.65,.23,.02),.9);
+const fractureVoidMat=material('fracture-void',new Color3(.005,.004,.013),new Color3(.01,.002,.015));
+const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
+ const tile=pushArena(MeshBuilder.CreateGround('fracture-tile-'+i,{width:10,height:10},scene));
+ tile.position.set(x,.035,z);tile.setEnabled(false);return tile;
+});
+const fireMineMeshes=new Map<string,Mesh>();
 
 const arenaRing = pushArena(MeshBuilder.CreateTorus("arena-ring", { diameter: 24.4, thickness: 0.22, tessellation: 64 }, scene));
 arenaRing.position.y = 0.06;
@@ -346,6 +353,7 @@ bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
 const yellowMat=material('yellow-ball',new Color3(1,.85,.02),new Color3(.5,.32,0));
 const yellowBoss=pushArena(MeshBuilder.CreateSphere('yellow-boss',{diameter:2.5,segments:24},scene));yellowBoss.material=yellowMat;
+const fracturerMat=material('fracturer',new Color3(.5,.17,.8),new Color3(.22,.04,.35));
 const greenMat=material('green-cone',new Color3(.1,.8,.2),new Color3(.02,.25,.04));
 const dropCone=pushArena(MeshBuilder.CreateCylinder('conical-taper-drop',{height:.65,diameterTop:0,diameterBottom:.5},scene));dropCone.material=greenMat;
 const dropTube=pushArena(MeshBuilder.CreateCylinder('cylinder-tube-drop',{diameter:.4,height:.65},scene));dropTube.material=bossMat;
@@ -366,6 +374,7 @@ function setMode(next: ClientMode) {
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
   dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);yellowBoss.setEnabled(false);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
+  for(const mesh of fireMineMeshes.values())mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
   for (const effect of fx) effect.mesh.setEnabled(!inHub);
 
@@ -384,7 +393,7 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
-  poisonVisuals.clear();
+  poisonVisuals.clear();for(const mine of fireMineMeshes.values())mine.dispose();fireMineMeshes.clear();
   for(const mesh of totemMeshes.values())mesh.dispose();totemMeshes.clear();
   for (const effect of fx) effect.mesh.dispose();
   fx.length = 0;
@@ -447,7 +456,7 @@ function syncHub(state:Snapshot){
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -543,12 +552,22 @@ function syncEncounter(state: Snapshot) {
  for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id);}
  for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
 
+ for(const [i,tile] of fractureFloorTiles.entries()){
+ const cut=state.boss.id==='fracturer'?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
+ }
+ for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine')){mesh.dispose();fireMineMeshes.delete(id)}
+ for(const e of state.effects.filter(e=>e.skill==='fireMine')){
+ let mine=fireMineMeshes.get(e.id);
+ if(!mine){mine=MeshBuilder.CreateTorus('persistent-fire-mine-'+e.id,{diameter:1.6,thickness:.18,tessellation:24},scene);mine.material=dangerMat;fireMineMeshes.set(e.id,mine);}
+ mine.position.set(e.pos.x,.12,e.pos.z);
+ }
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
  for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
- bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
+ bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
  document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';

@@ -381,6 +381,35 @@ nameInput.onchange=()=>{playerName=nameInput.value.trim()||playerName;localStora
 const share=document.createElement('button');share.textContent='Copy room link';share.onclick=()=>{navigator.clipboard.writeText(location.href).then(()=>{share.textContent='Link copied'},()=>{share.textContent='Copy the address bar link'})};
 const roster=document.createElement('div');roster.id='room-roster';
 roomPanel.append(connectionLabel,roomLabel,nameInput,share,roster);document.body.append(roomPanel);
+const dpsPanel=document.createElement('section');dpsPanel.id='dps-meter';dpsPanel.setAttribute('aria-label','Damage meter');
+const dpsTitle=document.createElement('h3');dpsTitle.textContent='Damage meter';
+const dpsToggle=document.createElement('button');dpsToggle.type='button';dpsToggle.textContent='Hide';
+const dpsRows=document.createElement('div');dpsRows.id='dps-rows';
+let dpsHidden=localStorage.getItem('jacworks-dps-hidden')==='true';
+function setDpsHidden(hidden:boolean){dpsHidden=hidden;dpsRows.hidden=hidden;dpsToggle.textContent=hidden?'Show':'Hide';localStorage.setItem('jacworks-dps-hidden',String(hidden))}
+dpsToggle.onclick=()=>setDpsHidden(!dpsHidden);
+const dpsHeader=document.createElement('div');dpsHeader.className='dps-header';dpsHeader.append(dpsTitle,dpsToggle);dpsPanel.append(dpsHeader,dpsRows);document.body.append(dpsPanel);setDpsHidden(dpsHidden);
+function renderDps(state:Snapshot){
+ const meter=state.damageMeter;
+ dpsPanel.classList.toggle('hidden',state.phase==='lobby');
+ if(!meter||state.phase==='lobby')return;
+ const elapsed=Math.max(1,meter.elapsedMs)/1000;
+ const rows=[...meter.entries].sort((a,b)=>b.damage-a.damage);
+ const top=Math.max(1,...rows.map(r=>r.damage));
+ dpsRows.replaceChildren();
+ if(!rows.length){const empty=document.createElement('p');empty.textContent='Waiting for damage…';dpsRows.append(empty);return}
+ for(const entry of rows){
+  const player=state.players.find(p=>p.id===entry.playerId);
+  const row=document.createElement('div');row.className='dps-row';
+  const label=document.createElement('div');label.className='dps-label';
+  const name=document.createElement('span');name.textContent=(player?.name??'Disconnected player')+(entry.playerId===myId?' (you)':'');
+  const amount=document.createElement('span');amount.textContent=(entry.damage/elapsed).toFixed(1)+' DPS · '+Math.round(entry.damage)+' dmg';
+  label.append(name,amount);
+  const track=document.createElement('div');track.className='dps-track';
+  const fill=document.createElement('div');fill.className='dps-fill';fill.style.width=(entry.damage/top*100).toFixed(1)+'%';track.append(fill);
+  row.append(label,track);dpsRows.append(row);
+ }
+}
 function syncHub(state:Snapshot){
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
@@ -460,7 +489,7 @@ function connectEncounter() {
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
-      snapshot = packet;syncVote(packet);
+      snapshot = packet;syncVote(packet);renderDps(packet);
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.textContent=p.name+(p.id===myId?' (you)':'');row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');

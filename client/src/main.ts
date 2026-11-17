@@ -89,7 +89,7 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills. Fleetfoot Boots: +15% movement. Mirewalker Boots: 25% less poison damage.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
  for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
@@ -98,7 +98,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
  for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
- for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour']] as const){
+ for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour'],['boots','fleetfootBoots','Boots']] as const){
   const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[inventory[slot]!]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
@@ -109,7 +109,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver'] as const){
+ for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver','fleetfootBoots','mirewalkerBoots'] as const){
   const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
@@ -290,13 +290,14 @@ hubPlayer.position.set(0, 0.85, 6.2);
 hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
-function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown}){
- if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null};
- const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour]);if(parent.metadata?.gear===signature)return;
+function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown;boots?:unknown}){
+ if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null,boots:gear.boots};
+ const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour,gear.boots]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
  if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=bossMat;}
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
+ if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
  if(gear.offhand==='sporefangQuiver'){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
 }
 

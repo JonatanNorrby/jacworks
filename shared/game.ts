@@ -243,7 +243,7 @@ export class Game {
       for(const a of this.adds.filter(a=>a.kind!=='ball')){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
-        p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)});
+        p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1)*(p.boots==='fleetfootBoots'?1.15:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)*(p.boots==='fleetfootBoots'?1.15:1)});
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);

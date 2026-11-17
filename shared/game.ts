@@ -195,7 +195,7 @@ export class Game {
       this.boss.heading=Math.atan2(dir.x,dir.z);
       this.boss.smash={startedAt:now,impactAt:t.resolvesAt,recoverAt:t.resolvesAt+650};
       this.emit({type:'event',text:'Truffle Man: close-range smash!'});
-      if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:this.boss.id==='hardGreenCone'?90:54,maxHp:this.boss.id==='hardGreenCone'?90:54,attackAt:now+1500});
+      if(this.mechanic%(this.boss.id==='hardGreenCone'?2:3)===0){const hard=this.boss.id==='hardGreenCone';const max=hard?12:6;const spots=hard?[[-3,-2],[-1,-3],[1,-3],[3,-2],[-3,2],[-1,3],[1,3],[3,2]]:[[-2,0],[2,0]];for(let i=0;i<spots.length&&this.adds.length<max;i++){const [dx,dz]=spots[(i+this.mechanic)%spots.length];this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+dx),z:clamp(this.boss.pos.z+dz)},hp:hard?100:54,maxHp:hard?100:54,attackAt:now+1500});}}
     } else if(this.boss.id==='hardWarden') {
       const kind=this.mechanic%3;
       t={id:this.uuid(),kind:'circle',pos:kind===2?{...this.boss.pos}:{...target.pos},radius:kind===2?35:kind===1?4.2:2.6,resolvesAt:now+1500,sweep:kind===2};
@@ -271,6 +271,6 @@ export class Game {
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

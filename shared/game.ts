@@ -43,6 +43,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
   arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;
+  trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-9,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-9,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-9,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();
   recordDamage(source:string|undefined,amount:number){if(source&&amount>0&&this.phase==='fight')this.damageTotals.set(source,(this.damageTotals.get(source)??0)+amount);}
@@ -98,6 +99,20 @@ export class Game {
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
+    }
+    if(v.type==='practice'&&this.phase==='lobby'&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4&&typeof v.dummyId==='string'){
+      const dummy=this.trainingDummies.find(d=>d.id===v.dummyId&&d.hp>0);
+      const slot=Number(v.slot)-1,skill=p.loadout[slot];
+      if(!dummy||!skill||!p.alive||distance(p.pos,dummy.pos)>8||now<p.cooldowns[slot])return;
+      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:24,backstab:24,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:100,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84};
+      let amount=damage[skill]??0;
+      if(p.offhand==='sporefangQuiver')amount=skill==='aimedShot'?70:skill==='arrowRain'?102:skill==='splitShot'?78:amount;
+      if(!amount)return;
+      p.cooldowns[slot]=now+SKILLS[skill].cooldown;
+      dummy.hp=Math.max(0,dummy.hp-amount);
+      if(dummy.hp===0)dummy.respawnAt=now+5000;
+      this.emit({type:'abilityFx',skill,playerId:id,from:{...p.pos},to:{...dummy.pos}});
+      return;
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;
@@ -215,6 +230,7 @@ export class Game {
   tick(now=Date.now()):Snapshot {
     if(this.vote&&now>=this.vote.expires)this.cancelVote();
     if(this.phase==='lobby') {
+      for(const d of this.trainingDummies)if(d.hp<=0&&now>=d.respawnAt)d.hp=d.maxHp;
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
       this.hubNpc.tick(dt,[...this.players.values()].map(p=>p.pos));
       for(const p of this.players.values()) {
@@ -289,6 +305,6 @@ export class Game {
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

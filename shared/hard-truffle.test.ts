@@ -21,7 +21,7 @@ test('Hard Truffle Man poison differs from normal without changing normal tuning
  g.message('player',{type:'propose',boss:'hardGreenCone'},100);
  g.message('player',{type:'vote',proposalId:g.vote!.id,accept:true},100);
  g.next=Infinity;p.pos={x:10,z:10};
- const mark=g.tick(4100).poisonMark!;
+ const mark=g.tick(4100).poisonMarks![0]!;
  assert.equal(mark.detonatesAt,4100+HARD_TRUFFLE_POISON.markDelay);
  const cloud=g.tick(mark.detonatesAt).poisonClouds![0];
  assert.equal(cloud.radius,HARD_TRUFFLE_POISON.radius);

@@ -46,3 +46,20 @@ test('Sporebound Totem has specified Fire and Healing Totem values',()=>{
  assert.equal(SPOREBOUND_BONUS.fireDamage,30);
  assert.equal(SPOREBOUND_BONUS.healPerTick,10);
 });
+
+test('equipped Shaman item actually improves authoritative fire and healing totems',()=>{
+ let n=0;const g=new Game(()=>{},()=>String(++n));const p=g.add('shaman');
+ const inv=emptyInventory();inv.rewards={a:'hardTruffleSpore',b:'hardTruffleSpore',c:'hardTruffleSpore'};
+ assert.equal(craft(inv,'sporeboundTotem'),true);assert.equal(equip(inv,'offhand','sporeboundTotem'),true);
+ g.message('shaman',{type:'join',classId:'shaman',inventory:inv,loadout:CLASS_DEFINITIONS.shaman.skills},100);
+ g.message('shaman',{type:'propose',boss:'warden'},110);
+ g.message('shaman',{type:'vote',proposalId:g.vote!.id,accept:true},110);
+ g.next=Infinity;p.pos={x:0,z:2};
+ g.message('shaman',{type:'ability',slot:2,target:{x:0,z:1}},200);
+ g.tick(1200);g.tick(1550);
+ assert.equal(g.boss.hp,1770);
+ p.hp=50;
+ g.message('shaman',{type:'ability',slot:3,target:{x:0,z:1}},1700);
+ g.tick(2700);
+ assert.equal(p.hp,60);
+});

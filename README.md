@@ -187,3 +187,14 @@ For isolated local browser checks when port 8787 is occupied, set `TEST_WS_PORT=
 Press Enter to open the compact bottom-left chat, Enter to send, or Esc to cancel. Typing stops movement and captures gameplay keys. Recent messages fade after ten seconds; opening input reveals up to 60 messages retained in this tab. Chat stays with the current room through hub, fights and reconnects; offline sends are not queued and new connections do not receive past history. System messages announce named joins/leaves, votes, encounter starts, wipes, victories and return to hub.
 
 Both Node and Durable Object transports broadcast through the same room Game authority. Sender identity comes from the socket, text is trimmed, control and bidirectional formatting characters are removed, messages are capped at 240 UTF-16 code units, and each connection can send once per second. Empty/invalid/rate-limited messages are silently ignored. Names receive the same sanitizing with a 24-character limit. Messages render as DOM text. No global chat, direct messages or accounts are added.
+
+
+### Hard Truffle Man, party status and damage meter (November 2026)
+
+The red Hard boss circle now has **Hard Truffle Man**, with 3,000 HP, larger/faster smash attacks, more resilient mushroom summons and enhanced poison clouds. Each victory grants each participating player **one Corrupted Truffle Spore** (the normal Truffle Man still grants a Conical Taper).
+
+At the Crafter, **3 Corrupted Truffle Spores → 1 Sporebound Totem**. Equip it in the offhand slot as **Shaman**. Its bonuses are server-authoritative: Fire Totem projectiles deal **30** damage instead of 24, and Healing Totem pulses restore **10** HP instead of 8. The recipe and item remain saved in the existing browser inventory; the server checks class eligibility on join.
+
+Connected players have individually identifiable colors and visible HP bars in the world and roster. The **DPS meter** tracks actual boss/add damage per player in the shared simulation (including DoTs and summons), showing total damage and encounter DPS. Its visibility can be toggled in-game.
+
+The feature integration includes tests for crafting, materials, class restrictions, encounter reward, totem behavior and meter accounting. The GitHub workflow `Verify game` runs tests, the production build and multiplayer smoke checks where GitHub Actions is enabled.

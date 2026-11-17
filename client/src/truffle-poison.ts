@@ -7,8 +7,8 @@ export function createTrufflePoisonVisuals(scene:Scene){
  const banner=document.createElement('div');banner.id='poison-status';banner.setAttribute('role','status');banner.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);padding:10px 18px;background:#24102feb;color:#f3caff;border:2px solid #db65ff;border-radius:8px;pointer-events:none;font:bold 18px sans-serif;z-index:15';banner.hidden=true;document.body.append(banner);
  function clear(){for(const mesh of meshes.values())mesh.dispose();meshes.clear();banner.hidden=true;banner.textContent='';}
  return {clear,sync(state:Snapshot|undefined,visible:boolean,myId:string,now:number){
-  if(!visible||!state||state.phase!=='fight'||state.boss.id!=='greenCone'){clear();return;}
-  const ids=new Set<string>(),mark=state.poisonMark;
+  if(!visible||!state||state.phase!=='fight'||state.boss.id!=='greenCone'&&state.boss.id!=='hardGreenCone'){clear();return;}
+  const ids=new Set<string>();const marks=state.poisonMarks?.length?state.poisonMarks:state.poisonMark?[state.poisonMark]:[];const mark=marks[0];
   if(mark&&now<mark.detonatesAt){
    const player=state.players.find(p=>p.id===mark.playerId&&p.alive);
    if(player){
@@ -16,6 +16,15 @@ export function createTrufflePoisonVisuals(scene:Scene){
     banner.hidden=false;banner.textContent=`${player.id===myId?'YOU':player.name}: POISON in ${(Math.max(0,mark.detonatesAt-now)/1000).toFixed(1)}s - move away, then leave the cloud!`;
    }
   }else {banner.hidden=true;banner.textContent='';}
+  for(const m of marks.filter(m=>m!==mark&&now<m.detonatesAt)){
+    const player=state.players.find(p=>p.id===m.playerId&&p.alive);
+    if(!player)continue;
+    const id='mark-'+m.playerId;ids.add(id);
+    let ring=meshes.get(id);
+    if(!ring){ring=MeshBuilder.CreateTorus('poison-mark-'+m.playerId,{diameter:1.6,thickness:.14,tessellation:48},scene);ring.material=warning;meshes.set(id,ring);}
+    ring.position.set(player.pos.x,.12,player.pos.z);
+  }
+  if(marks.length>1&&now<mark.detonatesAt){banner.hidden=false;banner.textContent='ALL PLAYERS MARKED: Poison in '+((mark.detonatesAt-now)/1000).toFixed(1)+'s. Spread out!';}
   for(const c of state.poisonClouds??[]){
    if(now>=c.expiresAt)continue;ids.add(c.id);let cloud=meshes.get(c.id);
    if(!cloud){cloud=MeshBuilder.CreateCylinder('poison-cloud-'+c.id,{diameter:c.radius*2,height:.035,tessellation:64},scene);const edge=MeshBuilder.CreateTorus('poison-radius',{diameter:c.radius*2,thickness:.1,tessellation:64},scene);edge.parent=cloud;edge.material=warning;

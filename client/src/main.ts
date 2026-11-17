@@ -28,6 +28,7 @@ import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } fro
 
 import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
 import { installGameDevLabs } from './gameDevLabs';
+declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -41,7 +42,8 @@ camera.inputs.clear();
 let preferences=loadCamera(localStorage),optionsOpen=false;
 const optionsButton=document.createElement('button');optionsButton.id='options-button';optionsButton.textContent='Options';document.body.append(optionsButton);
 const optionsPanel=document.createElement('section');optionsPanel.id='options-panel';optionsPanel.className='hidden';optionsPanel.setAttribute('aria-label','Options');
-optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><button>Close</button>';document.body.append(optionsPanel);
+optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><p id="game-version" aria-label="Game version"></p><button>Close</button>';document.body.append(optionsPanel);
+optionsPanel.querySelector<HTMLElement>('#game-version')!.textContent='Version '+__GAME_VERSION__;
 const follow=optionsPanel.querySelector<HTMLInputElement>('#camera-follow')!,zoom=optionsPanel.querySelector<HTMLInputElement>('#camera-zoom')!;
 function refreshOptions(){follow.checked=preferences.followPlayer;zoom.value=String(preferences.zoom);optionsPanel.querySelector('output')!.textContent=zoom.value}
 function closeOptions(){optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();optionsButton.focus()}
@@ -87,11 +89,11 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman only): Fire Totem 30 damage, Healing Totem 10 healing/tick.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
  for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if(snapshot?.supportedBosses&&!snapshot.supportedBosses.includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
@@ -107,7 +109,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem'] as const){
+ for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver'] as const){
   const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
@@ -220,9 +222,9 @@ function playerMaterial(id:string){
 function ensurePlayerHealthBar(mesh:Mesh){
  if(mesh.getChildMeshes().some(child=>child.name==='party-hp-fill'))return;
  const bg=MeshBuilder.CreateBox('party-hp-bg',{width:1.2,height:.12,depth:.055},scene);
- bg.parent=mesh;bg.position.set(0,1.23,0);bg.material=deadMat;
+ bg.parent=mesh;bg.position.set(0,1.63,0);bg.material=deadMat;
  const fill=MeshBuilder.CreateBox('party-hp-fill',{width:1.2,height:.12,depth:.065},scene);
- fill.parent=mesh;fill.position.set(0,1.23,-.035);fill.material=holyMat;
+ fill.parent=mesh;fill.position.set(0,1.63,-.035);fill.material=holyMat;
 }
 function updatePlayerHealthBar(mesh:Mesh,hp:number,maxHp:number){
  const ratio=maxHp>0?Math.max(0,Math.min(1,hp/maxHp)):0;
@@ -295,7 +297,7 @@ function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;
  if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=bossMat;}
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
- if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+ if(gear.offhand==='sporefangQuiver'){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
 }
 
 
@@ -460,7 +462,7 @@ function syncVote(state:Snapshot){
 function syncJoin(){send({type:'join',name:playerName,classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
 function enterEncounter() {
   if(ws?.readyState!==WebSocket.OPEN){message.textContent='Room disconnected. Reload to reconnect.';return;}
-  syncJoin();send({type:'propose',boss:selectedBoss});
+  syncJoin();send({type:'propose',boss:selectedBoss});message.textContent='Proposal sent: '+(bossNames[selectedBoss]??selectedBoss)+'. Waiting for room vote…';
 }
 function returnToHub() {
   send({type:'hub'});clearEncounterMeshes();setMode('hub');

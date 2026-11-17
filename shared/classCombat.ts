@@ -1,4 +1,5 @@
 import { meleeHits,chargeEnd } from './game';
+import {SPOREBOUND_BONUS} from './inventory';
 import type { Game } from './game';
 import type { PlayerState,Vec2 } from './protocol';
 import { SKILLS, BACKSTAB } from './protocol';
@@ -65,7 +66,7 @@ export function tickClassEffects(this:Game,now:number){
     this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&!!this.players.get(t.owner)?.alive);
     for(const t of this.totems)while(now>=t.next&&t.next<t.expires){
       if(t.kind==='healingTotem'){
-        for(const p of this.players.values())if(p.alive&&distance(t.pos,p.pos)<=4&&this.visible(t.pos,p.pos))p.hp=Math.min(p.maxHp,p.hp+8);
+        for(const p of this.players.values())if(p.alive&&distance(t.pos,p.pos)<=4&&this.visible(t.pos,p.pos))p.hp=Math.min(p.maxHp,p.hp+(this.players.get(t.owner)?.offhand==='sporeboundTotem'?SPOREBOUND_BONUS.healPerTick:8));
         this.emit({type:'abilityFx',skill:t.kind,playerId:t.owner,from:t.pos,to:t.pos});
       }else{
         const enemy=this.targets().filter(e=>distance(t.pos,e.pos)<=11&&this.visible(t.pos,e.pos)).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
@@ -95,7 +96,7 @@ export function tickClassEffects(this:Game,now:number){
         if(e.skill==='poisonEnchant')this.damageTarget(e.targetId!,BACKSTAB.poisonTick,e.owner);
         else if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,58,e.owner);}
         else if(e.skill==='fireball'&&!e.targetId){/* Projectile struck cover; no splash through it. */}
-        else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,24,e.owner);}
+        else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,this.players.get(e.owner)?.offhand==='sporeboundTotem'?SPOREBOUND_BONUS.fireDamage:24,e.owner);}
         else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:28,e.owner);
         if(e.skill!=='aimedShot'&&e.skill!=='fireTotem')this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});e.remaining--;e.next+=e.skill==='arrowRain'?600:1000;
       }return e.remaining>0;

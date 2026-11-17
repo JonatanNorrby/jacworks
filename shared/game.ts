@@ -103,7 +103,7 @@ export class Game {
       }
     }
     if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby'){this.reset();this.system('Returned to the hub.');}return;}
-    if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone','hardGreenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
+    if(v.type==='propose'){if(typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone','hardGreenCone'].includes(v.boss)){if(this.phase==='fight')this.system('Cannot propose a new boss during an encounter.');else if(this.vote)this.system('A boss vote is already active; accept or decline it first.');else this.propose(v.boss as Snapshot['boss']['id'],now);}else this.system('Unknown boss selection. Reload the game and check the deployed version.');}
     // Legacy ready may propose, but cannot cast an acceptance without the current proposal ID.
     if(v.type==='ready'&&!this.vote&&this.phase!=='fight')this.propose(this.boss.id,now);
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
@@ -271,6 +271,6 @@ export class Game {
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

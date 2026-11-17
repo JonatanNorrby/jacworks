@@ -66,7 +66,7 @@ export class Game {
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
     this.cancelVote();
-    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,dashCharges:1,dashRechargeAt:0};
+    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0};
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
     this.players.set(id,p);return p;
   }
@@ -91,7 +91,7 @@ export class Game {
       if(first)this.system(`${p.name} joined the room.`);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
       this.clearBuffs(p);p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
-      p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
+      p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:1800;this.selectionLocked=true;}
@@ -216,7 +216,7 @@ export class Game {
       this.hubNpc.tick(dt,[...this.players.values()].map(p=>p.pos));
       for(const p of this.players.values()) {
         const move=this.moves.get(p.id);
-        if(move&&now-move.at<250){p.pos=moveHubPlayer(p.pos,{x:move.v.x*5.4*dt,z:move.v.z*5.4*dt},this.hubNpc.state.pos);if(Math.hypot(move.v.x,move.v.z)>0)p.facing={...move.v};}
+        if(move&&now-move.at<250){p.pos=moveHubPlayer(p.pos,{x:move.v.x*5.4*dt*(p.boots==='fleetfootBoots'?1.15:1),z:move.v.z*5.4*dt*(p.boots==='fleetfootBoots'?1.15:1)},this.hubNpc.state.pos);if(Math.hypot(move.v.x,move.v.z)>0)p.facing={...move.v};}
       }
     }
     if(this.phase==='fight') {
@@ -247,7 +247,7 @@ export class Game {
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);
-      if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,amount));
+      if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,p.boots==='mirewalkerBoots'?amount*.75:amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
         this.scatter.shift();

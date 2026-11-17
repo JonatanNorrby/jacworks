@@ -1,7 +1,7 @@
 import type {BossId,Vec2} from './protocol';
 export type Difficulty='Normal'|'Hard';
 export const BOSS_CIRCLES=[
- {difficulty:'Normal' as const,center:{x:-4.7,z:-6.5},radius:1.9,bosses:[['warden','Warden'],['yellowBall','Yellow Ball'],['greenCone','Truffle Man'],['fracturer','The Fracturer']] as const},
+ {difficulty:'Normal' as const,center:{x:-4.7,z:-6.5},radius:1.65,bosses:[['warden','Warden'],['yellowBall','Yellow Ball'],['greenCone','Truffle Man'],['fracturer','The Fracturer']] as const},
  {difficulty:'Hard' as const,center:{x:3.1,z:-6.5},radius:1.9,bosses:[['hardWarden','Hard Warden'],['hardYellowBall','Hard Yellow Ball'],['hardGreenCone','Hard Truffle Man']] as const},
 ];
 export const BOSS_PEDESTALS=BOSS_CIRCLES.flatMap(circle=>circle.bosses.map(([id,name],i)=>({

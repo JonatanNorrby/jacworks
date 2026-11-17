@@ -21,7 +21,7 @@ export function eligibleLoadout(definition:ClassDefinition,value:unknown):Loadou
  if(selected.length!==4)throw new Error('A playable class must allow four base skills');
  return selected as Loadout;
 }
-export function gearEligible(id:ClassId,item:string){return (item==='redtubeArmour'&&['warrior','defender','rogue'].includes(id))||item==='pointyHat'||(item==='primitiveWand'&&['priest','lightningMage','fireMage'].includes(id))||(item==='pointyOrb'&&['lightningMage','fireMage'].includes(id))||(item==='sporeboundTotem'&&id==='shaman')}
+export function gearEligible(id:ClassId,item:string){return (item==='redtubeArmour'&&['warrior','defender','rogue'].includes(id))||item==='pointyHat'||(item==='primitiveWand'&&['priest','lightningMage','fireMage'].includes(id))||(item==='pointyOrb'&&['lightningMage','fireMage'].includes(id))||(item==='sporeboundTotem'&&id==='shaman')||(item==='sporefangQuiver'&&id==='ranger')}
 export function resolveClassLoadout(id:ClassId,value:unknown,weapon:Weapon):Loadout {return encounterLoadout(eligibleLoadout(CLASS_DEFINITIONS[id],value),id==='lightningMage'?weapon:null)}
 
 export const CLASS_STORAGE_KEY='jacworks-class-v1';

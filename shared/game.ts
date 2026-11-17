@@ -4,7 +4,7 @@ import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory } from './inventory';
-import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS } from './protocol';
+import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, NETWORK_VERSION } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
 export function fractureQuadrant(pos:Vec2):number {if(Math.abs(pos.x)<=3||Math.abs(pos.z)<=3)return -1;return pos.x>=0?(pos.z>=0?0:3):(pos.z>=0?1:2)}
@@ -305,6 +305,6 @@ export class Game {
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
+    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,effects:this.effects};
   }
 }

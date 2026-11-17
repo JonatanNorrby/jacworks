@@ -7,7 +7,8 @@ export class TrufflePoison {
  clouds:PoisonCloud[]=[];
  nextMarkAt=0;
  private selection=0;
- constructor(private readonly hard=false){}
+ private readonly hard:boolean;
+ constructor(hard=false){this.hard=hard;}
  get config(){return this.hard?HARD_TRUFFLE_POISON:TRUFFLE_POISON;}
  start(now:number){this.clear();this.nextMarkAt=now+this.config.firstMark;}
  clear(){this.mark=undefined;this.clouds=[];this.nextMarkAt=0;this.selection=0;}

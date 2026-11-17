@@ -92,7 +92,7 @@ export class Game {
       p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||(v.boss==='greenCone'||v.boss==='hardGreenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:1800;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:1800;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;

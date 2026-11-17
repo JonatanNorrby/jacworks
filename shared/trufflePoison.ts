@@ -4,6 +4,7 @@ export const HARD_TRUFFLE_POISON={...TRUFFLE_POISON,firstMark:4000,cooldown:1400
 // Shared by Node and Durable Object hosts. Absolute deadlines survive late joins.
 export class TrufflePoison {
  mark?:PoisonMark;
+ marks:PoisonMark[]=[];
  clouds:PoisonCloud[]=[];
  nextMarkAt=0;
  private selection=0;
@@ -11,8 +12,8 @@ export class TrufflePoison {
  constructor(hard=false){this.hard=hard;}
  get config(){return this.hard?HARD_TRUFFLE_POISON:TRUFFLE_POISON;}
  start(now:number){this.clear();this.nextMarkAt=now+this.config.firstMark;}
- clear(){this.mark=undefined;this.clouds=[];this.nextMarkAt=0;this.selection=0;}
- remove(id:string){if(this.mark?.playerId===id)this.mark=undefined;}
+ clear(){this.mark=undefined;this.marks=[];this.clouds=[];this.nextMarkAt=0;this.selection=0;}
+ remove(id:string){if(this.mark?.playerId===id)this.mark=undefined;this.marks=this.marks.filter(m=>m.playerId!==id);}
  tick(now:number,players:PlayerState[],uuid:()=>string,hurt:(p:PlayerState,at:number,amount:number)=>void){
   const cfg=this.config;
   if(this.mark){
@@ -26,6 +27,15 @@ export class TrufflePoison {
     this.mark=undefined;
    }
   }
+  if(this.hard){
+    for(const mark of this.marks){
+      const player=players.find(p=>p.id===mark.playerId&&p.alive);
+      if(player&&now>=mark.detonatesAt){
+        this.clouds.push({id:uuid(),pos:{...player.pos},spawnedAt:now,activeAt:now+cfg.grace,expiresAt:now+cfg.lifetime,nextTickAt:now+cfg.grace,radius:cfg.radius});
+      }
+    }
+    this.marks=this.marks.filter(mark=>now<mark.detonatesAt&&players.some(p=>p.id===mark.playerId&&p.alive));
+  }
   // Never catch up missed damage against a player's current position after a stall.
   // At most one pulse per cloud per simulation tick, with a full interval after it.
   this.clouds=this.clouds.filter(c=>now<c.expiresAt);
@@ -33,9 +43,9 @@ export class TrufflePoison {
    for(const p of players)if(p.alive&&Math.hypot(p.pos.x-cloud.pos.x,p.pos.z-cloud.pos.z)<=cloud.radius)hurt(p,now,cfg.damage);
    cloud.nextTickAt=now+cfg.interval;
   }
-  if(!this.mark&&now>=this.nextMarkAt){
+  if(!this.mark&&(!this.hard||!this.marks.length)&&now>=this.nextMarkAt){
    const living=players.filter(p=>p.alive);
-   if(living.length){const player=living[this.selection++%living.length];this.mark={playerId:player.id,markedAt:now,detonatesAt:now+cfg.markDelay};this.nextMarkAt=now+cfg.cooldown;}
+   if(living.length){if(this.hard)this.marks=living.map(p=>({playerId:p.id,markedAt:now,detonatesAt:now+cfg.markDelay}));else {const player=living[this.selection++%living.length];this.mark={playerId:player.id,markedAt:now,detonatesAt:now+cfg.markDelay};}this.nextMarkAt=now+cfg.cooldown;}
   }
  }
 }

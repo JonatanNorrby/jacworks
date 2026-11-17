@@ -1,5 +1,5 @@
 import { meleeHits,chargeEnd } from './game';
-import {SPOREBOUND_BONUS} from './inventory';
+import {SPOREBOUND_BONUS,SPOREFANG_BONUS} from './inventory';
 import type { Game } from './game';
 import type { PlayerState,Vec2 } from './protocol';
 import { SKILLS, BACKSTAB } from './protocol';
@@ -57,7 +57,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     }else if(skill==='targetedHeal')ally!.hp=Math.min(ally!.maxHp,ally!.hp+40);
     else if(skill==='holyLight')this.damageTarget(enemy!.id,32,p.id);
     else if(skill==='splitShot'){
-      for(const angle of [-.3,0,.3]){const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};for(const t of this.targets())if(this.beamHits(p.pos,dir,t.pos,10,.65))this.damageTarget(t.id,22,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});}
+      for(const angle of [-.3,0,.3]){const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};for(const t of this.targets())if(this.beamHits(p.pos,dir,t.pos,10,.65))this.damageTarget(t.id,p.offhand==='sporefangQuiver'?SPOREFANG_BONUS.splitShotDamage:22,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});}
       pos=this.clip(p.pos,{x:p.pos.x+p.facing.x*10,z:p.pos.z+p.facing.z*10});
     }else this.effects.push({id:this.uuid(),owner:p.id,skill,pos,targetId:ally?.id,next:now+(skill==='arrowRain'?400:1000),remaining:skill==='arrowRain'?3:6,expires:now+(skill==='fireMine'?12000:6500)});
     if(!['aimedShot','fireball','splitShot'].includes(skill))this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:pos});return true;
@@ -94,10 +94,10 @@ export function tickClassEffects(this:Game,now:number){
       }
       while(e.remaining&&now>=e.next){
         if(e.skill==='poisonEnchant')this.damageTarget(e.targetId!,BACKSTAB.poisonTick,e.owner);
-        else if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,58,e.owner);}
+        else if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,owner.offhand==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotDamage:58,e.owner);}
         else if(e.skill==='fireball'&&!e.targetId){/* Projectile struck cover; no splash through it. */}
         else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,this.players.get(e.owner)?.offhand==='sporeboundTotem'?SPOREBOUND_BONUS.fireDamage:24,e.owner);}
-        else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:28,e.owner);
+        else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:e.skill==='arrowRain'&&owner.offhand==='sporefangQuiver'?SPOREFANG_BONUS.arrowRainDamage:28,e.owner);
         if(e.skill!=='aimedShot'&&e.skill!=='fireTotem')this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});e.remaining--;e.next+=e.skill==='arrowRain'?600:1000;
       }return e.remaining>0;
     });

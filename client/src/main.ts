@@ -28,6 +28,7 @@ import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } fro
 
 import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
 import { installGameDevLabs } from './gameDevLabs';
+declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
@@ -41,7 +42,8 @@ camera.inputs.clear();
 let preferences=loadCamera(localStorage),optionsOpen=false;
 const optionsButton=document.createElement('button');optionsButton.id='options-button';optionsButton.textContent='Options';document.body.append(optionsButton);
 const optionsPanel=document.createElement('section');optionsPanel.id='options-panel';optionsPanel.className='hidden';optionsPanel.setAttribute('aria-label','Options');
-optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><button>Close</button>';document.body.append(optionsPanel);
+optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><p id="game-version" aria-label="Game version"></p><button>Close</button>';document.body.append(optionsPanel);
+optionsPanel.querySelector<HTMLElement>('#game-version')!.textContent='Version '+__GAME_VERSION__;
 const follow=optionsPanel.querySelector<HTMLInputElement>('#camera-follow')!,zoom=optionsPanel.querySelector<HTMLInputElement>('#camera-zoom')!;
 function refreshOptions(){follow.checked=preferences.followPlayer;zoom.value=String(preferences.zoom);optionsPanel.querySelector('output')!.textContent=zoom.value}
 function closeOptions(){optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();optionsButton.focus()}
@@ -87,16 +89,16 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman only): Fire Totem 30 damage, Healing Totem 10 healing/tick.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills. Fleetfoot Boots: +15% movement. Mirewalker Boots: 25% less poison damage.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
  for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if((selectedBoss==='hardGreenCone'||selectedBoss==='fracturer')&&!snapshot?.supportedBosses?.includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
  for(const part of ['head','torso','arms','legs']){const shape=document.createElement('span');shape.className='doll-'+part;body.append(shape)}doll.append(body);
- for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour']] as const){
+ for(const [slot,gear,label] of [['head','pointyHat','Head'],['weapon','primitiveWand','Weapon'],['offhand','pointyOrb','Offhand'],['armour','redtubeArmour','Armour'],['boots','fleetfootBoots','Boots']] as const){
   const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[inventory[slot]!]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
@@ -107,7 +109,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem'] as const){
+ for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver','fleetfootBoots','mirewalkerBoots'] as const){
   const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
@@ -220,9 +222,9 @@ function playerMaterial(id:string){
 function ensurePlayerHealthBar(mesh:Mesh){
  if(mesh.getChildMeshes().some(child=>child.name==='party-hp-fill'))return;
  const bg=MeshBuilder.CreateBox('party-hp-bg',{width:1.2,height:.12,depth:.055},scene);
- bg.parent=mesh;bg.position.set(0,1.23,0);bg.material=deadMat;
+ bg.parent=mesh;bg.position.set(0,1.63,0);bg.material=deadMat;
  const fill=MeshBuilder.CreateBox('party-hp-fill',{width:1.2,height:.12,depth:.065},scene);
- fill.parent=mesh;fill.position.set(0,1.23,-.035);fill.material=holyMat;
+ fill.parent=mesh;fill.position.set(0,1.63,-.035);fill.material=holyMat;
 }
 function updatePlayerHealthBar(mesh:Mesh,hp:number,maxHp:number){
  const ratio=maxHp>0?Math.max(0,Math.min(1,hp/maxHp)):0;
@@ -288,14 +290,15 @@ hubPlayer.position.set(0, 0.85, 6.2);
 hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
-function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown}){
- if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null};
- const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour]);if(parent.metadata?.gear===signature)return;
+function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown;boots?:unknown}){
+ if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null,boots:gear.boots};
+ const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour,gear.boots]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
  if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=bossMat;}
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
- if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+ if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
+ if(gear.offhand==='sporefangQuiver'){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
 }
 
 
@@ -320,6 +323,13 @@ for(const x of [4.95,6.05]){
 }
 const arenaGround = pushArena(MeshBuilder.CreateGround("arena", { width: 26, height: 26 }, scene));
 arenaGround.material = arenaGroundMat;
+const fractureWarningMat=material('fracture-warning',new Color3(.5,.25,.02),new Color3(.65,.23,.02),.9);
+const fractureVoidMat=material('fracture-void',new Color3(.005,.004,.013),new Color3(.01,.002,.015));
+const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
+ const tile=pushArena(MeshBuilder.CreateGround('fracture-tile-'+i,{width:10,height:10},scene));
+ tile.position.set(x,.035,z);tile.setEnabled(false);return tile;
+});
+const fireMineMeshes=new Map<string,Mesh>();
 
 const arenaRing = pushArena(MeshBuilder.CreateTorus("arena-ring", { diameter: 24.4, thickness: 0.22, tessellation: 64 }, scene));
 arenaRing.position.y = 0.06;
@@ -343,6 +353,7 @@ bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
 const yellowMat=material('yellow-ball',new Color3(1,.85,.02),new Color3(.5,.32,0));
 const yellowBoss=pushArena(MeshBuilder.CreateSphere('yellow-boss',{diameter:2.5,segments:24},scene));yellowBoss.material=yellowMat;
+const fracturerMat=material('fracturer',new Color3(.5,.17,.8),new Color3(.22,.04,.35));
 const greenMat=material('green-cone',new Color3(.1,.8,.2),new Color3(.02,.25,.04));
 const dropCone=pushArena(MeshBuilder.CreateCylinder('conical-taper-drop',{height:.65,diameterTop:0,diameterBottom:.5},scene));dropCone.material=greenMat;
 const dropTube=pushArena(MeshBuilder.CreateCylinder('cylinder-tube-drop',{diameter:.4,height:.65},scene));dropTube.material=bossMat;
@@ -363,6 +374,7 @@ function setMode(next: ClientMode) {
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
   dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);yellowBoss.setEnabled(false);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
+  for(const mesh of fireMineMeshes.values())mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
   for (const effect of fx) effect.mesh.setEnabled(!inHub);
 
@@ -381,7 +393,7 @@ function setMode(next: ClientMode) {
 }
 
 function clearEncounterMeshes() {
-  poisonVisuals.clear();
+  poisonVisuals.clear();for(const mine of fireMineMeshes.values())mine.dispose();fireMineMeshes.clear();
   for(const mesh of totemMeshes.values())mesh.dispose();totemMeshes.clear();
   for (const effect of fx) effect.mesh.dispose();
   fx.length = 0;
@@ -437,14 +449,30 @@ function renderDps(state:Snapshot){
   row.append(label,track);dpsRows.append(row);
  }
 }
+const trainingDummyMeshes=new Map<string,Mesh>();
+function syncTrainingDummies(state:Snapshot){
+ for(const dummy of state.trainingDummies??[]){
+ let mesh=trainingDummyMeshes.get(dummy.id);
+ if(!mesh){
+  mesh=pushHub(MeshBuilder.CreateCylinder('training-dummy-'+dummy.id,{diameter:.75,height:1.8,tessellation:12},scene));
+  mesh.material=arenaStoneMat;trainingDummyMeshes.set(dummy.id,mesh);
+  const marker=MeshBuilder.CreateBox('training-hp',{width:1,height:.12,depth:.06},scene);
+  marker.parent=mesh;marker.position.y=1.22;marker.material=holyMat;
+ }
+ mesh.position.set(dummy.pos.x,.9,dummy.pos.z);
+ mesh.visibility=dummy.hp>0?1:.3;
+ const bar=mesh.getChildMeshes().find(m=>m.name==='training-hp');if(bar){bar.scaling.x=dummy.hp/dummy.maxHp;bar.setEnabled(dummy.hp>0);}
+ }
+}
 function syncHub(state:Snapshot){
+ syncTrainingDummies(state);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -460,7 +488,7 @@ function syncVote(state:Snapshot){
 function syncJoin(){send({type:'join',name:playerName,classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
 function enterEncounter() {
   if(ws?.readyState!==WebSocket.OPEN){message.textContent='Room disconnected. Reload to reconnect.';return;}
-  syncJoin();send({type:'propose',boss:selectedBoss});
+  syncJoin();send({type:'propose',boss:selectedBoss});message.textContent='Proposal sent: '+(bossNames[selectedBoss]??selectedBoss)+'. Waiting for room vote…';
 }
 function returnToHub() {
   send({type:'hub'});clearEncounterMeshes();setMode('hub');
@@ -516,7 +544,7 @@ function connectEncounter() {
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
-      snapshot = packet;syncVote(packet);renderDps(packet);
+      snapshot = packet;syncVote(packet);renderDps(packet);const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
@@ -540,12 +568,22 @@ function syncEncounter(state: Snapshot) {
  for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id);}
  for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
 
+ for(const [i,tile] of fractureFloorTiles.entries()){
+ const cut=state.boss.id==='fracturer'?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
+ }
+ for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine')){mesh.dispose();fireMineMeshes.delete(id)}
+ for(const e of state.effects.filter(e=>e.skill==='fireMine')){
+ let mine=fireMineMeshes.get(e.id);
+ if(!mine){mine=MeshBuilder.CreateTorus('persistent-fire-mine-'+e.id,{diameter:1.6,thickness:.18,tessellation:24},scene);mine.material=dangerMat;fireMineMeshes.set(e.id,mine);}
+ mine.position.set(e.pos.x,.12,e.pos.z);
+ }
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
  for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
- bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
+ bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
  document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
@@ -639,9 +677,9 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   let mesh: Mesh;
   let duration: number;
   if(skill==='earthShock'){mesh=MeshBuilder.CreateTorus('earth-shock',{diameter:1.4,thickness:.2},scene);mesh.material=spearMat;start.copyFrom(end);duration=200;}else if(['holyLight','targetedHeal','aimedShot','fireball','fireTotem'].includes(skill)){
-    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'||skill==='fireTotem'?.8:.35},scene);
+    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'?1.45:skill==='fireTotem'?.8:.35},scene);
     if(skill==='aimedShot'){mesh.rotation.x=Math.PI/2;mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);}
-    mesh.material=skill==='fireball'||skill==='fireTotem'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=350;
+    mesh.material=skill==='fireball'||skill==='fireTotem'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=skill==='fireball'?700:350;
   }else if(skill==='splitShot'){
     const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize();
     const lines=[[start,end]];
@@ -760,6 +798,14 @@ addEventListener("keydown", (event) => {
   if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
   if(mode==='hub'&&key==='e'&&!event.repeat){const pedestal=nearbyBoss(hubPlayer.position);if(pedestal){selectedBoss=pedestal.id;openHubPanel('gate',true);return}}
 
+  if(mode==='hub'){
+   if(!event.repeat&&['1','2','3','4'].includes(key)){
+    const me=snapshot?.players.find(p=>p.id===myId);
+    const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8).sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
+    if(dummy)send({type:'practice',slot:Number(key),dummyId:dummy.id});
+   }
+   return;
+  }
   if (mode !== "encounter") return;
 
   if (["1", "2", "3", "4"].includes(event.key)) {

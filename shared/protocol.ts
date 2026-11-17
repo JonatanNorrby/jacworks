@@ -1,3 +1,4 @@
+export const NETWORK_VERSION='0.1.2';
 export const HARD_PILLARS=[{x:-4,z:0},{x:4,z:0}];
 export type Vec2={x:number;z:number};
 export const BACKSTAB={normal:24,rear:80,poisonTick:6,poisonTicks:4};
@@ -15,10 +16,10 @@ export function baseLoadout(v:unknown):Loadout {
 export function encounterLoadout(base:Loadout,weapon:Weapon):Loadout{return base.map(x=>x==='arcBolt'&&weapon==='primitiveWand'?'arcSpear':x) as Loadout}
 export type Weapon='primitiveWand'|null;
 export type CastState={skill:SkillId;slot:number;endsAt:number;target:Vec2;targetId?:string;nextTick?:number};
-export type PlayerState={id:string;name:string;classId:import("./classes").ClassId;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;bulwarkUntil:number;invisibleUntil:number;poisonUntil:number;shield:number;shieldUntil:number;armour:'redtubeArmour'|null;cast?:CastState;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|'sporeboundTotem'|null;dashCharges:number;dashRechargeAt:number};
+export type PlayerState={id:string;name:string;classId:import("./classes").ClassId;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;bulwarkUntil:number;invisibleUntil:number;poisonUntil:number;shield:number;shieldUntil:number;armour:'redtubeArmour'|null;cast?:CastState;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|'sporeboundTotem'|'sporefangQuiver'|null;boots:'fleetfootBoots'|'mirewalkerBoots'|null;dashCharges:number;dashRechargeAt:number};
 export type Telegraph={id:string;kind:"circle"|"line";pos:Vec2;radius?:number;direction?:Vec2;width?:number;length?:number;resolvesAt:number;ownerId?:string;sweep?:boolean};
-export type BossId="warden"|"hardWarden"|"hardYellowBall"|"yellowBall"|"greenCone"|"hardGreenCone";
-export const ITEMS={largeSphere:"Large Sphere",largeCylinder:"Large Cylinder",redtubeArmour:"Redtube Armour",cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb",hardTruffleSpore:"Corrupted Truffle Spore",sporeboundTotem:"Sporebound Totem"} as const;
+export type BossId="warden"|"hardWarden"|"hardYellowBall"|"yellowBall"|"greenCone"|"hardGreenCone"|"fracturer";
+export const ITEMS={largeSphere:"Large Sphere",largeCylinder:"Large Cylinder",redtubeArmour:"Redtube Armour",cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb",hardTruffleSpore:"Corrupted Truffle Spore",sporeboundTotem:"Sporebound Totem",sporefangQuiver:"Sporefang Quiver",fleetfootBoots:"Fleetfoot Boots",mirewalkerBoots:"Mirewalker Boots"} as const;
 export type AddState={id:string;pos:Vec2;hp:number;maxHp:number;attackAt:number;kind?:"ball";generation?:number;radius?:number;height?:number};
 export type CombatEffect={id:string;owner:string;skill:SkillId;pos:Vec2;targetId?:string;from?:Vec2;next:number;remaining:number;expires:number};
 export type TotemState={id:string;owner:string;kind:'fireTotem'|'healingTotem';pos:Vec2;hp:number;next:number;expires:number};
@@ -27,10 +28,12 @@ export type PoisonMark={playerId:string;markedAt:number;detonatesAt:number};
 export type PoisonCloud={id:string;pos:Vec2;spawnedAt:number;activeAt:number;expiresAt:number;nextTickAt:number;radius:number};
 export type DamageEntry={playerId:string;damage:number};
 export type DamageMeter={startedAt:number;elapsedMs:number;entries:DamageEntry[]};
-export type Snapshot={type:"snapshot";damageMeter?:DamageMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
+export type ArenaCut={quadrant:number;warnAt:number;collapseAt:number};
+export type TrainingDummy={id:string;pos:Vec2;hp:number;maxHp:number;respawnAt:number};
+export type Snapshot={type:"snapshot";serverVersion?:string;trainingDummies?:TrainingDummy[];arenaCuts?:ArenaCut[];supportedBosses?:BossId[];damageMeter?:DamageMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonMarks?:PoisonMark[];poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
 export type ChatMessage={type:"chat";senderId:string|null;name:string;text:string};
 export const CHAT_MAX_LENGTH=240;
 export const CHAT_INTERVAL_MS=1000;
 export function cleanChat(value:unknown,max=CHAT_MAX_LENGTH):string {return typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,'').trim().slice(0,max):''}
-export type ClientMessage={type:"chat";text:string}|{type:"join";name:string;classId?:import("./classes").ClassId;loadout?:Loadout;boss?:BossId;inventory?:unknown}|{type:"input";seq:number;move:Vec2}|{type:"ability";slot:1|2|3|4;target?:Vec2;targetId?:string}|{type:"ready"}|{type:"propose";boss:BossId}|{type:"vote";proposalId:string;accept:boolean}|{type:"hub"};
+export type ClientMessage={type:"practice";slot:1|2|3|4;dummyId:string}|{type:"chat";text:string}|{type:"join";name:string;classId?:import("./classes").ClassId;loadout?:Loadout;boss?:BossId;inventory?:unknown}|{type:"input";seq:number;move:Vec2}|{type:"ability";slot:1|2|3|4;target?:Vec2;targetId?:string}|{type:"ready"}|{type:"propose";boss:BossId}|{type:"vote";proposalId:string;accept:boolean}|{type:"hub"};
 export type ServerMessage=ChatMessage|Snapshot|{type:"welcome";id:string}|{type:"event";text:string}|{type:"abilityFx";skill:SkillId;playerId:string;from:Vec2;to:Vec2};

@@ -388,7 +388,7 @@ function syncHub(state:Snapshot){
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=p.id===myId?meMat:otherMat;syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -485,14 +485,14 @@ function syncEncounter(state: Snapshot) {
  for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
 
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
- const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=state.boss.id==='greenCone';
+ const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
  for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?'TRUFFLE MAN':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
@@ -764,7 +764,7 @@ engine.runRenderLoop(() => {
   truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');
   if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
   const b=snapshot?.boss;
-  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,!gameDevLabs.isOpen()&&mode==='encounter'&&b?.id==='greenCone'&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
+  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,!gameDevLabs.isOpen()&&mode==='encounter'&&(b?.id==='greenCone'||b?.id==='hardGreenCone')&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   gameDevLabs.tick(deltaSeconds);
 
   updateEffects();

@@ -147,3 +147,10 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 #room-chat.open #chat-log{max-height:220px;overflow-y:auto}
 #room-chat.open .chat-row.old{opacity:1;height:auto;padding:3px 6px}
 #chat-input{box-sizing:border-box;width:100%;padding:8px;color:#fff;background:#141b28;border:1px solid #7491ad;font:inherit}
+
+/* Party identification and health, visible in hub and encounters */
+#room-roster .party-member{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:.3rem .45rem;margin:.35rem 0;font-size:.82rem}
+.party-color{width:11px;height:11px;border-radius:50%;border:1px solid rgba(255,255,255,.6)}
+.party-health-text{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.75rem}
+.party-health-track{grid-column:2 / 4;display:block;height:6px;border-radius:4px;background:#44272b;overflow:hidden}
+.party-health-fill{display:block;height:100%;background:linear-gradient(90deg,#b83c47,#6cdd86);transition:width .15s linear}

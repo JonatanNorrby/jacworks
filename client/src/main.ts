@@ -202,6 +202,33 @@ const arenaStoneMat = material("arena-stone", new Color3(0.19, 0.19, 0.2));
 const bossMat = material("boss", new Color3(0.5, 0.06, 0.08), new Color3(0.28, 0.015, 0.025));
 const meMat = material("me", new Color3(0.15, 0.65, 1), new Color3(0.03, 0.22, 0.48));
 const otherMat = material("other", new Color3(0.25, 0.85, 0.45), new Color3(0.03, 0.24, 0.08));
+// A stable, random-looking colour for each player ID. All clients see the same colour.
+const playerMaterials=new Map<string,ReturnType<typeof material>>();
+function playerHue(id:string):number {
+ let hash=2166136261;
+ for(let i=0;i<id.length;i++){hash=Math.imul(hash^id.charCodeAt(i),16777619)}
+ return (hash>>>0)%360;
+}
+function playerColor(id:string):Color3 {
+ return Color3.FromHSV(playerHue(id),0.72,0.95);
+}
+function playerMaterial(id:string){
+ let mat=playerMaterials.get(id);
+ if(!mat){const color=playerColor(id);mat=material('player-color-'+id,color,color.scale(.16));playerMaterials.set(id,mat)}
+ return mat;
+}
+function ensurePlayerHealthBar(mesh:Mesh){
+ if(mesh.getChildMeshes().some(child=>child.name==='party-hp-fill'))return;
+ const bg=MeshBuilder.CreateBox('party-hp-bg',{width:1.2,height:.12,depth:.055},scene);
+ bg.parent=mesh;bg.position.set(0,1.23,0);bg.material=deadMat;
+ const fill=MeshBuilder.CreateBox('party-hp-fill',{width:1.2,height:.12,depth:.065},scene);
+ fill.parent=mesh;fill.position.set(0,1.23,-.035);fill.material=holyMat;
+}
+function updatePlayerHealthBar(mesh:Mesh,hp:number,maxHp:number){
+ const ratio=maxHp>0?Math.max(0,Math.min(1,hp/maxHp)):0;
+ const fill=mesh.getChildMeshes().find(child=>child.name==='party-hp-fill');
+ if(fill){fill.scaling.x=Math.max(.0001,ratio);fill.position.x=-.6*(1-ratio);fill.setEnabled(ratio>0)}
+}
 const deadMat = material("dead", new Color3(0.18, 0.18, 0.18));
 const dangerMat = material(
   "danger",
@@ -386,7 +413,7 @@ function syncHub(state:Snapshot){
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
- for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=p.id===myId?meMat:otherMat;syncGear(mesh,p)}
+ for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
 }
 const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
@@ -462,7 +489,7 @@ function connectEncounter() {
  if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
       snapshot = packet;syncVote(packet);
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
-      roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.textContent=p.name+(p.id===myId?' (you)':'');row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
+      roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
       if(packet.phase==='lobby'&&mode==='encounter'&&!gameDevLabs.isOpen()){clearEncounterMeshes();setMode('hub');}
       if(mode==='hub'){syncHub(packet);return;}
@@ -515,6 +542,7 @@ function syncEncounter(state: Snapshot) {
     if (!mesh) {
       mesh = MeshBuilder.CreateCapsule(`player-${p.id}`, { height: 1.6, radius: 0.45 }, scene);
       addNose(mesh);
+      ensurePlayerHealthBar(mesh);
       playerMeshes.set(p.id, mesh);
     }
 
@@ -522,7 +550,8 @@ function syncEncounter(state: Snapshot) {
     mesh.position.set(p.pos.x, 0.8, p.pos.z);
     mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);
     syncGear(mesh,p);
-    mesh.material = p.alive ? (p.id === myId ? meMat : otherMat) : deadMat;
+    mesh.material = p.alive ? playerMaterial(p.id) : deadMat;
+    updatePlayerHealthBar(mesh,p.hp,p.maxHp);
     mesh.scaling.y = p.guardUntil > state.now || p.bulwarkUntil>state.now ? 1.25 : 1;
     mesh.visibility=p.invisibleUntil>state.now?.35:1;
     for(const child of mesh.getChildMeshes())child.visibility=mesh.visibility;

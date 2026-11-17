@@ -449,7 +449,23 @@ function renderDps(state:Snapshot){
   row.append(label,track);dpsRows.append(row);
  }
 }
+const trainingDummyMeshes=new Map<string,Mesh>();
+function syncTrainingDummies(state:Snapshot){
+ for(const dummy of state.trainingDummies??[]){
+ let mesh=trainingDummyMeshes.get(dummy.id);
+ if(!mesh){
+  mesh=pushHub(MeshBuilder.CreateCylinder('training-dummy-'+dummy.id,{diameter:.75,height:1.8,tessellation:12},scene));
+  mesh.material=arenaStoneMat;trainingDummyMeshes.set(dummy.id,mesh);
+  const marker=MeshBuilder.CreateBox('training-hp',{width:1,height:.12,depth:.06},scene);
+  marker.parent=mesh;marker.position.y=1.22;marker.material=holyMat;
+ }
+ mesh.position.set(dummy.pos.x,.9,dummy.pos.z);
+ mesh.visibility=dummy.hp>0?1:.3;
+ const bar=mesh.getChildMeshes().find(m=>m.name==='training-hp');if(bar){bar.scaling.x=dummy.hp/dummy.maxHp;bar.setEnabled(dummy.hp>0);}
+ }
+}
 function syncHub(state:Snapshot){
+ syncTrainingDummies(state);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
@@ -661,9 +677,9 @@ function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;
   let mesh: Mesh;
   let duration: number;
   if(skill==='earthShock'){mesh=MeshBuilder.CreateTorus('earth-shock',{diameter:1.4,thickness:.2},scene);mesh.material=spearMat;start.copyFrom(end);duration=200;}else if(['holyLight','targetedHeal','aimedShot','fireball','fireTotem'].includes(skill)){
-    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'||skill==='fireTotem'?.8:.35},scene);
+    mesh=skill==='aimedShot'?MeshBuilder.CreateCylinder('aimed-arrow',{height:1.2,diameterTop:0,diameterBottom:.14,tessellation:8},scene):MeshBuilder.CreateSphere(skill,{diameter:skill==='fireball'?1.45:skill==='fireTotem'?.8:.35},scene);
     if(skill==='aimedShot'){mesh.rotation.x=Math.PI/2;mesh.rotation.y=Math.atan2(to.x-from.x,to.z-from.z);}
-    mesh.material=skill==='fireball'||skill==='fireTotem'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=350;
+    mesh.material=skill==='fireball'||skill==='fireTotem'?dangerMat:skill==='aimedShot'?spearMat:holyMat;duration=skill==='fireball'?700:350;
   }else if(skill==='splitShot'){
     const dir=new Vector3(to.x-from.x,0,to.z-from.z).normalize();
     const lines=[[start,end]];
@@ -782,6 +798,14 @@ addEventListener("keydown", (event) => {
   if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
   if(mode==='hub'&&key==='e'&&!event.repeat){const pedestal=nearbyBoss(hubPlayer.position);if(pedestal){selectedBoss=pedestal.id;openHubPanel('gate',true);return}}
 
+  if(mode==='hub'){
+   if(!event.repeat&&['1','2','3','4'].includes(key)){
+    const me=snapshot?.players.find(p=>p.id===myId);
+    const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8).sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
+    if(dummy)send({type:'practice',slot:Number(key),dummyId:dummy.id});
+   }
+   return;
+  }
   if (mode !== "encounter") return;
 
   if (["1", "2", "3", "4"].includes(event.key)) {

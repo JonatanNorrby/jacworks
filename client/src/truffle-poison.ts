@@ -24,7 +24,7 @@ export function createTrufflePoisonVisuals(scene:Scene){
     if(!ring){ring=MeshBuilder.CreateTorus('poison-mark-'+m.playerId,{diameter:1.6,thickness:.14,tessellation:48},scene);ring.material=warning;meshes.set(id,ring);}
     ring.position.set(player.pos.x,.12,player.pos.z);
   }
-  if(marks.length>1&&now<mark.detonatesAt){banner.hidden=false;banner.textContent='ALL PLAYERS MARKED: Poison in '+((mark.detonatesAt-now)/1000).toFixed(1)+'s. Spread out!';}
+  if(mark&&marks.length>1&&now<mark.detonatesAt){banner.hidden=false;banner.textContent='ALL PLAYERS MARKED: Poison in '+((mark.detonatesAt-now)/1000).toFixed(1)+'s. Spread out!';}
   for(const c of state.poisonClouds??[]){
    if(now>=c.expiresAt)continue;ids.add(c.id);let cloud=meshes.get(c.id);
    if(!cloud){cloud=MeshBuilder.CreateCylinder('poison-cloud-'+c.id,{diameter:c.radius*2,height:.035,tessellation:64},scene);const edge=MeshBuilder.CreateTorus('poison-radius',{diameter:c.radius*2,thickness:.1,tessellation:64},scene);edge.parent=cloud;edge.material=warning;

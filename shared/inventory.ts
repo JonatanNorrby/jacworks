@@ -1,4 +1,5 @@
 import type { Snapshot, Weapon } from './protocol';
+export const SPOREBOUND_BONUS={fireDamage:30,healPerTick:10} as const;
 export type Material='largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore';
 export type Gear='redtubeArmour'|'primitiveWand'|'pointyHat'|'pointyOrb'|'sporeboundTotem';
 export const RECIPES:Record<Gear,Partial<Record<Material,number>>>={redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},pointyHat:{conicalTaper:3},pointyOrb:{conicalTaper:1,sphericalBall:1},sporeboundTotem:{hardTruffleSpore:3}};

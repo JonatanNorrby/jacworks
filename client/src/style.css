@@ -147,3 +147,16 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 #room-chat.open #chat-log{max-height:220px;overflow-y:auto}
 #room-chat.open .chat-row.old{opacity:1;height:auto;padding:3px 6px}
 #chat-input{box-sizing:border-box;width:100%;padding:8px;color:#fff;background:#141b28;border:1px solid #7491ad;font:inherit}
+
+/* Live, server-authoritative party DPS meter */
+#dps-meter{position:fixed;right:1rem;bottom:1rem;width:min(320px,calc(100vw - 2rem));max-height:42vh;overflow:auto;padding:.65rem .8rem;background:rgba(12,17,25,.92);border:1px solid #526171;border-radius:9px;color:#f4f4f4;z-index:25;font-size:.8rem;pointer-events:auto}
+#dps-meter.hidden{display:none}
+.dps-header{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.dps-header h3{font-size:.9rem;margin:0}
+.dps-header button{padding:.2rem .55rem}
+.dps-row{margin-top:.55rem}
+.dps-label{display:flex;justify-content:space-between;gap:.4rem;white-space:nowrap}
+.dps-label span:first-child{overflow:hidden;text-overflow:ellipsis}
+.dps-label span:last-child{font-variant-numeric:tabular-nums}
+.dps-track{height:6px;margin-top:.2rem;background:#323943;border-radius:3px;overflow:hidden}
+.dps-fill{height:100%;background:#6bb6db;transition:width .15s linear}

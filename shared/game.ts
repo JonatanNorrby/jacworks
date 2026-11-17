@@ -72,7 +72,7 @@ export class Game {
   reset() {
     this.poison.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
-    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
     for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
   }
@@ -92,7 +92,7 @@ export class Game {
       p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=gearEligible(p.classId,'pointyOrb')?inventory.offhand:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:1800;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||(v.boss==='greenCone'||v.boss==='hardGreenCone')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:1800;this.selectionLocked=true;}
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {
       const move=v.move as Vec2;
@@ -101,13 +101,13 @@ export class Game {
       }
     }
     if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby'){this.reset();this.system('Returned to the hub.');}return;}
-    if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
+    if(v.type==='propose'&&typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone','hardGreenCone'].includes(v.boss))this.propose(v.boss as Snapshot['boss']['id'],now);
     // Legacy ready may propose, but cannot cast an acceptance without the current proposal ID.
     if(v.type==='ready'&&!this.vote&&this.phase!=='fight')this.propose(this.boss.id,now);
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:1800;this.phase='fight';this.system('Encounter started: '+boss);if(boss==='greenCone')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:1800;this.phase='fight';this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -188,12 +188,12 @@ export class Game {
     const alive=[...this.players.values()].filter(p=>p.alive&&p.invisibleUntil<=now);const candidates=this.boss.id==='hardWarden'&&(this.mechanic+1)%3===0?alive:[...alive,...this.totems.filter(t=>t.hp>0)];if(!candidates.length)return;
     const target=candidates[this.mechanic++%candidates.length];let t:Telegraph;
     const dir=unit({x:target.pos.x-this.boss.pos.x,z:target.pos.z-this.boss.pos.z});
-    if(this.boss.id==='greenCone') {
-      t={id:this.uuid(),kind:'circle',pos:{...this.boss.pos},radius:3,resolvesAt:now+1500};
+    if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')) {
+      t={id:this.uuid(),kind:'circle',pos:{...this.boss.pos},radius:this.boss.id==='hardGreenCone'?3.5:3,resolvesAt:now+(this.boss.id==='hardGreenCone'?1200:1500)};
       this.boss.heading=Math.atan2(dir.x,dir.z);
       this.boss.smash={startedAt:now,impactAt:t.resolvesAt,recoverAt:t.resolvesAt+650};
       this.emit({type:'event',text:'Truffle Man: close-range smash!'});
-      if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:54,maxHp:54,attackAt:now+1500});
+      if(this.mechanic%3===0&&this.adds.length<6)for(const offset of [-1,1].slice(0,6-this.adds.length))this.adds.push({id:this.uuid(),pos:{x:clamp(this.boss.pos.x+offset*2),z:this.boss.pos.z},hp:this.boss.id==='hardGreenCone'?90:54,maxHp:this.boss.id==='hardGreenCone'?90:54,attackAt:now+1500});
     } else if(this.boss.id==='hardWarden') {
       const kind=this.mechanic%3;
       t={id:this.uuid(),kind:'circle',pos:kind===2?{...this.boss.pos}:{...target.pos},radius:kind===2?35:kind===1?4.2:2.6,resolvesAt:now+1500,sweep:kind===2};
@@ -205,7 +205,7 @@ export class Game {
       this.emit({type:'event',text:line?'Warden sweep!':'Marked blast — move!'});
       if(this.mechanic%3===0)for(const p of alive)if(p!==target)this.telegraphs.push({...t,id:this.uuid(),pos:{...p.pos}});
     }
-    this.telegraphs.push(t);this.next=now+3600;
+    this.telegraphs.push(t);this.next=now+(this.boss.id==='hardGreenCone'?2900:3600);
   }
   tick(now=Date.now()):Snapshot {
     if(this.vote&&now>=this.vote.expires)this.cancelVote();
@@ -231,7 +231,7 @@ export class Game {
       }
       const alive=[...this.players.values()].filter(p=>p.alive);
       const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
-      if(this.boss.id==='greenCone'){
+      if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')){
         const before={...this.boss.pos};this.boss.walking=false;
         if(!this.telegraphs.length&&this.boss.hp>0&&(!this.boss.smash||now>=this.boss.smash.recoverAt))chase(this.boss.pos,.9,1.73);
         const travelled=distance(before,this.boss.pos);this.boss.stride=(this.boss.stride??0)+travelled;this.boss.walking=travelled>0;
@@ -245,7 +245,7 @@ export class Game {
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(isBall(this))this.balls.tick(now);else if(now>=this.next)this.schedule(now);
-      if(this.boss.id==='greenCone'&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,amount));
+      if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
         this.scatter.shift();
@@ -258,8 +258,8 @@ export class Game {
 
       for(const t of this.telegraphs.filter(t=>!t.ownerId&&t.resolvesAt<=now)) {
         // Publish the actual damage tick; a stalled server must not show an early slam.
-        if(this.boss.id==='greenCone'&&this.boss.smash&&!this.boss.smash.impacted){this.boss.smash.impactAt=now;this.boss.smash.recoverAt=now+650;this.boss.smash.impacted=true;}
-        for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now);
+        if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone')&&this.boss.smash&&!this.boss.smash.impacted){this.boss.smash.impactAt=now;this.boss.smash.recoverAt=now+650;this.boss.smash.impacted=true;}
+        for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now,this.boss.id==='hardGreenCone'?64:undefined);
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))) {

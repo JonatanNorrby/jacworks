@@ -1,3 +1,4 @@
+export const NETWORK_VERSION='0.1.2';
 export const HARD_PILLARS=[{x:-4,z:0},{x:4,z:0}];
 export type Vec2={x:number;z:number};
 export const BACKSTAB={normal:24,rear:80,poisonTick:6,poisonTicks:4};
@@ -29,7 +30,7 @@ export type DamageEntry={playerId:string;damage:number};
 export type DamageMeter={startedAt:number;elapsedMs:number;entries:DamageEntry[]};
 export type ArenaCut={quadrant:number;warnAt:number;collapseAt:number};
 export type TrainingDummy={id:string;pos:Vec2;hp:number;maxHp:number;respawnAt:number};
-export type Snapshot={type:"snapshot";trainingDummies?:TrainingDummy[];arenaCuts?:ArenaCut[];supportedBosses?:BossId[];damageMeter?:DamageMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonMarks?:PoisonMark[];poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
+export type Snapshot={type:"snapshot";serverVersion?:string;trainingDummies?:TrainingDummy[];arenaCuts?:ArenaCut[];supportedBosses?:BossId[];damageMeter?:DamageMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonMarks?:PoisonMark[];poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
 export type ChatMessage={type:"chat";senderId:string|null;name:string;text:string};
 export const CHAT_MAX_LENGTH=240;
 export const CHAT_INTERVAL_MS=1000;

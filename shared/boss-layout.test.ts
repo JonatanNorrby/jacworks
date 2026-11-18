@@ -4,7 +4,7 @@ import {BOSS_CIRCLES,BOSS_PEDESTALS,BOSS_INTERACTION_RADIUS,nearbyBoss} from './
 import {moveHubPlayer,TrufflePatrol,PLAYER_RADIUS,TRUFFLE_RADIUS} from './truffle';
 import {Game,distance} from './game';
 import type {BossId} from './protocol';
-const expected:Record<BossId,string>={warden:'Normal',yellowBall:'Normal',greenCone:'Normal',hardWarden:'Hard',hardYellowBall:'Hard',hardGreenCone:'Hard',fracturer:'Normal'};
+const expected:Partial<Record<BossId,string>>={warden:'Normal',yellowBall:'Normal',greenCone:'Normal',hardWarden:'Hard',hardYellowBall:'Hard',hardGreenCone:'Hard',fracturer:'Normal'};
 test('every existing boss occurs once, in its difficulty circle with nonoverlapping interactions',()=>{
  assert.equal(BOSS_PEDESTALS.length,Object.keys(expected).length);
  assert.deepEqual([...new Set(BOSS_PEDESTALS.map(p=>p.id))].sort(),Object.keys(expected).sort());

@@ -198,3 +198,20 @@ At the Crafter, **3 Corrupted Truffle Spores → 1 Sporebound Totem**. Equip it 
 Connected players have individually identifiable colors and visible HP bars in the world and roster. The **DPS meter** tracks actual boss/add damage per player in the shared simulation (including DoTs and summons), showing total damage and encounter DPS. Its visibility can be toggled in-game.
 
 The feature integration includes tests for crafting, materials, class restrictions, encounter reward, totem behavior and meter accounting. The GitHub workflow `Verify game` runs tests, the production build and multiplayer smoke checks where GitHub Actions is enabled.
+
+
+### Version 0.1.3: class gear, combat meters and double encounters
+
+**Single-effect class gear:** Every offhand below improves one ability only. The old Sporebound Totem remains in existing saves but now improves **Fire Totem only** (30 damage versus 24); the separate **Verdant Mender Totem** (2 Corrupted Truffle Spores) improves **Healing Totem only** (10 HP/tick versus 8). The old Sporefang Quiver remains owned but now improves **Aimed Shot only** (70 versus 58). The new **Sporestorm Quiver** improves **Arrow Rain only** (34 versus 28 damage per wave) and **Splitthorn Quiver** improves **Split Shot only** (26 versus 22 per arrow); all three Ranger quivers individually cost 1 Large Cylinder + 1 Corrupted Truffle Spore.
+
+**Other class items:** The Priest's **Sunlit Reliquary** costs 1 Large Sphere + 1 Conical Taper and improves Targeted Heal from 40 to 55. The Rogue's **Venom Fang** costs 1 Conical Taper + 1 Cylinder Tube and increases Poison Enchant ticks from 6 to 9. The Defender's **Bulwark Crest** costs 1 Large Cylinder + 1 Spherical Ball and increases Bulwark's duration from 6s to 8s. All occupy the offhand slot, are class-restricted on the server, and require actual boss material receipts.
+
+The Crafter now has **Shared** plus one menu for every class. The Wardrobe shows each owned item's single effect and class eligibility. Legacy inventory and item counters are kept to preserve saved ownership, with the old hybrid items deliberately retaining just their first effect after the split.
+
+The in-fight combat meter has **Damage** and **Healing** tabs. Healing records only actual HP restored (never overhealing) per contributing player; the meter reports HPS as well as cumulative healing and continues to show the result after victory.
+
+**Lobby practice:** The training dummies have moved slightly east and regenerate after being defeated. Ability hotkeys 1–4 are available throughout the hub, including self buffs, heals, Dash, visual effects and offensive practice on nearby training dummies. Practice does not affect the encounter damage or healing meter.
+
+**Double encounters (from the Expedition Gate):** **Yellow Ball + Warden** and **Truffle Man + Fracturer** put two independent, attackable enemies with separate HP in the same arena. Both enemies contribute telegraphed attacks; Fracturer still collapses marked corners and Truffle Man still summons mushrooms and deploys poison. Both must die to win, and each encounter awards one material receipt per boss. Because the two fights are simultaneous, the secondary boss uses its own telegraphed attacks rather than the complete solo Yellow Ball split sequence; this is the first playable dual-boss implementation.
+
+Options displays Client build version/commit and Server protocol version, both 0.1.3 when the deployment is current.

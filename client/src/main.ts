@@ -1,5 +1,5 @@
 import {createRoomChat} from './roomChat';
-import {BOSS_CIRCLES,BOSS_PEDESTALS,nearbyBoss} from '../../shared/boss-layout';
+import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../shared/boss-layout';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
@@ -26,7 +26,8 @@ import {
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equip, RECIPES, GEAR_CLASS, GEAR_EFFECTS, inventoryView } from './inventory';
+import type {Gear} from '../../shared/inventory';
 import { installGameDevLabs } from './gameDevLabs';
 declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
@@ -63,8 +64,30 @@ glow.intensity = 0.65;
 const status = document.querySelector<HTMLElement>("#status")!;
 const message = document.querySelector<HTMLElement>("#message")!;
 const bossFill = document.querySelector<HTMLElement>("#boss-fill")!;
+const duoHealth=document.createElement('div');duoHealth.id='duo-health';duoHealth.hidden=true;
+document.querySelector('#boss-wrap')!.append(duoHealth);
+function renderDuoHealth(state:Snapshot){
+ const isWarden=state.boss.id==='duoYellowWarden',isTruffle=state.boss.id==='duoTruffleFracturer';
+ duoHealth.hidden=!isWarden&&!isTruffle;
+ if(duoHealth.hidden)return;
+ const partner=state.adds.find(a=>a.kind==='duoBoss');
+ const entries=[
+  {name:isWarden?'Warden':'Truffle Man',hp:state.boss.hp,max:state.boss.maxHp},
+  {name:isWarden?'Yellow Ball':'Fracturer',hp:partner?.hp??0,max:isWarden?1800:2500}
+ ];
+ duoHealth.replaceChildren();
+ for(const entry of entries){
+  const row=document.createElement('div');row.className='duo-health-row';
+  const name=document.createElement('span');name.textContent=entry.name+' · '+Math.ceil(entry.hp)+' / '+entry.max;
+  const track=document.createElement('div');track.className='duo-health-track';
+  const fill=document.createElement('div');fill.className='duo-health-fill';fill.style.width=Math.max(0,Math.min(100,entry.hp/entry.max*100))+'%';
+  track.append(fill);row.append(name,track);duoHealth.append(row);
+ }
+}
+
 const hpFill = document.querySelector<HTMLElement>("#player-hp-fill")!;
 const hpText = document.querySelector<HTMLElement>("#player-hp-text")!;
+document.querySelector('#abilities')?.classList.remove('encounter-only','hidden');
 const abilitySlots = [...document.querySelectorAll<HTMLElement>(".ability-slot")];
 const skillPanel=document.querySelector<HTMLElement>("#skill-panel")!;
 const trainerPrompt=document.querySelector<HTMLElement>("#trainer-prompt")!;
@@ -79,6 +102,7 @@ let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
+let crafterCategory:'all'|ClassId='all';
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 
@@ -89,11 +113,11 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills. Fleetfoot Boots: +15% movement. Mirewalker Boots: 25% less poison damage.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Each item improves a specific ability. Use the Crafter class menus to see recipes and bonuses. You can equip only one offhand item at a time.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
- for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if((selectedBoss==='hardGreenCone'||selectedBoss==='fracturer')&&!snapshot?.supportedBosses?.includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}if(!atPedestal){const group=document.createElement('optgroup');group.label='Double boss';for(const [id,name] of DOUBLE_ENCOUNTERS){const o=document.createElement('option');o.value=id;o.textContent='Double · '+name;group.append(o)}select.append(group)}inventoryPanel.append(select);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if(!snapshot?.supportedBosses?.includes(selectedBoss)&&(['hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'] as BossId[]).includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
@@ -105,15 +129,30 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
  const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
  if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
- for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
+ for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available')+' · '+GEAR_EFFECTS[item.id];const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
- const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
+ const materials=document.createElement('div');materials.className='material-inventory';const materialTitle=document.createElement('h3');materialTitle.textContent='Material inventory';materials.append(materialTitle);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver','fleetfootBoots','mirewalkerBoots'] as const){
-  const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
-  const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
-  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
+ const tabs=document.createElement('nav');tabs.className='crafter-tabs';tabs.setAttribute('aria-label','Crafter class categories');inventoryPanel.append(tabs);
+ const grid=document.createElement('div');grid.className='crafter-recipes';inventoryPanel.append(grid);
+ const categories:[string,string][]=[['all','Shared equipment'],...Object.entries(CLASS_DEFINITIONS).map(([id,cls]):[string,string]=>[id,cls.name])];
+ function showCategory(category:'all'|ClassId){
+  crafterCategory=category;grid.replaceChildren();tabs.replaceChildren();
+  for(const [id,label] of categories){const tab=document.createElement('button');tab.type='button';tab.textContent=label;tab.className=id===category?'active':'';tab.setAttribute('aria-pressed',String(id===category));tab.onclick=()=>showCategory(id as 'all'|ClassId);tabs.append(tab);}
+  const gears=(Object.keys(RECIPES) as Gear[]).filter(gear=>GEAR_CLASS[gear]===category);
+  if(!gears.length){const empty=document.createElement('p');empty.textContent='No class equipment recipes yet.';grid.append(empty);}
+  for(const gear of gears){
+   const card=document.createElement('div');card.className='crafter-recipe';
+   const title=document.createElement('strong');title.textContent=ITEMS[gear];
+   const recipe=document.createElement('p');recipe.textContent=Object.entries(RECIPES[gear]).map(([material,cost])=>cost+' '+ITEMS[material as keyof typeof ITEMS]).join(' + ');const effect=document.createElement('small');effect.textContent=GEAR_EFFECTS[gear];
+   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];
+   const counts=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([material,cost])=>counts[material as keyof typeof counts]<cost);
+   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};
+   card.append(title,recipe,effect,button);grid.append(card);
+  }
  }
+ showCategory(crafterCategory);
+
  }
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }
@@ -298,7 +337,7 @@ function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
  if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
- if(gear.offhand==='sporefangQuiver'){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+ if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=gear.offhand==='sporestormQuiver'?arcMat:gear.offhand==='splitthornQuiver'?spearMat:greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=gear.offhand==='verdantMenderTotem'?holyMat:dangerMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-offhand',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=gear.offhand==='sunlitReliquary'?holyMat:gear.offhand==='venomFang'?greenMat:gear.offhand==='bulwarkCrest'?guardMat:novaMat;}
 }
 
 
@@ -420,32 +459,41 @@ nameInput.onchange=()=>{playerName=nameInput.value.trim()||playerName;localStora
 const share=document.createElement('button');share.textContent='Copy room link';share.onclick=()=>{navigator.clipboard.writeText(location.href).then(()=>{share.textContent='Link copied'},()=>{share.textContent='Copy the address bar link'})};
 const roster=document.createElement('div');roster.id='room-roster';
 roomPanel.append(connectionLabel,roomLabel,nameInput,share,roster);document.body.append(roomPanel);
-const dpsPanel=document.createElement('section');dpsPanel.id='dps-meter';dpsPanel.setAttribute('aria-label','Damage meter');
-const dpsTitle=document.createElement('h3');dpsTitle.textContent='Damage meter';
-const dpsToggle=document.createElement('button');dpsToggle.type='button';dpsToggle.textContent='Hide';
+const dpsPanel=document.createElement('section');dpsPanel.id='dps-meter';dpsPanel.setAttribute('aria-label','Combat meter');
+const dpsTitle=document.createElement('h3');dpsTitle.textContent='Combat meter';
+const meterTabs=document.createElement('div');meterTabs.className='meter-tabs';meterTabs.setAttribute('role','group');meterTabs.setAttribute('aria-label','Combat meter view');
 const dpsRows=document.createElement('div');dpsRows.id='dps-rows';
+const dpsToggle=document.createElement('button');dpsToggle.type='button';dpsToggle.textContent='Hide';
+let dpsMode:'damage'|'healing'=localStorage.getItem('jacworks-meter-mode')==='healing'?'healing':'damage';
 let dpsHidden=localStorage.getItem('jacworks-dps-hidden')==='true';
 function setDpsHidden(hidden:boolean){dpsHidden=hidden;dpsRows.hidden=hidden;dpsToggle.textContent=hidden?'Show':'Hide';localStorage.setItem('jacworks-dps-hidden',String(hidden))}
+function setMeterMode(mode:'damage'|'healing'){
+ dpsMode=mode;localStorage.setItem('jacworks-meter-mode',mode);
+ meterTabs.replaceChildren();
+ for(const value of ['damage','healing'] as const){const button=document.createElement('button');button.type='button';button.textContent=value==='damage'?'Damage':'Healing';button.setAttribute('aria-pressed',String(value===mode));button.onclick=()=>{setMeterMode(value);if(snapshot)renderDps(snapshot)};meterTabs.append(button)}
+ if(snapshot)renderDps(snapshot);
+}
 dpsToggle.onclick=()=>setDpsHidden(!dpsHidden);
-const dpsHeader=document.createElement('div');dpsHeader.className='dps-header';dpsHeader.append(dpsTitle,dpsToggle);dpsPanel.append(dpsHeader,dpsRows);document.body.append(dpsPanel);setDpsHidden(dpsHidden);
+const dpsHeader=document.createElement('div');dpsHeader.className='dps-header';dpsHeader.append(dpsTitle,dpsToggle);
+dpsPanel.append(dpsHeader,meterTabs,dpsRows);document.body.append(dpsPanel);setDpsHidden(dpsHidden);setMeterMode(dpsMode);
 function renderDps(state:Snapshot){
- const meter=state.damageMeter;
  dpsPanel.classList.toggle('hidden',state.phase==='lobby');
- if(!meter||state.phase==='lobby')return;
- const elapsed=Math.max(1,meter.elapsedMs)/1000;
- const rows=[...meter.entries].sort((a,b)=>b.damage-a.damage);
- const top=Math.max(1,...rows.map(r=>r.damage));
+ if(state.phase==='lobby')return;
+ const meter=dpsMode==='damage'?state.damageMeter:state.healingMeter;
+ const elapsed=Math.max(1,meter?.elapsedMs??0)/1000;
+ const rows=(meter?.entries??[]).map(entry=>({playerId:entry.playerId,total:'damage' in entry?entry.damage:entry.healing})).sort((a,b)=>b.total-a.total);
+ const top=Math.max(1,...rows.map(row=>row.total));
  dpsRows.replaceChildren();
- if(!rows.length){const empty=document.createElement('p');empty.textContent='Waiting for damage…';dpsRows.append(empty);return}
+ if(!rows.length){const empty=document.createElement('p');empty.textContent='Waiting for '+(dpsMode==='damage'?'damage':'healing')+'…';dpsRows.append(empty);return;}
  for(const entry of rows){
   const player=state.players.find(p=>p.id===entry.playerId);
   const row=document.createElement('div');row.className='dps-row';
   const label=document.createElement('div');label.className='dps-label';
   const name=document.createElement('span');name.textContent=(player?.name??'Disconnected player')+(entry.playerId===myId?' (you)':'');
-  const amount=document.createElement('span');amount.textContent=(entry.damage/elapsed).toFixed(1)+' DPS · '+Math.round(entry.damage)+' dmg';
+  const amount=document.createElement('span');amount.textContent=(entry.total/elapsed).toFixed(1)+(dpsMode==='damage'?' DPS · ':' HPS · ')+Math.round(entry.total)+(dpsMode==='damage'?' dmg':' healing');
   label.append(name,amount);
   const track=document.createElement('div');track.className='dps-track';
-  const fill=document.createElement('div');fill.className='dps-fill';fill.style.width=(entry.damage/top*100).toFixed(1)+'%';track.append(fill);
+  const fill=document.createElement('div');fill.className='dps-fill';fill.style.width=(entry.total/top*100).toFixed(1)+'%';if(dpsMode==='healing')fill.classList.add('healing');track.append(fill);
   row.append(label,track);dpsRows.append(row);
  }
 }
@@ -466,13 +514,14 @@ function syncTrainingDummies(state:Snapshot){
 }
 function syncHub(state:Snapshot){
  syncTrainingDummies(state);
+ const local=state.players.find(p=>p.id===myId);if(local)renderAbilityBar(local.loadout);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer',duoYellowWarden:'Yellow Ball + Warden',duoTruffleFracturer:'Truffle Man + Fracturer'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -543,14 +592,15 @@ function connectEncounter() {
 
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
- if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
+ const earned=[packet.reward,...(packet.bonusRewards??[])].filter(reward=>grantReward(inventory,reward,myId));if(earned.length){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Rewards: '+earned.map(reward=>ITEMS[reward!.material]).join(' + ');}
       snapshot = packet;syncVote(packet);renderDps(packet);const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
       if(packet.phase==='lobby'&&mode==='encounter'&&!gameDevLabs.isOpen()){clearEncounterMeshes();setMode('hub');}
       if(mode==='hub'){syncHub(packet);return;}
-      bossFill.style.width = `${((packet.boss.hp+packet.adds.filter(a=>a.kind==='ball').reduce((n,a)=>n+a.hp,0)) / packet.boss.maxHp) * 100}%`;
+      renderDuoHealth(packet);
+      bossFill.style.width = `${Math.max(0,Math.min(100,(packet.boss.hp+packet.adds.filter(a=>a.kind==='ball'||a.kind==='duoBoss').reduce((n,a)=>n+a.hp,0))/(packet.boss.maxHp+(packet.boss.id==='duoYellowWarden'?1800:packet.boss.id==='duoTruffleFracturer'?2500:0))*100))}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);
       const me = packet.players.find((p) => p.id === myId);
@@ -569,7 +619,7 @@ function syncEncounter(state: Snapshot) {
  for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
 
  for(const [i,tile] of fractureFloorTiles.entries()){
- const cut=state.boss.id==='fracturer'?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
  tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
  }
  for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine')){mesh.dispose();fireMineMeshes.delete(id)}
@@ -579,14 +629,14 @@ function syncEncounter(state: Snapshot) {
  mine.position.set(e.pos.x,.12,e.pos.z);
  }
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
- const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone');
+ const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone'||state.boss.id==='duoTruffleFracturer');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
- for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
+ for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;else if(a.kind==='duoBoss')mesh.material=fracturerMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:a.kind==='duoBoss'?2.2:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
@@ -802,7 +852,7 @@ addEventListener("keydown", (event) => {
    if(!event.repeat&&['1','2','3','4'].includes(key)){
     const me=snapshot?.players.find(p=>p.id===myId);
     const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8).sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
-    if(dummy)send({type:'practice',slot:Number(key),dummyId:dummy.id});
+    send({type:'practice',slot:Number(key),dummyId:dummy?.id??''});
    }
    return;
   }

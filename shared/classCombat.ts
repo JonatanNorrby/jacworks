@@ -1,5 +1,5 @@
 import { meleeHits,chargeEnd } from './game';
-import {SPOREBOUND_BONUS,SPOREFANG_BONUS} from './inventory';
+import {SPOREBOUND_BONUS,SPOREFANG_BONUS,CLASS_ITEM_BONUS} from './inventory';
 import type { Game } from './game';
 import type { PlayerState,Vec2 } from './protocol';
 import { SKILLS, BACKSTAB } from './protocol';
@@ -16,7 +16,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
         const ally=targetId===undefined?p:this.players.get(String(targetId));if(!ally?.alive||distance(p.pos,ally.pos)>11)return true;
         if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.solidBoss(),this.adds,d,this.pillars());ally.shield=Math.max(ally.shield,40);ally.shieldUntil=now+6000;}
         p.shield=Math.max(p.shield,80);p.shieldUntil=now+6000;to={...p.pos};
-      }else if(skill==='bulwark')p.bulwarkUntil=now+6000;
+      }else if(skill==='bulwark')p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderBulwarkMs:6000);
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
       else if(skill==='vanish'){p.invisibleUntil=now+4000;p.loadout[slot-1]='backstab';}
       else {
@@ -54,10 +54,10 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     }else if(skill==='earthShock')this.damageTarget(enemy!.id,36,p.id);
     else if(skill==='aimedShot'||skill==='fireball'||skill==='lightningStorm'){
       p.cast={skill,slot,endsAt:now+(skill==='aimedShot'?1000:skill==='fireball'?2000:3000),target:pos,targetId:enemy?.id,nextTick:skill==='lightningStorm'?now+500:undefined};
-    }else if(skill==='targetedHeal')ally!.hp=Math.min(ally!.maxHp,ally!.hp+40);
+    }else if(skill==='targetedHeal')this.heal(ally!,p.offhand==='sunlitReliquary'?CLASS_ITEM_BONUS.priestHeal:40,p.id);
     else if(skill==='holyLight')this.damageTarget(enemy!.id,32,p.id);
     else if(skill==='splitShot'){
-      for(const angle of [-.3,0,.3]){const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};for(const t of this.targets())if(this.beamHits(p.pos,dir,t.pos,10,.65))this.damageTarget(t.id,p.offhand==='sporefangQuiver'?SPOREFANG_BONUS.splitShotDamage:22,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});}
+      for(const angle of [-.3,0,.3]){const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};for(const t of this.targets())if(this.beamHits(p.pos,dir,t.pos,10,.65))this.damageTarget(t.id,p.offhand==='splitthornQuiver'?SPOREFANG_BONUS.splitShotDamage:22,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});}
       pos=this.clip(p.pos,{x:p.pos.x+p.facing.x*10,z:p.pos.z+p.facing.z*10});
     }else this.effects.push({id:this.uuid(),owner:p.id,skill,pos,targetId:ally?.id,next:now+(skill==='arrowRain'?400:1000),remaining:skill==='arrowRain'?3:6,expires:now+(skill==='fireMine'?12000:6500)});
     if(!['aimedShot','fireball','splitShot'].includes(skill))this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:pos});return true;
@@ -66,7 +66,7 @@ export function tickClassEffects(this:Game,now:number){
     this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&!!this.players.get(t.owner)?.alive);
     for(const t of this.totems)while(now>=t.next&&t.next<t.expires){
       if(t.kind==='healingTotem'){
-        for(const p of this.players.values())if(p.alive&&distance(t.pos,p.pos)<=4&&this.visible(t.pos,p.pos))p.hp=Math.min(p.maxHp,p.hp+(this.players.get(t.owner)?.offhand==='sporeboundTotem'?SPOREBOUND_BONUS.healPerTick:8));
+        for(const p of this.players.values())if(p.alive&&distance(t.pos,p.pos)<=4&&this.visible(t.pos,p.pos))this.heal(p,this.players.get(t.owner)?.offhand==='verdantMenderTotem'?SPOREBOUND_BONUS.healPerTick:8,t.owner);
         this.emit({type:'abilityFx',skill:t.kind,playerId:t.owner,from:t.pos,to:t.pos});
       }else{
         const enemy=this.targets().filter(e=>distance(t.pos,e.pos)<=11&&this.visible(t.pos,e.pos)).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
@@ -93,11 +93,11 @@ export function tickClassEffects(this:Game,now:number){
         if(this.targets().some(t=>distance(e.pos,t.pos)<=2&&this.visible(e.pos,t.pos))){this.area(e.pos,3,95,e.owner);this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});return false;}return true;
       }
       while(e.remaining&&now>=e.next){
-        if(e.skill==='poisonEnchant')this.damageTarget(e.targetId!,BACKSTAB.poisonTick,e.owner);
+        if(e.skill==='poisonEnchant')this.damageTarget(e.targetId!,owner.offhand==='venomFang'?CLASS_ITEM_BONUS.roguePoisonTick:BACKSTAB.poisonTick,e.owner);
         else if(e.skill==='aimedShot'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,owner.offhand==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotDamage:58,e.owner);}
         else if(e.skill==='fireball'&&!e.targetId){/* Projectile struck cover; no splash through it. */}
         else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,this.players.get(e.owner)?.offhand==='sporeboundTotem'?SPOREBOUND_BONUS.fireDamage:24,e.owner);}
-        else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:e.skill==='arrowRain'&&owner.offhand==='sporefangQuiver'?SPOREFANG_BONUS.arrowRainDamage:28,e.owner);
+        else this.area(e.pos,e.skill==='fireball'?2:e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?100:e.skill==='lightningShield'?14:e.skill==='arrowRain'&&owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainDamage:28,e.owner);
         if(e.skill!=='aimedShot'&&e.skill!=='fireTotem')this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});e.remaining--;e.next+=e.skill==='arrowRain'?600:1000;
       }return e.remaining>0;
     });

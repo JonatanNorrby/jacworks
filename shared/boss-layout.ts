@@ -11,3 +11,5 @@ export const BOSS_PEDESTALS=BOSS_CIRCLES.flatMap(circle=>circle.bosses.map(([id,
 // Low floor markers are traversable; the small interaction areas never overlap.
 export const BOSS_INTERACTION_RADIUS=1.1;
 export function nearbyBoss(pos:Vec2){return BOSS_PEDESTALS.find(p=>Math.hypot(p.pos.x-pos.x,p.pos.z-pos.z)<=BOSS_INTERACTION_RADIUS);}
+
+export const DOUBLE_ENCOUNTERS=[['duoYellowWarden','Yellow Ball + Warden'],['duoTruffleFracturer','Truffle Man + Fracturer']] as const;

@@ -167,3 +167,23 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 .dps-label span:last-child{font-variant-numeric:tabular-nums}
 .dps-track{height:6px;margin-top:.2rem;background:#323943;border-radius:3px;overflow:hidden}
 .dps-fill{height:100%;background:#6bb6db;transition:width .15s linear}
+
+/* Crafting by class and dual-purpose combat meter */
+.crafter-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin:.9rem 0}
+.crafter-tabs button{font-size:.8rem;padding:.4rem .65rem}
+.crafter-tabs button.active,.meter-tabs button[aria-pressed='true']{background:#356c82;color:#fff;border-color:#6bd4ed}
+.crafter-recipes{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:.65rem;max-height:39vh;overflow:auto}
+.crafter-recipe{padding:.55rem;border:1px solid #526171;border-radius:6px;background:rgba(0,0,0,.15)}
+.crafter-recipe p{font-size:.8rem;margin:.5rem 0}
+.crafter-recipe button{max-width:100%}
+.meter-tabs{display:flex;gap:.45rem;margin:.55rem 0}
+.meter-tabs button{flex:1;padding:.3rem .5rem}
+.dps-fill.healing{background:#57cc8d}
+
+/* Independent HP bars for simultaneous double-boss encounters */
+#duo-health[hidden]{display:none}
+#duo-health{display:grid;gap:.35rem;margin:.5rem 0;font-size:.75rem}
+.duo-health-row{display:grid;gap:.1rem}
+.duo-health-row span{font-variant-numeric:tabular-nums}
+.duo-health-track{height:7px;background:#322631;border-radius:4px;overflow:hidden}
+.duo-health-fill{height:100%;background:#b54b6a;transition:width .15s ease}

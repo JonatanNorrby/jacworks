@@ -68,7 +68,7 @@ export class Game {
   telegraphs:Telegraph[]=[]; reward:Snapshot['reward']; next=0; mechanic=0; fightId=''; motion?:Motion;
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
-  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
+  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,readonly liveTalents=false) {this.emit=emit;this.uuid=uuid;}
   add(id:string) {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0};
@@ -188,7 +188,7 @@ export class Game {
   damageTarget(id:string,amount:number,source?:string){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
     const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
     const floor=isBall(this)&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
-    const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,source&&this.players.has(source)?1:0));this.recordDamage(source,previous-t.hp);
+    const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&this.players.has(source)?1:0));this.recordDamage(source,previous-t.hp);
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
@@ -214,7 +214,7 @@ export class Game {
   pillars(){return this.boss.id==='hardWarden'?HARD_PILLARS:[]}
   clearBuffs(p:PlayerState){p.bulwarkUntil=p.invisibleUntil=p.poisonUntil=p.shield=p.shieldUntil=0;const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}
   hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
-    let damage=talentMitigation(amount)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
+    let damage=talentMitigation(amount,this.liveTalents?1:0)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
     if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }

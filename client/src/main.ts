@@ -73,9 +73,11 @@ function renderDuoHealth(state:Snapshot){
  duoHealth.hidden=!isWarden&&!isTruffle;
  if(duoHealth.hidden)return;
  const partner=state.adds.find(a=>a.kind==='duoBoss');
+ const splitChildren=state.adds.filter(a=>a.kind==='ball'&&a.hp>0);
+ const secondaryHp=isWarden?(partner?.hp??0)+splitChildren.reduce((sum,c)=>sum+c.hp,0):partner?.hp??0;
  const entries=[
   {name:isWarden?'Warden':'Truffle Man',hp:state.boss.hp,max:state.boss.maxHp},
-  {name:isWarden?'Yellow Ball':'Fracturer',hp:partner?.hp??0,max:isWarden?1800:2500}
+  {name:isWarden?'Yellow Ball'+(splitChildren.length?' · '+splitChildren.length+' fragments':''):'Fracturer',hp:secondaryHp,max:isWarden?1800:2500}
  ];
  duoHealth.replaceChildren();
  for(const entry of entries){
@@ -428,7 +430,7 @@ function setMode(next: ClientMode) {
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for(const mesh of fireMineMeshes.values())mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
-  for (const effect of fx) effect.mesh.setEnabled(!inHub);
+  for (const effect of fx) effect.mesh.setEnabled(true);
 
   hubOnly.forEach((el) => el.classList.toggle("hidden", !inHub));
   encounterOnly.forEach((el) => el.classList.toggle("hidden", inHub));
@@ -527,7 +529,7 @@ function syncTrainingDummies(state:Snapshot){
  }
 }
 function syncHub(state:Snapshot){
- syncTrainingDummies(state);
+ syncTrainingDummies(state);syncTotemModels(state);
  const local=state.players.find(p=>p.id===myId);if(local)renderAbilityBar(local.loadout);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
@@ -593,7 +595,7 @@ function connectEncounter() {
     if (packet.type === "chat") roomChat.receive(packet);
     if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
-    if (packet.type === "abilityFx" && mode === "encounter" && !gameDevLabs.isOpen()) {
+    if (packet.type === "abilityFx" && !gameDevLabs.isOpen()) {
       spawnAbilityFx(packet.skill, packet.from, packet.to);
     }
 
@@ -630,9 +632,17 @@ function connectEncounter() {
 }
 
 const totemMeshes=new Map<string,Mesh>();
+function syncTotemModels(state:Snapshot){
+ for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id)}
+ for(const t of state.totems.filter(t=>t.hp>0)){
+  let mesh=totemMeshes.get(t.id);
+  if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?(t.poisoned?greenMat:dangerMat):holyMat;totemMeshes.set(t.id,mesh)}
+  mesh.position.set(t.pos.x,.6,t.pos.z);mesh.setEnabled(true);
+ }
+}
 function syncEncounter(state: Snapshot) {
- for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id);}
- for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?(t.poisoned?greenMat:dangerMat):holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
+ syncTotemModels(state);
+
 
  for(const [i,tile] of fractureFloorTiles.entries()){
  const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;

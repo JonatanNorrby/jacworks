@@ -238,3 +238,18 @@ Options displays Client build version/commit and Server protocol version, both 0
 **Training area:** The three target dummies now sit at x=-11, further west while retaining the same 5-second respawn.
 
 **Release status:** Client and Server protocol 0.1.4 will appear in Options after both deployments update.
+
+
+### v0.1.5: Double-boss arenas, earned talents, and lobby practice repairs
+
+**Double circle:** The hub has a third, purple **Double** encounter ring at (8.9,-6.5) with its own two interactable pedestals: Yellow Ball + Warden, and Truffle Man + Fracturer. The Normal/Hard rings remain separate. Double victories award **one newly introduced material**, not two normal-mode materials: **Twin Core** for Yellow Ball + Warden and **Fractured Spore** for Truffle Man + Fracturer. Each drop is a receipt in the same browser-local inventory system, available for future recipes.
+
+**Real dual-boss mechanics:** Yellow Ball uses its genuine server-authoritative roll/bounce telegraphs and splits at 50% HP while the Warden keeps attacking. All split children must die before the encounter is won. During Truffle Man + Fracturer, the primary Truffle uses the textured Truffle boss model, including walking/smash animation; the Fracturer continues collapsing arena sections. Each boss retains its own health pool.
+
+**Progression:** Every player starts with **zero spent talent ranks and zero points**. The first completed victory against a specific encounter ID grants **one point**; repeating that encounter grants no more. The nine current distinct encounters therefore offer up to nine points. Talent points are a shared pool across the class tabs. **Unyielding Force** costs one point and grants +3% damage dealt/-3% damage taken only when actually unlocked. The Shaman branch adds **Parting Gift** (requires Unyielding Force; Fire and Healing Totems explode for 30 damage in a 3-unit radius on natural expiration) and **Violent Farewell** (requires Parting Gift; the same explosion also triggers if the totem is destroyed early). Replacing or removing a totem due to logout does not explode it. Respeccing any class is completely free, returns that class's spent points to the shared pool, and never resets recorded victories.
+
+Talent progress follows the existing **browser-local save** approach and is included in the join handshake and server-validated allocations during active room sessions. This is not yet cross-device or tamper-resistant account progression; persist an authenticated account identity before making the system suitable for competitive public progression.
+
+**Lobby practice:** The ability bar stays visible in the lobby, displays actual server-tracked cooldowns, and shows ability VFX outside encounters. Fire Totem and Healing Totem now place visible practice totems lasting 15 seconds in the hub. Heal pulses affect nearby party members; Dash is recharged on the actual cooldown instead of only appearing to fire. The target dummies remain on the far-west lawn.
+
+**Version:** Options displays Client/Server 0.1.5 when deployed. The multiplayer game is verified by unit tests, multiplayer smoke, and the Chromium release suite before merging.

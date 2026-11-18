@@ -4,7 +4,8 @@ import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory,CLASS_ITEM_BONUS } from './inventory';
-import {talentDamage,talentMitigation} from './talents';
+import {talentDamage,talentMitigation,emptyTalents,readTalents,unlockTalent,respecTalents,awardTalentWin,hasTalent,TALENT_NODES} from './talents';
+import type {TalentId} from './talents';
 import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, NETWORK_VERSION } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
@@ -43,7 +44,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
-  arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];
+  arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];talentAward:Snapshot['talentAward'];
   trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-11,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-11,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-11,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();healingTotals=new Map<string,number>();
@@ -72,13 +73,13 @@ export class Game {
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,liveTalents=false) {this.emit=emit;this.uuid=uuid;this.liveTalents=liveTalents;}
   add(id:string) {
     this.cancelVote();
-    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0};
+    const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0,talents:emptyTalents()};
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
     this.players.set(id,p);return p;
   }
   remove(id:string) {const p=this.players.get(id);if(p&&this.initialized.has(id))this.system(`${p.name} left the room.`);this.chatSent.delete(id);this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
-    this.arenaCuts=[];this.nextCollapseAt=0;this.nextDuoAt=0;this.bonusRewards=[];
+    this.arenaCuts=[];this.nextCollapseAt=0;this.nextDuoAt=0;this.bonusRewards=[];this.talentAward=undefined;
     this.poison.clear();this.meterStartedAt=0;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
@@ -98,10 +99,20 @@ export class Game {
       if(first)this.system(`${p.name} joined the room.`);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
       this.clearBuffs(p);p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
-      p.armour=inventory.armour&&gearEligible(p.classId,inventory.armour)?inventory.armour:null;p.weapon=inventory.weapon&&gearEligible(p.classId,inventory.weapon)?inventory.weapon:null;p.head=inventory.head&&gearEligible(p.classId,inventory.head)?inventory.head:null;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
+      p.armour=inventory.armour&&gearEligible(p.classId,inventory.armour)?inventory.armour:null;p.weapon=inventory.weapon&&gearEligible(p.classId,inventory.weapon)?inventory.weapon:null;p.head=inventory.head&&gearEligible(p.classId,inventory.head)?inventory.head:null;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
+      // Progress is validated on rejoin. Room victories remain authoritative during a session.
+      const restored=readTalents(v.talents);const existing=p.talents??emptyTalents();
+      for(const bossId of existing.wins)awardTalentWin(restored,bossId);
+      p.talents=readTalents(restored);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
+    }
+    if(v.type==='talent'&&this.phase==='lobby'&&typeof v.classId==='string'&&typeof v.action==='string'){
+      const cls=v.classId as import('./classes').ClassId;
+      if(v.action==='respec')respecTalents(p.talents??=emptyTalents(),cls);
+      else if(v.action==='unlock'&&typeof v.nodeId==='string'&&Object.hasOwn(TALENT_NODES,v.nodeId))unlockTalent(p.talents??=emptyTalents(),cls,v.nodeId as TalentId);
+      return;
     }
     if(v.type==='practice'&&this.phase==='lobby'&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4){
       const slot=Number(v.slot)-1,skill=p.loadout[slot];
@@ -142,7 +153,7 @@ export class Game {
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.bonusRewards=[];this.nextDuoAt=now+4500;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.bonusRewards=[];this.talentAward=undefined;this.nextDuoAt=now+4500;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -189,7 +200,7 @@ export class Game {
   damageTarget(id:string,amount:number,source?:string){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
     const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
     const floor=isBall(this)&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
-    const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&this.players.has(source)?1:0));this.recordDamage(source,previous-t.hp);
+    const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&hasTalent(this.players.get(source)?.talents,this.players.get(source)!.classId,'unyieldingForce')?1:0));this.recordDamage(source,previous-t.hp);
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
@@ -215,7 +226,7 @@ export class Game {
   pillars(){return this.boss.id==='hardWarden'?HARD_PILLARS:[]}
   clearBuffs(p:PlayerState){p.bulwarkUntil=p.invisibleUntil=p.poisonUntil=p.shield=p.shieldUntil=0;const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}
   hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
-    let damage=talentMitigation(amount,this.liveTalents?1:0)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
+    let damage=talentMitigation(amount,this.liveTalents&&hasTalent(p.talents,p.classId,'unyieldingForce')?1:0)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
     if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }
@@ -318,11 +329,13 @@ export class Game {
       if(this.phase==='fight')this.meterElapsedMs=Math.max(0,now-this.meterStartedAt);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))&&!this.adds.some(a=>a.kind==='duoBoss'&&a.hp>0)) {
         this.phase='won';this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
-        this.bonusRewards=this.boss.id==='duoYellowWarden'?[{id:this.fightId+':yellow',material:'sphericalBall',players:[...this.players.keys()]}]:this.boss.id==='duoTruffleFracturer'?[{id:this.fightId+':fracturer',material:'conicalTaper',players:[...this.players.keys()]}]:[];
-        this.reward={id:this.fightId,material:this.boss.id==='duoYellowWarden'?'cylinderTube':this.boss.id==='duoTruffleFracturer'?'conicalTaper':this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':this.boss.id==='hardGreenCone'?'hardTruffleSpore':'conicalTaper',players:[...this.players.keys()]};
+        this.bonusRewards=[];
+        const newlyEarned=[...this.players.values()].filter(p=>awardTalentWin(p.talents??=emptyTalents(),this.boss.id)).map(p=>p.id);
+        this.talentAward={boss:this.boss.id,players:newlyEarned};
+        this.reward={id:this.fightId,material:this.boss.id==='duoYellowWarden'?'duoCore':this.boss.id==='duoTruffleFracturer'?'duoSpore':this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':this.boss.id==='hardGreenCone'?'hardTruffleSpore':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
       } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
+    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,talentAward:this.talentAward,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
   }
 }

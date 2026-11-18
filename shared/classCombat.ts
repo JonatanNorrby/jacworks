@@ -1,7 +1,7 @@
 import { meleeHits,chargeEnd } from './game';
 import {SPOREBOUND_BONUS,SPOREFANG_BONUS,CLASS_ITEM_BONUS} from './inventory';
 import type { Game } from './game';
-import type { PlayerState,Vec2 } from './protocol';
+import type { PlayerState,Vec2,AddState } from './protocol';
 import { SKILLS, BACKSTAB } from './protocol';
 const distance=(a:Vec2,b:Vec2)=>Math.hypot(a.x-b.x,a.z-b.z);
 
@@ -50,7 +50,15 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           landed=true;
           // Boss faces its current target; rear attack requires opposite side of that facing.
           const victim=[...this.players.values()].filter(a=>a.alive&&a.invisibleUntil<=now).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
-          const behind=!victim||((p.pos.x-t.pos.x)*(victim.pos.x-t.pos.x)+(p.pos.z-t.pos.z)*(victim.pos.z-t.pos.z))<0;
+          // In Chaos the Warden has its own facing/nose and follows threat.
+          // Use that actual visible direction for Backstab, not a different
+          // nearest-player estimate that could contradict the nose.
+          const chaosWarden=this.boss.id==='chaosArena'&&(t as AddState).kind==='chaosBoss'&&
+            (t as AddState).bossId==='warden'?(t as AddState).heading:undefined;
+          const dx=p.pos.x-t.pos.x,dz=p.pos.z-t.pos.z;
+          const behind=!victim||(typeof chaosWarden==='number'
+            ?dx*Math.sin(chaosWarden)+dz*Math.cos(chaosWarden)<0
+            :dx*(victim.pos.x-t.pos.x)+dz*(victim.pos.z-t.pos.z)<0);
           const ambush=skill==='quickStab'&&p.invisibleUntil>now&&this.talented(p,'openingStrike');
           const strike=skill==='stab'?32:skill==='quickStab'?32+(ambush?16:0):skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
           this.damageTarget(t.id,strike,p.id);

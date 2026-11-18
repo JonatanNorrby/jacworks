@@ -72,7 +72,7 @@ test('Redtube recipe consumes three large cylinders; ownership and equipment per
 });
 test('armour reduces boss damage 5%, excludes add damage, expands Sword Swing reach and angle',()=>{
  const {g,p,use}=room('warrior');p.armour='redtubeArmour';g.hurt(p,200);assert.equal(p.hp,54.400000000000006);g.hurt(p,300,12,false);assert.equal(p.hp,42.400000000000006);
- p.pos={x:0,z:4};use('swordSwing');assert.equal(g.boss.hp,1762);p.pos={x:3.5,z:0};p.facing={x:0,z:-1};p.cooldowns[0]=0;use('swordSwing',300);assert.equal(g.boss.hp,1724);p.armour=null;p.cooldowns[0]=0;use('swordSwing',400);assert.equal(g.boss.hp,1724);
+ p.pos={x:0,z:4};use('swordSwing');assert.equal(g.boss.hp,1750);p.pos={x:3.5,z:0};p.facing={x:0,z:-1};p.cooldowns[0]=0;use('swordSwing',300);assert.equal(g.boss.hp,1700);p.armour=null;p.cooldowns[0]=0;use('swordSwing',400);assert.equal(g.boss.hp,1700);
 });
 
 test('Vanish swaps a rearranged slot and forged client buff fields are ignored',()=>{

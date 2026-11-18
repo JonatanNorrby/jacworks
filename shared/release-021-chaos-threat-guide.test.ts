@@ -15,6 +15,9 @@ function game(boss:BossId='warden',count=1,cls:ClassId='warrior'){
  const vote=g.vote!.id;
  for(let i=0;i<count;i++)g.message('p'+i,{type:'vote',proposalId:vote,accept:true},101+i);
  assert.equal(g.phase,'fight');
+ // Chaos is now the full five-boss encounter. Mechanics tests require a
+ // durable observer so they don't wipe before observing the later patterns.
+ if(boss==='chaosArena')for(const p of g.players.values())p.hp=p.maxHp=1_000_000;
  g.next=Infinity;
  return {g,p:g.players.get('p0')!};
 }

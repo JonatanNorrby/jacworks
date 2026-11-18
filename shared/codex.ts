@@ -29,7 +29,7 @@ export const CODEX_MECHANICS={
  workerWaves:{name:'Worker Waves',description:'Small ants emerge in successive waves from the tunnels.'},
  royalGuard:{name:'Royal Guard',description:'The armored ant dies and the Queen visibly loses some of her HP.'},
  rockfall:{name:'Falling Rocks',description:'Impact circles signal falling cave stones.'},
- chaosCombined:{name:'All at Once',description:'Several independently moving boss threats are active at the same time.'}
+ chaosCombined:{name:'All at Once',description:'Five independent boss threats act at the same time; some hold their ground while others roam.'}
 } as const;
 export type MechanicId=keyof typeof CODEX_MECHANICS;
 export type CodexProgress={seen:BossId[];mechanics:Partial<Record<BossId,MechanicId[]>>;loot:Material[]};
@@ -66,7 +66,9 @@ export function observeCodex(p:CodexProgress,s:Snapshot,playerId:string):boolean
  const boss=id==='chaosArena'?undefined:id;
  const group=(v:BossId)=>boss===v||(id==='chaosArena'&&s.adds.some(a=>a.kind==='chaosBoss'&&a.bossId===v));
  if(group('warden')||group('hardWarden')||group('duoYellowWarden')){
-  if(marks.some(t=>t.kind==='line'&&!t.ownerId))observed(id==='chaosArena'?'warden':boss!,'lineSweep');
+  if(marks.some(t=>t.kind==='line'&&(!t.ownerId)&&
+    (id!=='chaosArena'||t.sourceBossId==='warden')))
+    observed(id==='chaosArena'?'warden':boss!,'lineSweep');
   if(marks.some(t=>t.sweep))observed('hardWarden','pillarCover');
   if(s.hardWardenCall)observed('hardWarden','collapseIn');
  }
@@ -77,7 +79,8 @@ export function observeCodex(p:CodexProgress,s:Snapshot,playerId:string):boolean
  }
  if(group('greenCone')||group('hardGreenCone')||group('duoTruffleFracturer')){
   if(s.poisonMarks?.length)observed(id==='chaosArena'?'greenCone':boss!,'sporeMark');
-  if(s.boss.smash)observed(id==='chaosArena'?'greenCone':boss!,'truffleSlam');
+  if((id==='chaosArena'?s.adds.some(a=>a.kind==='chaosBoss'&&a.bossId==='greenCone'&&!!a.smash):!!s.boss.smash))
+   observed(id==='chaosArena'?'greenCone':boss!,'truffleSlam');
  }
  if(group('fracturer')||group('duoTruffleFracturer')){
   if(s.fracturerSurge)observed('fracturer','cardinalEruption');

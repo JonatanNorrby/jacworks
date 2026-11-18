@@ -50,21 +50,26 @@ test('healing meter counts only effective healing, not overheal, and resets',()=
  assert.equal(meter.entries.find(x=>x.playerId==='a')?.healing,52);
  g.reset();assert.equal(g.healingTotals.size,0);
 });
-test('double boss fights require both HP pools defeated and grant two receipts',()=>{
+test('double boss fights award a new encounter-specific material, not two old drops',()=>{
  for(const boss of ['duoYellowWarden','duoTruffleFracturer'] as const){
   const {g}=start(boss);
-  const partner=g.adds.find(a=>a.kind==='duoBoss');
-  assert.ok(partner);
-  assert.equal(partner!.bossId,boss==='duoYellowWarden'?'yellowBall':'fracturer');
+  const partner=g.adds.find(a=>a.kind==='duoBoss')!;
+  assert.equal(partner.bossId,boss==='duoYellowWarden'?'yellowBall':'fracturer');
   g.damageTarget('boss',99999,'a');
   assert.equal(g.tick(200).phase,'fight');
-  g.damageTarget(partner!.id,99999,'a');
+  g.damageTarget(partner.id,99999,'a');
+  if(boss==='duoYellowWarden'){
+    g.tick(250);const children=g.adds.filter(a=>a.kind==='ball');
+    assert.equal(children.length,2);
+    assert.equal(g.phase,'fight');
+    for(const child of children)g.damageTarget(child.id,99999,'a');
+  }
   const result=g.tick(300);
   assert.equal(result.phase,'won');
-  assert.equal(result.bonusRewards?.length,1);
+  assert.equal(result.bonusRewards?.length,0);
+  assert.equal(result.reward?.material,boss==='duoYellowWarden'?'duoCore':'duoSpore');
   assert.equal(result.reward?.players.includes('a'),true);
-  assert.equal(result.bonusRewards![0].players.includes('a'),true);
-  assert.notEqual(result.reward!.id,result.bonusRewards![0].id);
+  assert.deepEqual(result.talentAward?.players,['a']);
  }
 });
 test('dual Fracturer starts arena collapse while its second boss is alive',()=>{

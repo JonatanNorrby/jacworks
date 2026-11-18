@@ -63,6 +63,8 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     if(!['aimedShot','fireball','splitShot'].includes(skill))this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:pos});return true;
   }
 export function tickClassEffects(this:Game,now:number){
+    // Both combat and hub practice resolve the same earned-talent burst rules.
+    for(const t of this.totems)this.burstTotem(t,now);
     this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&!!this.players.get(t.owner)?.alive);
     for(const t of this.totems)while(now>=t.next&&t.next<t.expires){
       if(t.kind==='healingTotem'){

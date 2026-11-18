@@ -1,5 +1,6 @@
 import {createRoomChat} from './roomChat';
 import {createTalentTree} from './talentTree';
+import {emptyTalents,readTalents} from '../../shared/talents';
 import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../shared/boss-layout';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
@@ -72,9 +73,11 @@ function renderDuoHealth(state:Snapshot){
  duoHealth.hidden=!isWarden&&!isTruffle;
  if(duoHealth.hidden)return;
  const partner=state.adds.find(a=>a.kind==='duoBoss');
+ const splitChildren=state.adds.filter(a=>a.kind==='ball'&&a.hp>0);
+ const secondaryHp=isWarden?(partner?.hp??0)+splitChildren.reduce((sum,c)=>sum+c.hp,0):partner?.hp??0;
  const entries=[
   {name:isWarden?'Warden':'Truffle Man',hp:state.boss.hp,max:state.boss.maxHp},
-  {name:isWarden?'Yellow Ball':'Fracturer',hp:partner?.hp??0,max:isWarden?1800:2500}
+  {name:isWarden?'Yellow Ball'+(splitChildren.length?' · '+splitChildren.length+' fragments':''):'Fracturer',hp:secondaryHp,max:isWarden?1800:2500}
  ];
  duoHealth.replaceChildren();
  for(const entry of entries){
@@ -104,7 +107,11 @@ let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
 let crafterCategory:'all'|ClassId='all';
-const talentTree=createTalentTree();
+const talentKey='jacworks-talent-progress-v1';
+let playerTalents=readTalents(localStorage.getItem(talentKey));
+let savedTalentString=JSON.stringify(playerTalents);
+const talentTree=createTalentTree((action,classId,nodeId)=>send({type:'talent',action,classId,nodeId}));
+talentTree.update(playerTalents);
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 
@@ -319,9 +326,9 @@ function hubLabel(name:string,text:string,x:number,z:number,width:number){
  const mesh=pushHub(MeshBuilder.CreatePlane(name,{width,height:width*192/1024},scene));mesh.rotation.x=Math.PI/2;mesh.position.set(x,.16,z);mesh.material=mat;
 }
 for(const circle of BOSS_CIRCLES){
- const mat=circle.difficulty==='Normal'?hubAccentMat:bossMat;
- const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
- hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+3.3,3.5);
+ const mat=circle.difficulty==='Normal'?hubAccentMat:circle.difficulty==='Double'?novaMat:bossMat;
+ const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:circle.difficulty==='Double'?4.7:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
+ hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+(circle.difficulty==='Double'?2.5:3.3),3.5);
  for(const pedestal of BOSS_PEDESTALS.filter(p=>p.difficulty===circle.difficulty)){
   const disc=pushHub(MeshBuilder.CreateCylinder('boss-pedestal-'+pedestal.id,{diameter:1.3,height:.08,tessellation:40},scene));disc.position.set(pedestal.pos.x,.05,pedestal.pos.z);disc.material=mat;
   hubLabel('boss-label-'+pedestal.id,pedestal.name,pedestal.pos.x,pedestal.pos.z,2.5);
@@ -416,6 +423,7 @@ function setMode(next: ClientMode) {
   if(trainerOpen)closeTrainer(false);
   mode = next;
   const inHub = mode === "hub";
+  const abilityBar=document.querySelector<HTMLElement>('#abilities');if(abilityBar)abilityBar.classList.remove('encounter-only','hidden');
 
   for (const mesh of hubMeshes) mesh.setEnabled(inHub);
   for (const mesh of arenaMeshes) mesh.setEnabled(!inHub);
@@ -423,10 +431,11 @@ function setMode(next: ClientMode) {
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for(const mesh of fireMineMeshes.values())mesh.setEnabled(!inHub);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
-  for (const effect of fx) effect.mesh.setEnabled(!inHub);
+  for (const effect of fx) effect.mesh.setEnabled(true);
 
   hubOnly.forEach((el) => el.classList.toggle("hidden", !inHub));
   encounterOnly.forEach((el) => el.classList.toggle("hidden", inHub));
+  document.querySelector('#abilities')?.classList.remove('hidden');
 
   if (inHub) {
     syncGear(hubPlayer,inventory);status.textContent = "Sanctum Hub";
@@ -521,7 +530,7 @@ function syncTrainingDummies(state:Snapshot){
  }
 }
 function syncHub(state:Snapshot){
- syncTrainingDummies(state);
+ syncTrainingDummies(state);syncTotemModels(state);
  const local=state.players.find(p=>p.id===myId);if(local)renderAbilityBar(local.loadout);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
@@ -542,7 +551,7 @@ function syncVote(state:Snapshot){
  for(const id of vote.voters){const row=document.createElement('p');row.textContent=(state.players.find(p=>p.id===id)?.name??'Player')+': '+(vote.accepted.includes(id)?'Accepted':'Waiting');votePanel.append(row);}
  for(const accept of [true,false]){const button=document.createElement('button');button.textContent=accept?'Accept':'Decline';button.disabled=accept&&vote.accepted.includes(myId);button.onclick=()=>{syncJoin();send({type:'vote',proposalId:vote.id,accept});};votePanel.append(button);}
 }
-function syncJoin(){send({type:'join',name:playerName,classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey))});}
+function syncJoin(){send({type:'join',name:playerName,classId:selectedClass,loadout,inventory:readInventory(localStorage.getItem(inventoryKey)),talents:playerTalents});}
 function enterEncounter() {
   if(ws?.readyState!==WebSocket.OPEN){message.textContent='Room disconnected. Reload to reconnect.';return;}
   syncJoin();send({type:'propose',boss:selectedBoss});message.textContent='Proposal sent: '+(bossNames[selectedBoss]??selectedBoss)+'. Waiting for room vote…';
@@ -587,7 +596,7 @@ function connectEncounter() {
     if (packet.type === "chat") roomChat.receive(packet);
     if (packet.type === "welcome") {myId = packet.id;syncJoin();}
 
-    if (packet.type === "abilityFx" && mode === "encounter" && !gameDevLabs.isOpen()) {
+    if (packet.type === "abilityFx" && !gameDevLabs.isOpen()) {
       spawnAbilityFx(packet.skill, packet.from, packet.to);
     }
 
@@ -601,7 +610,12 @@ function connectEncounter() {
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  const earned=[packet.reward,...(packet.bonusRewards??[])].filter(reward=>grantReward(inventory,reward,myId));if(earned.length){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Rewards: '+earned.map(reward=>ITEMS[reward!.material]).join(' + ');}
-      snapshot = packet;syncVote(packet);renderDps(packet);const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
+      snapshot = packet;syncVote(packet);renderDps(packet);
+      const firstClear=packet.talentAward?.players.includes(myId)&&!playerTalents.wins.includes(packet.talentAward.boss);
+      const authoritativeTalents=packet.players.find(p=>p.id===myId)?.talents;
+      if(authoritativeTalents){const updated=JSON.stringify(authoritativeTalents);if(updated!==savedTalentString){playerTalents=readTalents(authoritativeTalents);savedTalentString=JSON.stringify(playerTalents);localStorage.setItem(talentKey,savedTalentString);talentTree.update(playerTalents)}}
+      if(firstClear)message.textContent='First clear! +1 talent point · Open the Talent Tree in the hub.';
+      const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
@@ -622,9 +636,17 @@ function connectEncounter() {
 }
 
 const totemMeshes=new Map<string,Mesh>();
+function syncTotemModels(state:Snapshot){
+ for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id)}
+ for(const t of state.totems.filter(t=>t.hp>0)){
+  let mesh=totemMeshes.get(t.id);
+  if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?(t.poisoned?greenMat:dangerMat):holyMat;totemMeshes.set(t.id,mesh)}
+  mesh.position.set(t.pos.x,.6,t.pos.z);mesh.setEnabled(true);
+ }
+}
 function syncEncounter(state: Snapshot) {
- for(const [id,mesh] of totemMeshes)if(!state.totems.some(t=>t.id===id&&t.hp>0)){mesh.dispose();totemMeshes.delete(id);}
- for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?(t.poisoned?greenMat:dangerMat):holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
+ syncTotemModels(state);
+
 
  for(const [i,tile] of fractureFloorTiles.entries()){
  const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
@@ -826,7 +848,7 @@ function updateCooldowns() {
   const me = snapshot?.players.find(p => p.id === myId);
   const now = Date.now();
   for (let i = 0; i < abilitySlots.length; i++) {
-    const remaining = mode === "encounter" && me ? Math.max(0, me.cooldowns[i] - now) : 0;
+    const remaining = me ? Math.max(0, me.cooldowns[i] - now) : 0;
     const overlay = abilitySlots[i].querySelector<HTMLElement>(".cooldown-overlay")!;
     const label = abilitySlots[i].querySelector<HTMLElement>(".cooldown-text")!;
     overlay.style.transform = `scaleY(${remaining / SKILLS[me?.loadout[i]??loadout[i]].cooldown})`;
@@ -901,7 +923,7 @@ function updateHub() {
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
   const pedestal=nearbyBoss(hubPlayer.position);
-  status.textContent=pedestal?pedestal.difficulty+' · '+pedestal.name+' · E to propose':nearTrainer?'Skill Trainer · press E':'Sanctum Hub · Normal west / Hard east';
+  status.textContent=pedestal?pedestal.difficulty+' · '+pedestal.name+' · E to propose':nearTrainer?'Skill Trainer · press E':'Sanctum Hub · Normal west / Hard east / Double far east';
 
   if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
   if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';
@@ -930,7 +952,7 @@ engine.runRenderLoop(() => {
   truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');
   if(snapshot!==bossPacket){bossPacket=snapshot;bossReceived=performance.now();}
   const b=snapshot?.boss;
-  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,!gameDevLabs.isOpen()&&mode==='encounter'&&(b?.id==='greenCone'||b?.id==='hardGreenCone')&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
+  truffleBoss.update(b?{pos:b.pos,heading:b.heading??0,stride:b.stride??0,walking:!!b.walking}:undefined,!gameDevLabs.isOpen()&&mode==='encounter'&&(b?.id==='greenCone'||b?.id==='hardGreenCone'||b?.id==='duoTruffleFracturer')&&b.hp>0&&snapshot?.phase!=='won',b?.smash,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   gameDevLabs.tick(deltaSeconds);
 
   updateEffects();

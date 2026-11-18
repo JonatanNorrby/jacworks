@@ -4,7 +4,7 @@ import type {ClassId} from './classes';
 export const SPOREBOUND_BONUS={poisonCloudDamage:8,poisonCloudRadius:1.5,poisonCloudTicks:3,range:7,healPerTick:16,healRange:2} as const;
 export const SPOREFANG_BONUS={aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5} as const;
 export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:15,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
-export type Material='largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore';
+export type Material='largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
 export const RECIPES={
  redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},
  pointyHat:{conicalTaper:3},pointyOrb:{conicalTaper:1,sphericalBall:1},
@@ -85,7 +85,7 @@ export const emptyInventory=():Inventory=>({
 });
 export function countInventory(v:Inventory):Record<Material|Gear,number>{
  const totals={} as Record<Material|Gear,number>;
- for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore'] as Material[])
+ for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'] as Material[])
   totals[material]=Object.values(v.rewards).filter(m=>m===material).length;
  for(const gear of Object.keys(RECIPES) as Gear[]){
   const n=v[COUNTERS[gear]]??0;
@@ -100,7 +100,7 @@ export function readInventory(raw:string|null):Inventory {
   if(!saved||typeof saved!=='object'||!saved.rewards||typeof saved.rewards!=='object'||Array.isArray(saved.rewards))return emptyInventory();
   const result=emptyInventory();
   for(const [receipt,material] of Object.entries(saved.rewards))
-   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore'].includes(String(material)))
+   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'].includes(String(material)))
     Object.defineProperty(result.rewards,receipt,{value:material,enumerable:true,writable:true,configurable:true});
   // Allocation order keeps existing crafted items before new recipes, avoiding negative material balances.
   for(const gear of Object.keys(RECIPES) as Gear[]){
@@ -134,6 +134,6 @@ export function equip(v:Inventory,slot:EquipmentSlot,gear:Gear|null){
 }
 export function equipWeapon(v:Inventory,weapon:Weapon){return equip(v,'weapon',weapon)}
 export function inventoryView(v:Inventory){const counts=countInventory(v);return{
- materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore'] as const).map(id=>({id,count:counts[id]})),
+ materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'] as const).map(id=>({id,count:counts[id]})),
  gear:(Object.keys(GEAR_SLOTS) as Gear[]).filter(id=>counts[id]>0).map(id=>({id,count:counts[id],slot:GEAR_SLOTS[id],equipped:v[GEAR_SLOTS[id]]===id}))
 }}

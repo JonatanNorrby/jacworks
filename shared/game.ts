@@ -50,6 +50,18 @@ export class Game {
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();healingTotals=new Map<string,number>();
   recordDamage(source:string|undefined,amount:number){if(source&&amount>0&&this.phase==='fight')this.damageTotals.set(source,(this.damageTotals.get(source)??0)+amount);}
   heal(target:PlayerState,amount:number,source?:string){if(!target.alive||amount<=0)return 0;const before=target.hp;target.hp=Math.min(target.maxHp,target.hp+amount);const restored=target.hp-before;if(source&&restored>0&&this.phase==='fight')this.healingTotals.set(source,(this.healingTotals.get(source)??0)+restored);return restored;}
+  burstTotem(t:import('./protocol').TotemState,now:number){
+    const owner=this.players.get(t.owner);
+    if(!owner?.alive)return;
+    const expired=now>=t.expires,broken=t.hp<=0;
+    if(!(expired||broken)||!hasTalent(owner.talents,'shaman','partingGift')||!(expired||hasTalent(owner.talents,'shaman','violentFarewell')))return;
+    if(this.phase==='fight')this.area(t.pos,3,30,t.owner);
+    else if(this.phase==='lobby')for(const dummy of this.trainingDummies)if(dummy.hp>0&&distance(dummy.pos,t.pos)<=3){
+      dummy.hp=Math.max(0,dummy.hp-30);
+      if(dummy.hp===0)dummy.respawnAt=now+5000;
+    }
+    this.emit({type:'abilityFx',skill:'pulseNova',playerId:t.owner,from:{...t.pos},to:{...t.pos}});
+  }
   hubNpc=new TrufflePatrol();
   balls=new BallEncounter(this);
   players=new Map<string,PlayerState>();
@@ -263,6 +275,7 @@ export class Game {
     if(this.phase==='lobby') {
       for(const d of this.trainingDummies)if(d.hp<=0&&now>=d.respawnAt)d.hp=d.maxHp;
       for(const p of this.players.values())this.recharge(p,now);
+      for(const t of this.totems)this.burstTotem(t,now);
       this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&this.players.has(t.owner));
       for(const t of this.totems)if(t.kind==='healingTotem'&&now>=t.next){const owner=this.players.get(t.owner);const radius=owner?.offhand==='verdantMenderTotem'?2:4;const amount=owner?.offhand==='verdantMenderTotem'?16:8;for(const p of this.players.values())if(p.alive&&distance(p.pos,t.pos)<=radius)this.heal(p,amount,t.owner);t.next=now+1000;}
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;

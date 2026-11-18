@@ -3,7 +3,7 @@ import type {ClassId} from './classes';
 
 export const SPOREBOUND_BONUS={poisonCloudDamage:8,poisonCloudRadius:1.5,poisonCloudTicks:3,range:7,healPerTick:16,healRange:2} as const;
 export const SPOREFANG_BONUS={aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5} as const;
-export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:15,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
+export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:18,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
 export type Material='chaosSigil'|'antChitin'|'largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
 export const RECIPES={
  redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},
@@ -43,7 +43,7 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  fleetfootBoots:'15% faster movement',
  mirewalkerBoots:'25% reduced poison cloud damage',
  sunlitReliquary:'Targeted Heal restores 55 HP instead of 40',
- venomFang:'Poison Enchant deals 15 damage per tick but applies half as many ticks (2 instead of 4)',
+ venomFang:'Poison Enchant deals 18 damage per tick but applies half as many ticks (2 instead of 4)',
  bulwarkCrest:'Bulwark lasts 8 seconds and increases damage reduction from 50% to 65%',
  nightshadeHood:'Rogue head: doubles Poison Enchant tick count (stacks with Venom Fang)',
  shadowHat:'Priest head: Targeted Heal damages bosses instead of healing allies',

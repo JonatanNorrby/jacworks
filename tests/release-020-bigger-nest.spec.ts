@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {NETWORK_VERSION} from '../shared/protocol';
 import {emptyInventory,type Inventory} from '../shared/inventory';
 
 test('v0.1.10: Royal equipment appears in distinct Wardrobe slots and legacy offhand migrates',async({page,baseURL})=>{
@@ -67,7 +68,7 @@ test('v0.1.10: larger Nest fight and nine-node talent branches synchronize over 
  await page.getByRole('button',{name:'Propose encounter'}).click();
  await page.getByRole('button',{name:'Accept'}).click();
  await expect(page.locator('#boss-label')).toContainText('ANT QUEEN',{timeout:15000});
- await expect.poll(()=>cave.some(p=>p.version==='0.1.11'&&p.queenZ===10.5&&p.playerZ===-10.5&&Math.abs(p.workerX)>10),
+ await expect.poll(()=>cave.some(p=>p.version===NETWORK_VERSION&&p.queenZ===10.5&&p.playerZ===-10.5&&Math.abs(p.workerX)>10),
  {timeout:10000}).toBeTruthy();
  expect(errors).toEqual([]);
 });

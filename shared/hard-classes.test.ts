@@ -24,17 +24,17 @@ test('Heroic Shield movement and Dash never tunnel through hard pillars',()=>{
 test('Vanish lasts exactly four seconds, swaps its actual slot, excludes enemy targeting and restores',()=>{
  const {g,p,use}=room('rogue');p.pos={x:7,z:0};use('vanish');assert.equal(p.invisibleUntil,4200);assert.equal(p.loadout[1],'backstab');assert.equal(p.cooldowns[1],8200);
  g.schedule(300);assert.equal(g.telegraphs.length,0);const a=g.add('a');a.pos={x:-7,z:0};g.schedule(400);assert.deepEqual(g.telegraphs[0].pos,a.pos);
- g.tick(4199);assert.equal(p.loadout[1],'backstab');g.tick(4200);assert.equal(p.loadout[1],'vanish');use('vanish',4300);assert.equal(p.invisibleUntil,4200);
+ g.tick(4199);assert.equal(p.loadout[1],'backstab');g.tick(4200);assert.equal(p.loadout[1],'vanish');use('vanish',4300);assert.equal(p.invisibleUntil,0);
 });
 test('invisible rogue is ignored by pursuing cone and adds but still takes area damage',()=>{
  const {g,p,use}=room('rogue');g.boss.id='greenCone';use('vanish');g.adds=[{id:'add',pos:{...p.pos},hp:54,maxHp:54,attackAt:0}];g.tick(300);assert.equal(p.hp,100);assert.deepEqual(g.boss.pos,{x:0,z:0});g.hurt(p,400);assert.equal(p.hp,52);
 });
 test('Backstab rear bonus, front fallback, restored Vanish and retained cooldown',()=>{
- const {g,p,use}=room('rogue');const a=g.add('a');a.pos={x:0,z:-2};use('vanish');use('backstab',300);assert.equal(g.boss.hp,1720);assert.equal(p.invisibleUntil,0);assert.equal(p.loadout[1],'vanish');assert.equal(p.cooldowns[1],8200);
- p.cooldowns[1]=0;a.pos={x:0,z:1.8};use('vanish',400);use('backstab',500);assert.equal(g.boss.hp,1696);
+ const {g,p,use}=room('rogue');const a=g.add('a');a.pos={x:0,z:-2};use('vanish');use('backstab',300);assert.equal(g.boss.hp,1690);assert.equal(p.invisibleUntil,0);assert.equal(p.loadout[1],'vanish');assert.equal(p.cooldowns[1],8200);
+ p.cooldowns[1]=0;a.pos={x:0,z:1.8};use('vanish',400);use('backstab',500);assert.equal(g.boss.hp,1648);
 });
 test('Poison Enchant affects successful stabs only and ticks four times authoritatively',()=>{
- const {g,p,use}=room('rogue');use('poisonEnchant');p.facing={x:0,z:1};use('quickStab');assert.equal(g.effects.length,0);p.facing={x:0,z:-1};use('quickStab',800);assert.equal(g.boss.hp,1776);g.tick(1799);assert.equal(g.boss.hp,1776);g.tick(4800);assert.equal(g.boss.hp,1752);assert.equal(g.effects.length,0);
+ const {g,p,use}=room('rogue');use('poisonEnchant');p.facing={x:0,z:1};use('quickStab');assert.equal(g.effects.length,0);p.facing={x:0,z:-1};use('quickStab',800);assert.equal(g.boss.hp,1768);g.tick(1799);assert.equal(g.boss.hp,1768);g.tick(4800);assert.equal(g.boss.hp,1736);assert.equal(g.effects.length,0);
  p.cooldowns[0]=0;use('quickStab',6200);assert.equal(g.effects.length,0);
 });
 test('buffs, shields and skill swap clean up on death, retry, victory and disconnect',()=>{

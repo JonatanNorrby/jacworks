@@ -66,7 +66,7 @@ test('boss marks and areas destroy totems, adds can select and destroy nearby to
  g.adds=[{id:'add',pos:{x:7,z:.8},hp:54,maxHp:54,attackAt:1900}];g.tick(1950);assert.equal(heal.hp,0);
 });
 test('Backstab descriptions disclose exact damage, rear rule and poison bonus used by server',()=>{
- for(const skill of ['vanish','backstab'] as const){assert.ok(SKILLS[skill].description.includes(String(BACKSTAB.normal)));assert.ok(SKILLS[skill].description.includes(String(BACKSTAB.rear)));assert.match(SKILLS[skill].description,/solo invisible/);assert.match(SKILLS[skill].description,/four 6-damage/);}
+ for(const skill of ['vanish','backstab'] as const){assert.ok(SKILLS[skill].description.includes(String(BACKSTAB.normal)));assert.ok(SKILLS[skill].description.includes(String(BACKSTAB.rear)));assert.match(SKILLS[skill].description,/solo invisible/);assert.match(SKILLS[skill].description,/four 8-damage/);}
 });
 
 test('wide beam cannot hit around a pillar after its visual centre ray stops',()=>{

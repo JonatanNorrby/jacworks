@@ -200,3 +200,12 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 .talent-node{width:min(390px,100%);min-height:115px;border:2px solid #8cbd6b;border-radius:14px;background:linear-gradient(150deg,rgba(38,91,53,.8),rgba(12,39,30,.9));padding:1rem;display:grid;gap:.35rem;text-align:center}
 .talent-rank{font-size:.82rem;color:#b1f4aa}
 .talent-node p,.talent-note{margin:.1rem 0;color:#e0efdd}
+
+/* Earned talent ranks: locked nodes visibly grey out, points may be redistributed freely. */
+.talent-points{font-size:.9rem;font-weight:700;color:#c9e9aa}
+.talent-node.locked{border-color:#656d72;background:linear-gradient(150deg,rgba(50,54,59,.82),rgba(25,28,33,.92))}
+.talent-node.locked .talent-rank{color:#b6b8c0}
+.talent-node.unlocked{border-color:#88d891;box-shadow:0 0 12px #69c47c44}
+.talent-node small{color:#cbd5d8}
+.talent-node button:disabled{opacity:.5;cursor:not-allowed}
+.talent-controls{display:flex;justify-content:center;margin-top:.8rem}

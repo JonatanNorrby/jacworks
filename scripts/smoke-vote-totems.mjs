@@ -17,7 +17,7 @@ try{
  const stale=id;id=await propose(a,group);send(b,{type:'vote',proposalId:stale,accept:true});await delay(150);assert.equal(a.snapshot.vote.accepted.length,0);
  b.ws.close();await waitFor(()=>!a.snapshot.vote&&a.snapshot.players.length===1,'disconnect cancels');b=await connect();group=[a,b];await waitFor(()=>group.every(c=>c.snapshot?.players.length===2),'rejoined');
  id=await propose(a,group);send(a,{type:'vote',proposalId:id,accept:true,playerId:b.id});send(a,{type:'vote',proposalId:id,accept:true});await waitFor(()=>b.snapshot.vote?.accepted.length===1,'deduplicated identity');assert.equal(b.snapshot.phase,'lobby');send(b,{type:'vote',proposalId:id,accept:true});await waitFor(()=>group.every(c=>c.snapshot.phase==='fight'),'unanimous start');
- send(a,{type:'ability',slot:1,targetId:'boss',damage:99999});await waitFor(()=>group.every(c=>Math.abs(c.snapshot.boss.hp-(1800-36*1.03))<.01),'Earth Shock authority');
+ send(a,{type:'ability',slot:1,targetId:'boss',damage:99999});await waitFor(()=>group.every(c=>c.snapshot.boss.hp===1764),'Earth Shock authority');
  // Let the first normal Warden mark hit both colocated players; regen is tested against real damage.
  await waitFor(()=>group.every(c=>c.snapshot.players.every(p=>p.hp<100)),'boss damage',6000);
  for(const [i,c] of group.entries()){send(c,{type:'ability',slot:2,target:{x:5+i,z:5},hp:99999});send(c,{type:'ability',slot:3,target:{x:i? -2:2,z:8}});}

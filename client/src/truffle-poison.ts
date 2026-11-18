@@ -7,7 +7,7 @@ export function createTrufflePoisonVisuals(scene:Scene){
  const banner=document.createElement('div');banner.id='poison-status';banner.setAttribute('role','status');banner.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);padding:10px 18px;background:#24102feb;color:#f3caff;border:2px solid #db65ff;border-radius:8px;pointer-events:none;font:bold 18px sans-serif;z-index:15';banner.hidden=true;document.body.append(banner);
  function clear(){for(const mesh of meshes.values())mesh.dispose();meshes.clear();banner.hidden=true;banner.textContent='';}
  return {clear,sync(state:Snapshot|undefined,visible:boolean,myId:string,now:number){
-  if(!visible||!state||state.phase!=='fight'||state.boss.id!=='greenCone'&&state.boss.id!=='hardGreenCone'){clear();return;}
+  if(!visible||!state||state.phase!=='fight'||state.boss.id!=='greenCone'&&state.boss.id!=='hardGreenCone'&&state.boss.id!=='duoTruffleFracturer'){clear();return;}
   const ids=new Set<string>();const marks=state.poisonMarks?.length?state.poisonMarks:state.poisonMark?[state.poisonMark]:[];const mark=marks[0];
   if(mark&&now<mark.detonatesAt){
    const player=state.players.find(p=>p.id===mark.playerId&&p.alive);

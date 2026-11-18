@@ -1,4 +1,4 @@
-export const NETWORK_VERSION='0.1.2';
+export const NETWORK_VERSION='0.1.3';
 export const HARD_PILLARS=[{x:-4,z:0},{x:4,z:0}];
 export type Vec2={x:number;z:number};
 export const BACKSTAB={normal:24,rear:80,poisonTick:6,poisonTicks:4};
@@ -16,11 +16,11 @@ export function baseLoadout(v:unknown):Loadout {
 export function encounterLoadout(base:Loadout,weapon:Weapon):Loadout{return base.map(x=>x==='arcBolt'&&weapon==='primitiveWand'?'arcSpear':x) as Loadout}
 export type Weapon='primitiveWand'|null;
 export type CastState={skill:SkillId;slot:number;endsAt:number;target:Vec2;targetId?:string;nextTick?:number};
-export type PlayerState={id:string;name:string;classId:import("./classes").ClassId;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;bulwarkUntil:number;invisibleUntil:number;poisonUntil:number;shield:number;shieldUntil:number;armour:'redtubeArmour'|null;cast?:CastState;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:'pointyOrb'|'sporeboundTotem'|'sporefangQuiver'|null;boots:'fleetfootBoots'|'mirewalkerBoots'|null;dashCharges:number;dashRechargeAt:number};
+export type PlayerState={id:string;name:string;classId:import("./classes").ClassId;pos:Vec2;facing:Vec2;hp:number;maxHp:number;alive:boolean;guardUntil:number;bulwarkUntil:number;invisibleUntil:number;poisonUntil:number;shield:number;shieldUntil:number;armour:'redtubeArmour'|null;cast?:CastState;cooldowns:number[];loadout:Loadout;weapon:Weapon;head:'pointyHat'|null;offhand:import('./inventory').Inventory['offhand'];boots:'fleetfootBoots'|'mirewalkerBoots'|null;dashCharges:number;dashRechargeAt:number};
 export type Telegraph={id:string;kind:"circle"|"line";pos:Vec2;radius?:number;direction?:Vec2;width?:number;length?:number;resolvesAt:number;ownerId?:string;sweep?:boolean};
-export type BossId="warden"|"hardWarden"|"hardYellowBall"|"yellowBall"|"greenCone"|"hardGreenCone"|"fracturer";
-export const ITEMS={largeSphere:"Large Sphere",largeCylinder:"Large Cylinder",redtubeArmour:"Redtube Armour",cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb",hardTruffleSpore:"Corrupted Truffle Spore",sporeboundTotem:"Sporebound Totem",sporefangQuiver:"Sporefang Quiver",fleetfootBoots:"Fleetfoot Boots",mirewalkerBoots:"Mirewalker Boots"} as const;
-export type AddState={id:string;pos:Vec2;hp:number;maxHp:number;attackAt:number;kind?:"ball";generation?:number;radius?:number;height?:number};
+export type BossId="warden"|"hardWarden"|"hardYellowBall"|"yellowBall"|"greenCone"|"hardGreenCone"|"fracturer"|"duoYellowWarden"|"duoTruffleFracturer";
+export const ITEMS={largeSphere:"Large Sphere",largeCylinder:"Large Cylinder",redtubeArmour:"Redtube Armour",cylinderTube:"Cylinder Tube",sphericalBall:"Spherical Ball",primitiveWand:"Primitive Wand",conicalTaper:"Conical Taper",pointyHat:"Pointy Hat",pointyOrb:"Pointy Orb",hardTruffleSpore:"Corrupted Truffle Spore",sporeboundTotem:"Sporebound Fire Totem",verdantMenderTotem:"Verdant Mender Totem",sporefangQuiver:"Sporefang Quiver",sporestormQuiver:"Sporestorm Quiver",splitthornQuiver:"Splitthorn Quiver",fleetfootBoots:"Fleetfoot Boots",mirewalkerBoots:"Mirewalker Boots",sunlitReliquary:"Sunlit Reliquary",venomFang:"Venom Fang",bulwarkCrest:"Bulwark Crest"} as const;
+export type AddState={id:string;pos:Vec2;hp:number;maxHp:number;attackAt:number;kind?:"ball"|"duoBoss";bossId?:BossId;generation?:number;radius?:number;height?:number};
 export type CombatEffect={id:string;owner:string;skill:SkillId;pos:Vec2;targetId?:string;from?:Vec2;next:number;remaining:number;expires:number};
 export type TotemState={id:string;owner:string;kind:'fireTotem'|'healingTotem';pos:Vec2;hp:number;next:number;expires:number};
 export type EncounterVote={id:string;boss:BossId;expires:number;voters:string[];accepted:string[]};
@@ -28,9 +28,10 @@ export type PoisonMark={playerId:string;markedAt:number;detonatesAt:number};
 export type PoisonCloud={id:string;pos:Vec2;spawnedAt:number;activeAt:number;expiresAt:number;nextTickAt:number;radius:number};
 export type DamageEntry={playerId:string;damage:number};
 export type DamageMeter={startedAt:number;elapsedMs:number;entries:DamageEntry[]};
+export type HealingMeter={startedAt:number;elapsedMs:number;entries:{playerId:string;healing:number}[]};
 export type ArenaCut={quadrant:number;warnAt:number;collapseAt:number};
 export type TrainingDummy={id:string;pos:Vec2;hp:number;maxHp:number;respawnAt:number};
-export type Snapshot={type:"snapshot";serverVersion?:string;trainingDummies?:TrainingDummy[];arenaCuts?:ArenaCut[];supportedBosses?:BossId[];damageMeter?:DamageMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonMarks?:PoisonMark[];poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
+export type Snapshot={type:"snapshot";serverVersion?:string;trainingDummies?:TrainingDummy[];arenaCuts?:ArenaCut[];supportedBosses?:BossId[];damageMeter?:DamageMeter;healingMeter?:HealingMeter;now:number;phase:"lobby"|"fight"|"won"|"wiped";players:PlayerState[];boss:{id:BossId;hp:number;maxHp:number;pos:Vec2;height:number;heading?:number;stride?:number;walking?:boolean;smash?:{startedAt:number;impactAt:number;recoverAt:number;impacted?:boolean}};reward?:{id:string;material:"largeSphere"|"largeCylinder"|"cylinderTube"|"sphericalBall"|"conicalTaper"|"hardTruffleSpore";players:string[]};poisonMark?:PoisonMark;poisonMarks?:PoisonMark[];poisonClouds?:PoisonCloud[];adds:AddState[];telegraphs:Telegraph[];readyCount:number;hubNpc?:import("./truffle").HubNpc;vote?:EncounterVote;totems:TotemState[];effects:CombatEffect[]};
 export type ChatMessage={type:"chat";senderId:string|null;name:string;text:string};
 export const CHAT_MAX_LENGTH=240;
 export const CHAT_INTERVAL_MS=1000;

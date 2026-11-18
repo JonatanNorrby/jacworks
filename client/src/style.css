@@ -235,3 +235,22 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 .talent-tree-graph .talent-node.locked{opacity:.72}
 .talent-tree-graph .talent-node.unlocked{border-color:#8cebb1}
 .talent-note{text-align:center;font-size:.84rem;max-width:740px;margin:12px auto}
+
+/* v0.1.7: editable, conflict-safe keyboard shortcuts in Options */
+#options-panel{box-sizing:border-box;width:min(590px,calc(100vw - 24px));max-height:min(88dvh,800px);overflow-y:auto;overscroll-behavior:contain}
+#keybindings{margin-top:18px;border-top:1px solid #78b4c744;padding-top:12px}
+#keybindings h3{margin:3px 0 8px;font:700 19px Georgia,serif;color:#d5effa}
+#keybindings>p{margin:8px 0 14px;color:#b9cbd4;font-size:12px;line-height:1.5}
+#keybinding-feedback{min-height:34px;color:#bce5ad!important}
+.keybinding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.keybinding-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:#202a37;border:1px solid #6189a35c;border-radius:9px;min-width:0}
+.keybinding-row>span{font-size:12px;color:#e3e9ec;line-height:1.2}
+#options-panel .keybinding-button{flex-shrink:0;min-width:76px;max-width:150px;margin:0;padding:7px 9px;font-size:12px;font-weight:800;background:#243d52;color:#f7f9fc;border:1px solid #79b6d0}
+#options-panel .keybinding-button[aria-pressed="true"]{background:#506032;border-color:#e8df8b;box-shadow:0 0 0 2px #e8df8b33}
+#options-panel #reset-keybindings{margin:14px 0 4px;background:#463632;border-color:#cf9f83}
+#options-panel button:focus-visible{outline:3px solid #e8df8b;outline-offset:2px}
+@media(max-width:560px){
+ .keybinding-grid{grid-template-columns:1fr}
+ #options-panel{padding:16px}
+ .keybinding-row{padding:6px 9px}
+}

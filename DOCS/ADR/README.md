@@ -26,6 +26,7 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 
 | [0012](0012-connected-development-labs.md) | Accepted | Connected development Labs and consolidation |
 | [0013](0013-branching-talents-and-duo-gear.md) | Accepted for prototype | Class talent branches and dual-encounter skill mutation gear |
+| [0014](0014-browser-local-rebindable-controls.md) | Accepted for prototype | Safe and persistent configurable keyboard controls |
 
 ## Workflow
 

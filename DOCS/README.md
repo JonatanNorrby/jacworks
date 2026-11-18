@@ -26,6 +26,7 @@ See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI c
 ## Consolidation and releases
 
 - [Connected Labs decision](ADR/0012-connected-development-labs.md)
+- [0.1.7 configurable keyboard controls](RELEASE_0_1_7.md)
 - [0.1.6 talent trees, new gear and source-library provenance](RELEASE_0_1_6.md)
 - [Version and release rules](RELEASE_RULES.md)
 - [Historical branch audit](BRANCH_CONSOLIDATION_AUDIT.md)

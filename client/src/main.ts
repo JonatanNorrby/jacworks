@@ -1,4 +1,6 @@
 import {createRoomChat} from './roomChat';
+import {createKeybindingEditor} from './keybindingEditor';
+import {BINDING_STORAGE_KEY,BINDING_ACTIONS,displayKey,parseBindings,normalizeBinding,pressedBindingKey,type BindingAction} from '../../shared/keybindings';
 import {createTalentTree} from './talentTree';
 import {emptyTalents,readTalents} from '../../shared/talents';
 import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../shared/boss-layout';
@@ -35,6 +37,7 @@ declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
+canvas.tabIndex=0;
 const engine = new Engine(canvas, true);
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.025, 0.03, 0.04, 1);
@@ -43,17 +46,30 @@ const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.65, 31, new Vector3
 camera.attachControl(canvas, true);
 camera.inputs.clear();
 let preferences=loadCamera(localStorage),optionsOpen=false;
+let bindings=parseBindings(localStorage.getItem(BINDING_STORAGE_KEY));
 const optionsButton=document.createElement('button');optionsButton.id='options-button';optionsButton.textContent='Options';document.body.append(optionsButton);
 const optionsPanel=document.createElement('section');optionsPanel.id='options-panel';optionsPanel.className='hidden';optionsPanel.setAttribute('aria-label','Options');
 optionsPanel.innerHTML='<h2>Options</h2><label><input id="camera-follow" type="checkbox"> Follow Player</label><label for="camera-zoom">Camera zoom (farther)</label><input id="camera-zoom" type="range" min="29" max="40" step="1"><output></output><p>Gentle tracking keeps the arena in view.</p><p id="game-version" aria-label="Game version"></p><button>Close</button>';document.body.append(optionsPanel);
 optionsPanel.querySelector<HTMLElement>('#game-version')!.textContent='Version '+__GAME_VERSION__;
 const follow=optionsPanel.querySelector<HTMLInputElement>('#camera-follow')!,zoom=optionsPanel.querySelector<HTMLInputElement>('#camera-zoom')!;
 function refreshOptions(){follow.checked=preferences.followPlayer;zoom.value=String(preferences.zoom);optionsPanel.querySelector('output')!.textContent=zoom.value}
-function closeOptions(){optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();optionsButton.focus()}
+function closeOptions(){keybindingEditor.cancel();optionsOpen=false;optionsPanel.classList.add('hidden');keys.clear();canvas.focus()}
 optionsButton.onclick=()=>{closeHubPanel();if(trainerOpen)closeTrainer(false);optionsOpen=true;keys.clear();refreshOptions();optionsPanel.classList.remove('hidden');follow.focus()};
 optionsPanel.querySelector('button')!.onclick=closeOptions;
 const creditsButton=document.createElement('button');creditsButton.type='button';creditsButton.textContent='Credits';creditsButton.setAttribute('aria-haspopup','dialog');optionsPanel.insertBefore(creditsButton,optionsPanel.querySelector('button'));
 createCreditsDialog(creditsButton);
+const keybindingEditor=createKeybindingEditor(optionsPanel,bindings,next=>{
+ bindings=next;localStorage.setItem(BINDING_STORAGE_KEY,JSON.stringify(bindings));keys.clear();
+ renderAbilityBar();roomChat.refreshHint();refreshInputHints();
+});
+function refreshInputHints(){
+ const interact=displayKey(bindings.interact),movement=[bindings.forward,bindings.left,bindings.back,bindings.right].map(displayKey).join('/');
+ document.querySelector<HTMLElement>('#instructions')!.textContent=movement+' move · '+interact+' interact';
+ document.querySelector<HTMLElement>('#encounter-instructions')!.textContent=movement+' move · '+displayKey(bindings.propose)+' propose retry · '+displayKey(bindings.hub)+' return to hub';
+ for(const selector of ['#hub-card .panel-copy','#trainer-prompt']){
+  const el=document.querySelector<HTMLElement>(selector),button=el?.querySelector('kbd');if(button)button.textContent=interact;
+ }
+}
 function changeCamera(){preferences=readCamera(JSON.stringify({followPlayer:follow.checked,zoom:Number(zoom.value)}));saveCamera(localStorage,preferences);refreshOptions()}
 follow.onchange=changeCamera;zoom.oninput=changeCamera;refreshOptions();
 
@@ -167,7 +183,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }
 renderInventory();
-addEventListener('storage',e=>{if(e.key==='jacworks-camera-v1'){preferences=readCamera(e.newValue);refreshOptions()}if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
+addEventListener('storage',e=>{if(e.key===BINDING_STORAGE_KEY){bindings=parseBindings(e.newValue);keys.clear();keybindingEditor.sync(bindings);renderAbilityBar();roomChat.refreshHint();refreshInputHints()}if(e.key==='jacworks-camera-v1'){preferences=readCamera(e.newValue);refreshOptions()}if(e.key===inventoryKey){inventory=readInventory(e.newValue);renderInventory();syncGear(hubPlayer,inventory);if(hubPanelOpen)closeHubPanel()}});
 function renderSkills(){
   const chooser=document.createElement('select');chooser.setAttribute('aria-label','Class');
   for(const [id,c] of Object.entries(CLASS_DEFINITIONS)){const o=document.createElement('option');o.value=id;o.textContent=c.name;o.selected=id===draftClass;chooser.append(o)}
@@ -198,7 +214,12 @@ function closeTrainer(save:boolean){
 document.querySelector("#close-skills")!.addEventListener("click",()=>closeTrainer(false));
 document.querySelector("#save-skills")!.addEventListener("click",()=>closeTrainer(true));
 function openTrainer(){draftClass=selectedClass;draft=[...loadout];trainerOpen=true;keys.clear();renderSkills();skillPanel.classList.remove("hidden")}
-function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description;el.title=skill.name+': '+skill.description})}
+function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{
+ const skill=SKILLS[active[i]],key=displayKey(bindings[('ability'+(i+1)) as BindingAction]);
+ el.querySelector<HTMLElement>('kbd')!.textContent=key;
+ el.querySelector('strong')!.textContent=skill.name;el.querySelector('small')!.textContent=skill.description;
+ el.title=key+' · '+skill.name+': '+skill.description;
+})}
 renderAbilityBar();
 const classButton=document.createElement('button');classButton.textContent='Choose class';classButton.onclick=openTrainer;document.querySelector('#hub-card')!.append(classButton);
 const treeButton=document.createElement('button');treeButton.textContent='Talent Tree';treeButton.onclick=()=>{keys.clear();talentTree.open(selectedClass)};document.querySelector('#hub-card')!.append(treeButton);
@@ -207,7 +228,8 @@ const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
 
 const keys = new Set<string>();
-const roomChat=createRoomChat(payload=>send(payload),()=>{keys.clear();send({type:'input',seq:seq++,move:{x:0,z:0}})});
+const roomChat=createRoomChat(payload=>send(payload),()=>{keys.clear();send({type:'input',seq:seq++,move:{x:0,z:0}})},()=>bindings.chat);
+refreshInputHints();
 const playerMeshes = new Map<string, Mesh>();
 const addMeshes=new Map<string,Mesh>();
 const telegraphMeshes = new Map<string, Mesh>();
@@ -862,60 +884,62 @@ function send(payload: unknown) {
 }
 
 addEventListener("keydown", (event) => {
+  // Chat input always gets first refusal, but opening chat is disabled while a modal is open.
+  if(roomChat.isOpen()){roomChat.keydown(event);return;}
+  if(keybindingEditor.keydown(event))return;
+  const key=pressedBindingKey(event);
+  if(gameDevLabs.isOpen()){if(key==='escape')gameDevLabs.back();return;}
+  if(event.target instanceof HTMLElement&&(
+    event.target.isContentEditable||event.target.closest('input,select,textarea,button,a')
+  ))return;
+  if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
+  if(optionsOpen){if(key==='escape')closeOptions();return;}
+  if(talentTree.isOpen()){if(key==='escape')talentTree.close();return;}
+  if(hubPanelOpen){if(key==='escape')closeHubPanel();return;}
+  if(trainerOpen){if(key==='escape')closeTrainer(false);return;}
+  if(event.altKey||event.ctrlKey||event.metaKey)return;
   if(roomChat.keydown(event))return;
-  const key = event.key.toLowerCase();
-  if(gameDevLabs.isOpen()){
-    if(key==='escape')gameDevLabs.back();
+  if(BINDING_ACTIONS.some(action=>bindings[action]===key)){
+    event.preventDefault();
+    keys.add(key);
+  }
+  if(mode==='hub'&&key===bindings.interact&&!event.repeat&&Math.hypot(hubPlayer.position.x-9,hubPlayer.position.z-3)<=3){talentTree.open(selectedClass);keys.clear();return}
+  if(mode==='hub'&&key===bindings.interact&&!event.repeat&&Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6){openHubPanel('wardrobe');return}
+  if(mode==='hub'&&key===bindings.interact&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
+  if(mode==='hub'&&key===bindings.interact&&!event.repeat&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
+  if(mode==='hub'&&key===bindings.interact&&!event.repeat){const pedestal=nearbyBoss(hubPlayer.position);if(pedestal){selectedBoss=pedestal.id;openHubPanel('gate',true);return}}
+  const abilityIndex=([bindings.ability1,bindings.ability2,bindings.ability3,bindings.ability4] as string[]).indexOf(key);
+  if(mode==='hub'){
+    if(!event.repeat&&abilityIndex>=0){
+      const me=snapshot?.players.find(p=>p.id===myId);
+      const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8)
+        .sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
+      send({type:'practice',slot:abilityIndex+1,dummyId:dummy?.id??''});
+    }
     return;
   }
-  if(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement)return;
-  if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
-  if(optionsOpen){if(key==='escape')closeOptions();return}
-  if(talentTree.isOpen()){if(key==='escape')talentTree.close();return}
-  if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
-  if(trainerOpen){if(key==="escape")closeTrainer(false);return}
-  keys.add(key);
-  if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-9,hubPlayer.position.z-3)<=3){talentTree.open(selectedClass);keys.clear();return}
-  if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6){openHubPanel('wardrobe');return}
-  if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
-
-  if(mode==="hub"&&key==="e"&&Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6){openTrainer();return}
-  if(mode==='hub'&&key==='e'&&!event.repeat){const pedestal=nearbyBoss(hubPlayer.position);if(pedestal){selectedBoss=pedestal.id;openHubPanel('gate',true);return}}
-
-  if(mode==='hub'){
-   if(!event.repeat&&['1','2','3','4'].includes(key)){
-    const me=snapshot?.players.find(p=>p.id===myId);
-    const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8).sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
-    send({type:'practice',slot:Number(key),dummyId:dummy?.id??''});
-   }
-   return;
+  if(mode!=='encounter')return;
+  if(abilityIndex>=0&&!event.repeat){
+    const pick=scene.pick(scene.pointerX,scene.pointerY,m=>m===arenaGround);
+    const target=pick?.pickedPoint?{x:pick.pickedPoint.x,z:pick.pickedPoint.z}:undefined;
+    const me=snapshot?.players.find(p=>p.id===myId),skill=me?.loadout[abilityIndex];
+    const friendly=(skill==='targetedHeal'&&me?.head!=='shadowHat')||skill==='lightningShield'||skill==='heroicShield';
+    const ally=target?snapshot?.players.filter(p=>p.alive&&Math.hypot(p.pos.x-target.x,p.pos.z-target.z)<1.5)
+      .sort((a,b)=>Math.hypot(a.pos.x-target.x,a.pos.z-target.z)-Math.hypot(b.pos.x-target.x,b.pos.z-target.z))[0]:undefined;
+    send({type:'ability',slot:abilityIndex+1,target:friendly?undefined:target,targetId:friendly?(event.shiftKey?myId:ally?.id??myId):undefined});
   }
-  if (mode !== "encounter") return;
-
-  if (["1", "2", "3", "4"].includes(event.key)) {
-    if (!event.repeat) {
-      const pick=scene.pick(scene.pointerX,scene.pointerY,m=>m===arenaGround);
-      const target=pick?.pickedPoint?{x:pick.pickedPoint.x,z:pick.pickedPoint.z}:undefined;
-      const me=snapshot?.players.find(p=>p.id===myId),skill=me?.loadout[Number(event.key)-1];
-      const friendly=(skill==='targetedHeal'&&me?.head!=='shadowHat')||skill==='lightningShield'||skill==='heroicShield';
-      const ally=target?snapshot?.players.filter(p=>p.alive&&Math.hypot(p.pos.x-target.x,p.pos.z-target.z)<1.5).sort((a,b)=>Math.hypot(a.pos.x-target.x,a.pos.z-target.z)-Math.hypot(b.pos.x-target.x,b.pos.z-target.z))[0]:undefined;
-      send({type:'ability',slot:Number(event.key),target:friendly?undefined:target,targetId:friendly?(event.shiftKey?myId:ally?.id??myId):undefined});
-    }
-  }
-
-  if (key === 'r'&&!event.repeat)send({type:'propose',boss:snapshot?.boss.id??selectedBoss});
-  if (key === "h") returnToHub();
+  if(key===bindings.propose&&!event.repeat)send({type:'propose',boss:snapshot?.boss.id??selectedBoss});
+  if(key===bindings.hub&&!event.repeat)returnToHub();
 });
-
-addEventListener("keyup", (event) => keys.delete(event.key.toLowerCase()));
+addEventListener("keyup", (event) => keys.delete(normalizeBinding(event.key)));
 addEventListener("blur",()=>keys.clear());
 
 setInterval(() => {
   if (ws?.readyState !== WebSocket.OPEN) return;
 
-  const x = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0);
-  const z = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-  const blocked=roomChat.isOpen()||trainerOpen||hubPanelOpen||optionsOpen||gameDevLabs.isOpen()||!!snapshot?.vote;
+  const x = (keys.has(bindings.right) ? 1 : 0) - (keys.has(bindings.left) ? 1 : 0);
+  const z = (keys.has(bindings.forward) ? 1 : 0) - (keys.has(bindings.back) ? 1 : 0);
+  const blocked=roomChat.isOpen()||trainerOpen||hubPanelOpen||optionsOpen||talentTree.isOpen()||gameDevLabs.isOpen()||!!snapshot?.vote;
   send({ type: "input", seq: seq++, move: blocked?{x:0,z:0}:{ x, z } });
 }, 50);
 
@@ -923,10 +947,10 @@ function updateHub() {
   const nearTrainer=Math.hypot(hubPlayer.position.x+4.3,hubPlayer.position.z-3.5)<=2.6;
   trainerPrompt.classList.toggle("hidden",!nearTrainer);
   const pedestal=nearbyBoss(hubPlayer.position);
-  status.textContent=pedestal?pedestal.difficulty+' · '+pedestal.name+' · E to propose':nearTrainer?'Skill Trainer · press E':'Sanctum Hub · Normal west / Hard east / Double far east';
+  status.textContent=pedestal?pedestal.difficulty+' · '+pedestal.name+' · '+displayKey(bindings.interact)+' to propose':nearTrainer?'Skill Trainer · press '+displayKey(bindings.interact):'Sanctum Hub · Normal west / Hard east / Double far east';
 
-  if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press E';
-  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press E';
+  if(Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6)status.textContent='Crafter - press '+displayKey(bindings.interact);
+  if(Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6)status.textContent='Wardrobe - press '+displayKey(bindings.interact);
   status.textContent=CLASS_DEFINITIONS[selectedClass].name+' - '+status.textContent;
 
 }

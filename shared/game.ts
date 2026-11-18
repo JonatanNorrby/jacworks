@@ -198,7 +198,7 @@ export class Game {
       else if(skill==='guard')p.guardUntil=now+1600;
       else if(skill==='vanish')p.invisibleUntil=now+4000;
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
-      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:24,backstab:24,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:140,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
+      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:32,backstab:42,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:140,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
       let amount=damage[skill]??0;
       if(p.weapon==='sporefangQuiver'&&skill==='aimedShot')amount=100;
       if(p.armour==='sporestormQuiver'&&skill==='arrowRain')amount=105;
@@ -377,7 +377,14 @@ export class Game {
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
-  tickClassEffects(now:number){tickClassEffects.call(this,now)}
+  tickClassEffects(now:number){
+    // Vanish is a temporary skill swap, even if Backstab never connects.
+    for(const p of this.players.values())if(p.invisibleUntil>0&&p.invisibleUntil<=now){
+      p.invisibleUntil=0;
+      const slot=p.loadout.indexOf('backstab');if(slot>=0)p.loadout[slot]='vanish';
+    }
+    tickClassEffects.call(this,now);
+  }
   recharge(p:PlayerState,now:number) {
     const max=p.head==='pointyHat'?3:1;
     // Spending another charge never restarts the current sequential recharge.

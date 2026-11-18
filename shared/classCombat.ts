@@ -10,7 +10,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     const skill=p.loadout[slot-1];
     if(['stab','bulwark','heroicShield','quickStab','vanish','backstab','poisonEnchant'].includes(skill)){
       if(now<p.cooldowns[slot-1]&&skill!=='backstab')return true;
-      if(skill==='backstab'&&p.invisibleUntil<=now)return true;
+      if(skill==='backstab'&&p.invisibleUntil<=now){p.loadout[slot-1]='vanish';return true;}
       const from={...p.pos};let to={...p.pos};
       if(skill==='heroicShield'){
         const ally=targetId===undefined?p:this.players.get(String(targetId));if(!ally?.alive||distance(p.pos,ally.pos)>11)return true;
@@ -45,12 +45,14 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
         }
       }
       else {
-        for(const t of this.targets())if(this.visible(p.pos,t.pos)&&meleeHits(p.pos,p.facing,t.pos,2.8,.75)){
+        let landed=false;
+        for(const t of this.targets())if(this.visible(p.pos,t.pos)&&meleeHits(p.pos,p.facing,t.pos,3.2,.7)){
+          landed=true;
           // Boss faces its current target; rear attack requires opposite side of that facing.
           const victim=[...this.players.values()].filter(a=>a.alive&&a.invisibleUntil<=now).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
           const behind=!victim||((p.pos.x-t.pos.x)*(victim.pos.x-t.pos.x)+(p.pos.z-t.pos.z)*(victim.pos.z-t.pos.z))<0;
           const ambush=skill==='quickStab'&&p.invisibleUntil>now&&this.talented(p,'openingStrike');
-          const strike=skill==='stab'?32:skill==='quickStab'?24+(ambush?16:0):skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
+          const strike=skill==='stab'?32:skill==='quickStab'?32+(ambush?16:0):skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
           this.damageTarget(t.id,strike,p.id);
           if(skill==='stab'&&this.talented(p,'menacingStab'))this.addThreat(p.id,80);
           if(ambush){
@@ -84,7 +86,9 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
             }
           }
         }
-        if(skill==='backstab'){p.invisibleUntil=0;p.loadout[slot-1]='vanish';}
+        // A whiffed Backstab does not burn the Vanish window. It can be
+        // retried until contact or the original invisibility expiry.
+        if(skill==='backstab'&&landed){p.invisibleUntil=0;p.loadout[slot-1]='vanish';}
         to={x:p.pos.x+p.facing.x*2.8,z:p.pos.z+p.facing.z*2.8};
       }
       if(skill!=='backstab')p.cooldowns[slot-1]=now+SKILLS[skill].cooldown;

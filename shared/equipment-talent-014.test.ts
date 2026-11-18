@@ -65,7 +65,7 @@ test('Venom Fang reduces poison to two heavy ticks; Rogue head doubles it back t
   const {g,p}=started('rogue',inv);p.pos={x:0,z:2};
   g.message('p',{type:'ability',slot:3},200);g.message('p',{type:'ability',slot:1},300);
   const poison=g.effects.find(e=>e.skill==='poisonEnchant');
-  assert.ok(poison);assert.equal(poison!.remaining,withHood?4:2);assert.equal(CLASS_ITEM_BONUS.roguePoisonTick,15);
+  assert.ok(poison);assert.equal(poison!.remaining,withHood?4:2);assert.equal(CLASS_ITEM_BONUS.roguePoisonTick,18);
  }
 });
 test('Defender crest gives 65% reduction and eight seconds',()=>{

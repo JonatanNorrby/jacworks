@@ -43,7 +43,7 @@ test('Rogue stealth branch halves threat, shields Vanish and upgrades Quick Stab
  assert.equal(p.shield,8);
  g.message('p0',{type:'ability',slot:1},300);
  assert.equal(p.invisibleUntil,0);
- assert.ok(Math.abs(g.boss.hp-(1800-(100+40)*1.03))<1e-6);
+ assert.ok(Math.abs(g.boss.hp-(1800-(100+48)*1.03))<1e-6);
 });
 test('Warrior third branch gives Guard duration and allies defensive charge support',()=>{
  const {g,p}=fight('warrior');const friend=ally(g);

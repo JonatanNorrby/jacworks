@@ -199,7 +199,8 @@ export class Game {
   targets(){return [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0)}
   damageTarget(id:string,amount:number,source?:string){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
     const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
-    const floor=isBall(this)&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
+    const splitBall=isBall(this)||(this.boss.id==='duoYellowWarden'&&id!=='boss'&&((t as AddState).kind==='ball'||(t as AddState).bossId==='yellowBall'));
+    const floor=splitBall&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
     const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&hasTalent(this.players.get(source)?.talents,this.players.get(source)!.classId,'unyieldingForce')?1:0));this.recordDamage(source,previous-t.hp);
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
@@ -306,9 +307,10 @@ export class Game {
         if((this.boss.id==='fracturer'||this.boss.id==='duoTruffleFracturer')&&this.arenaCuts.some(c=>now>=c.collapseAt&&fractureQuadrant(p.pos)===c.quadrant))p.pos=old;
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
-      if(isBall(this))this.balls.tick(now);else if(this.boss.hp>0&&now>=this.next)this.schedule(now);
+      if(isBall(this)||this.boss.id==='duoYellowWarden')this.balls.tick(now);
+      if(!isBall(this)&&this.boss.hp>0&&now>=this.next)this.schedule(now);
       const partner=this.adds.find(a=>a.kind==='duoBoss'&&a.hp>0);
-      if(partner&&now>=this.nextDuoAt){const live=[...this.players.values()].filter(p=>p.alive);if(live.length){const target=live[this.mechanic%live.length];this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:partner.bossId==='yellowBall'?3.2:2.8,resolvesAt:now+1500});this.system((partner.bossId==='yellowBall'?'Yellow Ball':'Fracturer')+' prepares a blast!');}this.nextDuoAt=now+4700;}
+      if(partner&&partner.bossId!=='yellowBall'&&now>=this.nextDuoAt){const live=[...this.players.values()].filter(p=>p.alive);if(live.length){const target=live[this.mechanic%live.length];this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:partner.bossId==='yellowBall'?3.2:2.8,resolvesAt:now+1500});this.system((partner.bossId==='yellowBall'?'Yellow Ball':'Fracturer')+' prepares a blast!');}this.nextDuoAt=now+4700;}
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,p.boots==='mirewalkerBoots'?amount*.75:amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){
@@ -327,7 +329,7 @@ export class Game {
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.phase==='fight')this.meterElapsedMs=Math.max(0,now-this.meterStartedAt);
-      if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))&&!this.adds.some(a=>a.kind==='duoBoss'&&a.hp>0)) {
+      if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))&&!this.adds.some(a=>(a.kind==='duoBoss'||a.kind==='ball')&&a.hp>0)) {
         this.phase='won';this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
         this.bonusRewards=[];
         const newlyEarned=[...this.players.values()].filter(p=>awardTalentWin(p.talents??=emptyTalents(),this.boss.id)).map(p=>p.id);

@@ -1,4 +1,4 @@
-export const NETWORK_VERSION='0.1.6';
+export const NETWORK_VERSION='0.1.7';
 export const HARD_PILLARS=[{x:-4,z:0},{x:4,z:0}];
 export type Vec2={x:number;z:number};
 export const BACKSTAB={normal:24,rear:80,poisonTick:6,poisonTicks:4};

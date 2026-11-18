@@ -56,7 +56,7 @@ Current game direction being explored:
 
 ## First prototype
 
-Prototype 01 is defined in `DOCS/PROTOTYPE_01.md`. Keep early implementation focused on proving multiplayer boss combat, class/combat feel, readability, learning, coordination, and fast retry. Approved extensions include eight classes, multiple bosses, shared hub/votes, browser-local inventory/crafting, Truffle Man, connected Game Dev Labs, and the prototype 0.1.6 branching talents plus dual-boss mutation gear (ADR-0013); see the approved extensions in the scope document and ADRs 0008–0012. Authenticated progression, AI companions, PvP and lore remain outside this prototype. Proposed skill-mutation crafting is not accepted design.
+Prototype 01 is defined in `DOCS/PROTOTYPE_01.md`. Keep early implementation focused on proving multiplayer boss combat, class/combat feel, readability, learning, coordination, and fast retry. Approved extensions include eight classes, multiple bosses, shared hub/votes, browser-local inventory/crafting, Truffle Man, connected Game Dev Labs, the prototype 0.1.6 branching talents plus dual-boss mutation gear (ADR-0013), and browser-local rebindable controls (ADR-0014); see the approved extensions in the scope document and ADRs 0008–0012. Authenticated progression, AI companions, PvP and lore remain outside this prototype. Proposed skill-mutation crafting is not accepted design.
 
 ## Proposed infrastructure
 

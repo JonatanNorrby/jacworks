@@ -179,3 +179,11 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 .meter-tabs{display:flex;gap:.45rem;margin:.55rem 0}
 .meter-tabs button{flex:1;padding:.3rem .5rem}
 .dps-fill.healing{background:#57cc8d}
+
+/* Independent HP bars for simultaneous double-boss encounters */
+#duo-health[hidden]{display:none}
+#duo-health{display:grid;gap:.35rem;margin:.5rem 0;font-size:.75rem}
+.duo-health-row{display:grid;gap:.1rem}
+.duo-health-row span{font-variant-numeric:tabular-nums}
+.duo-health-track{height:7px;background:#322631;border-radius:4px;overflow:hidden}
+.duo-health-fill{height:100%;background:#b54b6a;transition:width .15s ease}

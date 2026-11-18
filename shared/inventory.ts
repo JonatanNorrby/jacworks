@@ -1,9 +1,9 @@
 import type {Snapshot,Weapon} from './protocol';
 import type {ClassId} from './classes';
 
-export const SPOREBOUND_BONUS={fireDamage:30,healPerTick:10} as const;
-export const SPOREFANG_BONUS={aimedShotDamage:70,arrowRainDamage:34,splitShotDamage:26} as const;
-export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:9,defenderBulwarkMs:8000} as const;
+export const SPOREBOUND_BONUS={poisonCloudDamage:8,poisonCloudRadius:1.5,poisonCloudTicks:3,range:7,healPerTick:16,healRange:2} as const;
+export const SPOREFANG_BONUS={aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5} as const;
+export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:15,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
 export type Material='largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore';
 export const RECIPES={
  redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},
@@ -15,24 +15,32 @@ export const RECIPES={
  fleetfootBoots:{largeSphere:1,sphericalBall:1},mirewalkerBoots:{conicalTaper:2,hardTruffleSpore:1},
  sunlitReliquary:{largeSphere:1,conicalTaper:1},
  venomFang:{conicalTaper:1,cylinderTube:1},
- bulwarkCrest:{largeCylinder:1,sphericalBall:1}
+ bulwarkCrest:{largeCylinder:1,sphericalBall:1},
+ nightshadeHood:{conicalTaper:2,hardTruffleSpore:1},
+ shadowHat:{largeSphere:1,conicalTaper:1},
+ emberWand:{cylinderTube:1,hardTruffleSpore:1},
+ cinderweaveArmour:{largeCylinder:2,sphericalBall:1}
 } as const;
 export type Gear=keyof typeof RECIPES;
 export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
- redtubeArmour:'5% less boss damage and wider Sword Slash',
- primitiveWand:'Arc Blast becomes Arc Spear',
+ redtubeArmour:'Warrior-only: 5% less boss damage and wider Sword Slash',
+ primitiveWand:'Lightning Mage-only: Arc Blast becomes Arc Spear',
  pointyHat:'Three sequential Dash charges',
- pointyOrb:'LAZOR burn and cooldown tradeoff',
- sporeboundTotem:'Fire Totem projectiles deal 30 damage instead of 24',
- verdantMenderTotem:'Healing Totem pulses restore 10 HP instead of 8',
- sporefangQuiver:'Aimed Shot deals 70 damage instead of 58',
- sporestormQuiver:'Arrow Rain waves deal 34 damage instead of 28',
- splitthornQuiver:'Split Shot arrows deal 26 damage instead of 22',
+ pointyOrb:'Fire Mage-only: LAZOR applies burn and adds 2s cooldown',
+ sporeboundTotem:'Fire Totem turns green, with a small poison cloud (1.5 radius, 8 damage per tick) and shorter 7-unit range',
+ verdantMenderTotem:'Healing Totem heals 16 HP per pulse but range is halved to 2 units',
+ sporefangQuiver:'Aimed Shot deals 100 damage but cast time doubles to 2 seconds',
+ sporestormQuiver:'Arrow Rain deals 35 damage per wave but has half the radius',
+ splitthornQuiver:'Split Shot fires five arrows instead of three, each dealing 16 instead of 22 damage',
  fleetfootBoots:'15% faster movement',
  mirewalkerBoots:'25% reduced poison cloud damage',
  sunlitReliquary:'Targeted Heal restores 55 HP instead of 40',
- venomFang:'Poison Enchant damage over time deals 9 per tick instead of 6',
- bulwarkCrest:'Bulwark lasts 8 seconds instead of 6'
+ venomFang:'Poison Enchant deals 15 damage per tick but applies half as many ticks (2 instead of 4)',
+ bulwarkCrest:'Bulwark lasts 8 seconds and increases damage reduction from 50% to 65%',
+ nightshadeHood:'Rogue head: doubles Poison Enchant tick count (stacks with Venom Fang)',
+ shadowHat:'Priest head: Targeted Heal damages bosses instead of healing allies',
+ emberWand:'Fire Mage weapon: Fireball deals half damage with half cast time',
+ cinderweaveArmour:'Fire Mage armour: Fireball launches three projectiles instead of one'
 };
 
 export type EquipmentSlot='weapon'|'head'|'offhand'|'armour'|'boots';
@@ -41,34 +49,38 @@ export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  sporeboundTotem:'offhand',verdantMenderTotem:'offhand',
  sporefangQuiver:'offhand',sporestormQuiver:'offhand',splitthornQuiver:'offhand',
  fleetfootBoots:'boots',mirewalkerBoots:'boots',
- sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand'
+ sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand',
+ nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour'
 };
 export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
- redtubeArmour:'all',primitiveWand:'all',pointyHat:'all',pointyOrb:'all',
+ redtubeArmour:'warrior',primitiveWand:'lightningMage',pointyHat:'all',pointyOrb:'fireMage',
  sporeboundTotem:'shaman',verdantMenderTotem:'shaman',
  sporefangQuiver:'ranger',sporestormQuiver:'ranger',splitthornQuiver:'ranger',
  fleetfootBoots:'all',mirewalkerBoots:'all',sunlitReliquary:'priest',
- venomFang:'rogue',bulwarkCrest:'defender'
+ venomFang:'rogue',bulwarkCrest:'defender',nightshadeHood:'rogue',shadowHat:'priest',emberWand:'fireMage',cinderweaveArmour:'fireMage'
 };
 const COUNTERS={
  redtubeArmour:'armours',primitiveWand:'crafted',pointyHat:'hats',pointyOrb:'orbs',
  sporeboundTotem:'sporeTotems',verdantMenderTotem:'menderTotems',
  sporefangQuiver:'sporeQuivers',sporestormQuiver:'stormQuivers',splitthornQuiver:'thornQuivers',
  fleetfootBoots:'fleetfootPairs',mirewalkerBoots:'mirewalkerPairs',
- sunlitReliquary:'reliquaries',venomFang:'venomFangs',bulwarkCrest:'bulwarkCrests'
+ sunlitReliquary:'reliquaries',venomFang:'venomFangs',bulwarkCrest:'bulwarkCrests',
+ nightshadeHood:'nightshadeHoods',shadowHat:'shadowHats',emberWand:'emberWands',cinderweaveArmour:'cinderweaveArmours'
 } as const;
 export type Inventory={
  rewards:Record<string,Material>;
  crafted:number;hats:number;orbs:number;armours:number;sporeTotems:number;sporeQuivers:number;
  fleetfootPairs:number;mirewalkerPairs:number;menderTotems:number;stormQuivers:number;thornQuivers:number;
  reliquaries:number;venomFangs:number;bulwarkCrests:number;
- armour:'redtubeArmour'|null;weapon:Weapon;head:'pointyHat'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
+ nightshadeHoods:number;shadowHats:number;emberWands:number;cinderweaveArmours:number;
+ armour:'redtubeArmour'|'cinderweaveArmour'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
  boots:'fleetfootBoots'|'mirewalkerBoots'|null;
 };
 export const emptyInventory=():Inventory=>({
  rewards:{},crafted:0,hats:0,orbs:0,armours:0,sporeTotems:0,sporeQuivers:0,
  fleetfootPairs:0,mirewalkerPairs:0,menderTotems:0,stormQuivers:0,thornQuivers:0,
  reliquaries:0,venomFangs:0,bulwarkCrests:0,
+ nightshadeHoods:0,shadowHats:0,emberWands:0,cinderweaveArmours:0,
  armour:null,weapon:null,head:null,offhand:null,boots:null
 });
 export function countInventory(v:Inventory):Record<Material|Gear,number>{

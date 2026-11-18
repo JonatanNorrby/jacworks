@@ -43,7 +43,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
   arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];
-  trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-5.8,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-5.8,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-5.8,z:2},hp:500,maxHp:500,respawnAt:0}];
+  trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-7,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-7,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-7,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();healingTotals=new Map<string,number>();
   recordDamage(source:string|undefined,amount:number){if(source&&amount>0&&this.phase==='fight')this.damageTotals.set(source,(this.damageTotals.get(source)??0)+amount);}
@@ -101,18 +101,30 @@ export class Game {
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
     }
-    if(v.type==='practice'&&this.phase==='lobby'&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4&&typeof v.dummyId==='string'){
-      const dummy=this.trainingDummies.find(d=>d.id===v.dummyId&&d.hp>0);
+    if(v.type==='practice'&&this.phase==='lobby'&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4){
       const slot=Number(v.slot)-1,skill=p.loadout[slot];
-      if(!dummy||!skill||!p.alive||distance(p.pos,dummy.pos)>8||now<p.cooldowns[slot])return;
-      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:24,backstab:24,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:100,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84};
+      if(!skill||!p.alive||now<p.cooldowns[slot])return;
+      const dummy=typeof v.dummyId==='string'?this.trainingDummies.find(d=>d.id===v.dummyId&&d.hp>0&&distance(p.pos,d.pos)<=8):undefined;
+      const from={...p.pos};
+      let to=dummy?{...dummy.pos}:{x:Math.max(-12,Math.min(12,p.pos.x+p.facing.x*3)),z:Math.max(-10,Math.min(10,p.pos.z+p.facing.z*3))};
+      if(skill==='dash'){p.pos=moveHubPlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.hubNpc.state.pos);to={...p.pos};}
+      else if(skill==='targetedHeal')this.heal(p,p.offhand==='sunlitReliquary'?55:40,p.id);
+      else if(skill==='pulseNova'||skill==='holyNova'||skill==='healingTotem'){
+        const heal=skill==='pulseNova'?18:skill==='holyNova'?25:p.offhand==='verdantMenderTotem'?10:8;
+        for(const ally of this.players.values())if(distance(ally.pos,p.pos)<=4.5)this.heal(ally,heal,p.id);
+      }else if(skill==='bulwark')p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?8000:6000);
+      else if(skill==='guard')p.guardUntil=now+1600;
+      else if(skill==='vanish')p.invisibleUntil=now+4000;
+      else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
+      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:24,backstab:24,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:100,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
       let amount=damage[skill]??0;
-      if(p.offhand==='sporefangQuiver')amount=skill==='aimedShot'?70:skill==='arrowRain'?102:skill==='splitShot'?78:amount;
-      if(!amount)return;
+      if(p.offhand==='sporefangQuiver'&&skill==='aimedShot')amount=70;
+      if(p.offhand==='sporestormQuiver'&&skill==='arrowRain')amount=102;
+      if(p.offhand==='splitthornQuiver'&&skill==='splitShot')amount=78;
+      if(p.offhand==='sporeboundTotem'&&skill==='fireTotem')amount=30;
+      if(dummy&&amount>0){dummy.hp=Math.max(0,dummy.hp-amount);if(dummy.hp===0)dummy.respawnAt=now+5000;}
       p.cooldowns[slot]=now+SKILLS[skill].cooldown;
-      dummy.hp=Math.max(0,dummy.hp-amount);
-      if(dummy.hp===0)dummy.respawnAt=now+5000;
-      this.emit({type:'abilityFx',skill,playerId:id,from:{...p.pos},to:{...dummy.pos}});
+      this.emit({type:'abilityFx',skill,playerId:id,from,to});
       return;
     }
     if(v.type==='input'&&Number.isSafeInteger(v.seq)&&Number(v.seq)>=0&&v.move&&typeof v.move==='object') {

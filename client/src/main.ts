@@ -1,4 +1,5 @@
 import {createRoomChat} from './roomChat';
+import {createTalentTree} from './talentTree';
 import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../shared/boss-layout';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
@@ -103,6 +104,7 @@ let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
 let crafterCategory:'all'|ClassId='all';
+const talentTree=createTalentTree();
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 
@@ -330,12 +332,12 @@ hubPlayer.material = hubPlayerMat;
 function addNose(parent:Mesh){const nose=MeshBuilder.CreateBox(parent.name+'-nose',{width:.22,height:.22,depth:.55},scene);nose.parent=parent;nose.position.set(0,.25,.55);nose.material=holyMat;return nose}
 addNose(hubPlayer);
 function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;armour?:unknown;boots?:unknown}){
- if(parent===hubPlayer)gear={weapon:gearEligible(selectedClass,'primitiveWand')?gear.weapon:null,head:gear.head,armour:gearEligible(selectedClass,'redtubeArmour')?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null,boots:gear.boots};
+ if(parent===hubPlayer)gear={weapon:gear.weapon&&gearEligible(selectedClass,String(gear.weapon))?gear.weapon:null,head:gear.head&&gearEligible(selectedClass,String(gear.head))?gear.head:null,armour:gear.armour&&gearEligible(selectedClass,String(gear.armour))?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null,boots:gear.boots};
  const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour,gear.boots]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
- if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=bossMat;}
- if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
- if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
+ if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=gear.armour==='cinderweaveArmour'?dangerMat:bossMat;}
+ if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=gear.weapon==='emberWand'?dangerMat:arcMat;}
+ if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=gear.head==='shadowHat'?novaMat:gear.head==='nightshadeHood'?darkMat:greenMat;}
  if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
  if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=gear.offhand==='sporestormQuiver'?arcMat:gear.offhand==='splitthornQuiver'?spearMat:greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=gear.offhand==='verdantMenderTotem'?holyMat:dangerMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-offhand',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=gear.offhand==='sunlitReliquary'?holyMat:gear.offhand==='venomFang'?greenMat:gear.offhand==='bulwarkCrest'?guardMat:novaMat;}
 }
@@ -345,6 +347,9 @@ const hubPlayerRing = pushHub(MeshBuilder.CreateTorus("hub-player-ring", { diame
 hubPlayerRing.position.set(0, 0.08, 6.2);
 hubPlayerRing.material = hubPlayerMat;
 
+const talentTrunk=pushHub(MeshBuilder.CreateCylinder('talent-tree-trunk',{height:4,diameterTop:.65,diameterBottom:1.05,tessellation:12},scene));talentTrunk.position.set(9,2,3);talentTrunk.material=hubStoneMat;
+const talentCrown=pushHub(MeshBuilder.CreateSphere('talent-tree-crown',{diameter:4.4,segments:16},scene));talentCrown.position.set(9,5,3);talentCrown.material=greenMat;
+hubLabel('talent-tree-label','TALENT TREE · E',9,3,3.4);
 const trainer=pushHub(MeshBuilder.CreateCapsule("skill-trainer",{height:2,radius:0.65},scene));
 trainer.position.set(-4.3,1,3.5);trainer.material=holyMat;
 const trainerBase=pushHub(MeshBuilder.CreateTorus("trainer-ring",{diameter:2.2,thickness:0.13},scene));
@@ -404,7 +409,7 @@ bossRing.material = bossMat;
 
 const poisonVisuals=createTrufflePoisonVisuals(scene);
 function setMode(next: ClientMode) {
-  closeHubPanel();keys.clear();
+  closeHubPanel();talentTree.close();keys.clear();
   if(trainerOpen)closeTrainer(false);
   mode = next;
   const inHub = mode === "hub";
@@ -776,7 +781,7 @@ const gameDevLabs=installGameDevLabs({
   clearAbilityFx:()=>{for(const effect of fx)effect.mesh.dispose();fx.length=0;},
   onOpen:()=>{
     if(optionsOpen)closeOptions();
-    closeHubPanel();
+    closeHubPanel();talentTree.close();
     if(trainerOpen)closeTrainer(false);
     keys.clear();
   },
@@ -839,9 +844,11 @@ addEventListener("keydown", (event) => {
   if(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement)return;
   if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
   if(optionsOpen){if(key==='escape')closeOptions();return}
+  if(talentTree.isOpen()){if(key==='escape')talentTree.close();return}
   if(hubPanelOpen){if(key==='escape')closeHubPanel();return}
   if(trainerOpen){if(key==="escape")closeTrainer(false);return}
   keys.add(key);
+  if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-9,hubPlayer.position.z-3)<=3){talentTree.open(selectedClass);keys.clear();return}
   if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-5.5,hubPlayer.position.z+2.5)<=2.6){openHubPanel('wardrobe');return}
   if(mode==='hub'&&key==='e'&&!event.repeat&&Math.hypot(hubPlayer.position.x-4.3,hubPlayer.position.z-3.5)<=2.6){openHubPanel('crafter');return}
 

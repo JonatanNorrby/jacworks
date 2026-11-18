@@ -94,13 +94,13 @@ export function grantReward(v:Inventory,reward:Snapshot['reward'],playerId:strin
  Object.defineProperty(v.rewards,reward.id,{value:reward.material,enumerable:true,writable:true,configurable:true});return true;
 }
 export function craft(v:Inventory,gear:Gear='primitiveWand'){
- if(!(gear in RECIPES))return false;
+ if(!Object.hasOwn(RECIPES,gear))return false;
  const counts=countInventory(v);
  if(Object.entries(RECIPES[gear]).some(([m,cost])=>counts[m as Material]<cost))return false;
  v[COUNTERS[gear]]++;return true;
 }
 export function equip(v:Inventory,slot:EquipmentSlot,gear:Gear|null){
- if(gear!==null&&(!(gear in RECIPES)||GEAR_SLOTS[gear]!==slot||countInventory(v)[gear]<1))return false;
+ if(gear!==null&&(!Object.hasOwn(RECIPES,gear)||GEAR_SLOTS[gear]!==slot||countInventory(v)[gear]<1))return false;
  (v as unknown as Record<string,unknown>)[slot]=gear;return true;
 }
 export function equipWeapon(v:Inventory,weapon:Weapon){return equip(v,'weapon',weapon)}

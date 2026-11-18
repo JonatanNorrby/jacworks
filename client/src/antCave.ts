@@ -16,7 +16,7 @@ export function buildAntCave(scene:Scene){
  const floor=caveMaterial(scene,'ant-cave-floor',new Color3(.18,.105,.06));
  const props:Mesh[]=[];
  for(let i=0;i<24;i++){
-  const angle=i/24*Math.PI*2,rad=12.1+(i%4)*.27;
+  const angle=i/24*Math.PI*2,rad=15.1+(i%4)*.24;
   const rock=MeshBuilder.CreateSphere('cave-wall-'+i,{diameter:2.3+(i%4)*.6,segments:8},scene);
   rock.scaling.set(1.1+(i%3)*.13,.9+(i%5)*.18,1.1+(i%4)*.09);
   rock.position.set(Math.cos(angle)*rad,.38+(i%4)*.23,Math.sin(angle)*rad);
@@ -25,11 +25,11 @@ export function buildAntCave(scene:Scene){
  for(let i=0;i<13;i++){
   const angle=i/13*Math.PI*2;
   const stalagmite=MeshBuilder.CreateCylinder('cave-stalagmite-'+i,{diameterTop:0,diameterBottom:.5+i%3*.18,height:1.2+i%4*.48,tessellation:6},scene);
-  const rr=10+(i%2)*.9;
+  const rr=12.5+(i%2)*1;
   stalagmite.position.set(Math.cos(angle)*rr,(1.2+i%4*.48)/2,Math.sin(angle)*rr);
   stalagmite.material=i%2?darkStone:resin;stalagmite.isPickable=false;stalagmite.setEnabled(false);props.push(stalagmite);
  }
- for(const [i,x,z] of [[0,-10,4],[1,10,4],[2,-10,-5],[3,10,-5]]){
+ for(const [i,x,z] of [[0,-13,3],[1,13,3],[2,-12.7,-5.5],[3,12.7,-5.5]]){
   const opening=MeshBuilder.CreateTorus('ant-tunnel-mouth-'+i,{diameter:3,thickness:.4,tessellation:24},scene);
   opening.position.set(x,1.3,z);opening.rotation.x=Math.PI/2;opening.material=darkStone;opening.isPickable=false;opening.setEnabled(false);props.push(opening);
   const mouth=MeshBuilder.CreateSphere('ant-tunnel-shadow-'+i,{diameter:2.4,segments:12},scene);
@@ -37,7 +37,7 @@ export function buildAntCave(scene:Scene){
  }
  for(let i=0;i<8;i++){
   const nest=MeshBuilder.CreateSphere('ant-nest-mound-'+i,{diameter:1.7,segments:9},scene);
-  nest.scaling.set(1.3,.3,.9);nest.position.set((i%4-1.5)*3.5,.18,7.2+(i%2)*1.5);nest.material=earth;
+  nest.scaling.set(1.3,.3,.9);nest.position.set((i%4-1.5)*4,.18,9.3+(i%2)*1.4);nest.material=earth;
   nest.isPickable=false;nest.setEnabled(false);props.push(nest);
  }
  function antModel(name:string,royal=false,queen=false):Mesh{
@@ -73,6 +73,6 @@ export function buildAntCave(scene:Scene){
   return abdomen;
  }
  const queen=antModel('ant-queen',false,true);
- queen.position.set(0,1.52,8);queen.setEnabled(false);
+ queen.position.set(0,1.52,10.5);queen.setEnabled(false);
  return {props,queen,floor,earth,createWorker:()=>antModel('worker-ant',false),createRoyal:()=>antModel('royal-guard-ant',true)};
 }

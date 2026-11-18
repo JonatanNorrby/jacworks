@@ -6,7 +6,8 @@ export const ROYAL_GUARD_HP=240;
 export const ROYAL_DEATH_DAMAGE=300;
 export const ANT_WAVE_INTERVAL_MS=9500;
 export const ROCKFALL_INTERVAL_MS=12500;
-export const ANT_QUEEN_POS:Vec2={x:0,z:8};
+export const ANT_ARENA_LIMIT=14.5;
+export const ANT_QUEEN_POS:Vec2={x:0,z:10.5};
 
 const at=(a:Vec2,b:Vec2)=>Math.hypot(a.x-b.x,a.z-b.z);
 
@@ -18,16 +19,16 @@ export function startAntQueen(this:Game,now:number){
  this.boss.hp=this.boss.maxHp=ANT_QUEEN_HP;
  // Start opposite the nesting chambers rather than inside the queen's body.
  const players=[...this.players.values()];
- players.forEach((p,i)=>{p.pos={x:(i-(players.length-1)/2)*1.8,z:-8};p.facing={x:0,z:1}});
+ players.forEach((p,i)=>{p.pos={x:(i-(players.length-1)/2)*1.8,z:-10.5};p.facing={x:0,z:1}});
  this.system('Ant Queen: her carapace is invulnerable! Defeat Royal Guards to harm her.');
 }
 function spawnWorker(this:Game,wave:number,i:number):AddState{
  const side=i%2===0?-1:1;
- return {id:'ant-worker-'+this.uuid(),kind:'antWorker',pos:{x:side*(8.7+(i%3)*.7),z:3.2+(i%5)*1.25},
+ return {id:'ant-worker-'+this.uuid(),kind:'antWorker',pos:{x:side*(10.4+(i%3)*.5),z:3+(i%5)*1.1},
   hp:42,maxHp:42,radius:.48,attackAt:0};
 }
 function spawnRoyalGuard(this:Game,wave:number):AddState{
- return {id:'royal-guard-'+this.uuid(),kind:'royalGuard',pos:{x:wave%2?2.5:-2.5,z:5.8},
+ return {id:'royal-guard-'+this.uuid(),kind:'royalGuard',pos:{x:wave%2?3.5:-3.5,z:7.8},
  hp:ROYAL_GUARD_HP,maxHp:ROYAL_GUARD_HP,radius:.92,attackAt:0};
 }
 export function tickAntQueen(this:Game,now:number){
@@ -49,8 +50,9 @@ export function tickAntQueen(this:Game,now:number){
    for(let i=0;i<count;i++){
     const target=targets[i%targets.length];
     const angle=(i+this.queenWave)*Math.PI/3;
-    const pos={x:Math.max(-11,Math.min(11,target.pos.x+(i?Math.cos(angle)*1.8:0))),
-               z:Math.max(-11,Math.min(11,target.pos.z+(i?Math.sin(angle)*1.8:0)))};
+    const proposed={x:target.pos.x+(i?Math.cos(angle)*1.8:0),z:target.pos.z+(i?Math.sin(angle)*1.8:0)};
+    const length=Math.hypot(proposed.x,proposed.z);
+    const pos=length>ANT_ARENA_LIMIT?{x:proposed.x*ANT_ARENA_LIMIT/length,z:proposed.z*ANT_ARENA_LIMIT/length}:proposed;
     this.telegraphs.push({id:'ant-rock-'+this.uuid(),kind:'circle',style:'rockfall',pos,radius:2,
      damage:26,resolvesAt:now+1750});
    }

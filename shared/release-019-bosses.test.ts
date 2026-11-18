@@ -18,12 +18,12 @@ function encounter(boss:'antQueen'|'hardWarden',players=1){
 test('Ant Queen is in its own northern Nest boss circle and awards a first-clear talent point',()=>{
  const pedestal=BOSS_PEDESTALS.find(p=>p.id==='antQueen');
  assert.equal(pedestal?.difficulty,'Nest');
- assert.ok(pedestal!.pos.z>0,'north is positive z / W');
+ assert.equal(pedestal!.pos.z,-6.5,'Nest joins the southern boss-circle row');
  assert.ok(TALENT_POINT_BOSSES.includes('antQueen'));
  const {g,players}=encounter('antQueen');
  assert.equal(g.boss.hp,ANT_QUEEN_HP);
- assert.deepEqual(g.boss.pos,{x:0,z:8});
- assert.equal(players[0].pos.z,-8,'players start south of queen, outside collision');
+ assert.deepEqual(g.boss.pos,{x:0,z:10.5});
+ assert.equal(players[0].pos.z,-10.5,'players start south of queen, outside collision');
  assert.ok(g.tick(250).supportedBosses?.includes('antQueen'));
 });
 test('Ant Queen ignores ALL direct/area attack damage and only loses HP from killed Royal Guards',()=>{
@@ -96,6 +96,6 @@ test('Every facing keeps a bar fixed south by counteracting the character yaw',(
 test('Ant Queen late joiners spawn south of the arena instead of inside the boss',()=>{
  const {g}=encounter('antQueen');
  const late=g.add('late');
- assert.equal(late.pos.z,-8);assert.equal(late.facing.z,1);
- assert.ok(Math.hypot(late.pos.x-g.boss.pos.x,late.pos.z-g.boss.pos.z)>10);
+ assert.equal(late.pos.z,-10.5);assert.equal(late.facing.z,1);
+ assert.ok(Math.hypot(late.pos.x-g.boss.pos.x,late.pos.z-g.boss.pos.z)>15);
 });

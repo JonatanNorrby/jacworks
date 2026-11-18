@@ -37,9 +37,9 @@ test('Eight Ant Queen items use chitin, class restrictions, owned slots and pers
 test('16 additional talents extend both paths to 3 each, use one point per unique clear with valid ancestry',()=>{
  assert.equal(TALENT_POINT_BOSSES.length,10);
  for(const cls of Object.keys(CLASS_DEFINITIONS) as ClassId[]){
-  const tree=TALENT_TREE[cls];assert.equal(tree.nodes.length,7);assert.equal(tree.branches.length,2);
+  const tree=TALENT_TREE[cls];assert.equal(tree.nodes.length,9);assert.equal(tree.branches.length,2);
   for(const branch of tree.branches){
-   assert.equal(branch.length,3);
+   assert.equal(branch.length,4);
    assert.equal(TALENT_NODES[branch[0]].requires,'unyieldingForce');
    assert.equal(TALENT_NODES[branch[1]].requires,branch[0]);
    assert.equal(TALENT_NODES[branch[2]].requires,branch[1]);

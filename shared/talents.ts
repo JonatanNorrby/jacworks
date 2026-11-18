@@ -52,20 +52,36 @@ export const TALENT_NODES={
  thirdRicochet:{id:'thirdRicochet',name:'Third Ricochet',ranks:1,requires:'ricochetArrows',description:'Aimed Shot ricochets a third time for 12 damage'},
  rainOfMercy:{id:'rainOfMercy',name:'Rain of Mercy',ranks:1,requires:'lastDownpour',description:'Each Arrow Rain wave also heals allies inside its area for 5'},
  solarFlare:{id:'solarFlare',name:'Solar Flare',ranks:1,requires:'searingBeam',description:'LAZOR ends with an additional 18-damage, 2-unit blast'},
- blazingHorizon:{id:'blazingHorizon',name:'Blazing Horizon',ranks:1,requires:'emberAfterglow',description:'Ember Afterglow radius increases from 3 to 4 without increasing damage'}
+ blazingHorizon:{id:'blazingHorizon',name:'Blazing Horizon',ranks:1,requires:'emberAfterglow',description:'Ember Afterglow radius increases from 3 to 4 without increasing damage'},
+ ancestralShelter:{id:'ancestralShelter',name:'Ancestral Shelter',ranks:1,requires:'funeralBloom',description:'When your totem explodes, nearby living allies also gain a 10-HP shield for 4s'},
+ stormMender:{id:'stormMender',name:'Storm Mender',ranks:1,requires:'stormRebound',description:'When Earth Shock chains to a third enemy, heal the most injured ally within 5 of it for 10'},
+ aegisCommand:{id:'aegisCommand',name:'Aegis Command',ranks:1,requires:'shieldReprieve',description:'Heroic Shield on an ally also grants that ally 1.2s of Guard damage mitigation'},
+ bulwarkResonance:{id:'bulwarkResonance',name:'Bulwark Resonance',ranks:1,requires:'thunderShell',description:'Your Bulwark retaliation also shields the nearest living ally (or yourself) for 10 HP over 2.5s'},
+ cloakOfThorns:{id:'cloakOfThorns',name:'Cloak of Thorns',ranks:1,requires:'rippleStab',description:'A successful rear Backstab gives you a 15-HP shield for 2.5s'},
+ toxicEcho:{id:'toxicEcho',name:'Toxic Echo',ranks:1,requires:'venomCatalyst',description:'Each Poison Enchant tick deals 3 splash damage to one other nearby enemy within 3'},
+ seismicRenewal:{id:'seismicRenewal',name:'Seismic Renewal',ranks:1,requires:'meteorWake',description:'Charging Stab impact heals you for 5 per enemy caught in the shockwave, up to 20'},
+ guardianRiposte:{id:'guardianRiposte',name:'Guardian Riposte',ranks:1,requires:'battleWard',description:'Guard also strikes the nearest enemy within 2.5 units for 12 damage'},
+ secondBenediction:{id:'secondBenediction',name:'Second Benediction',ranks:1,requires:'aegisMend',description:'Targeted Heal shields one additional injured ally within 4 of its target for 10 HP over 4s'},
+ radiantAegis:{id:'radiantAegis',name:'Radiant Aegis',ranks:1,requires:'dawnFlare',description:'Holy Light grants the nearest living ally within 5 of its enemy target a 12-HP shield for 3s'},
+ arcWard:{id:'arcWard',name:'Arc Ward',ranks:1,requires:'arcSurge',description:'When a third Lightning chain jump hits, grant yourself a 12-HP shield for 4s'},
+ stormRecovery:{id:'stormRecovery',name:'Storm Recovery',ranks:1,requires:'stormShelter',description:'Completing Lightning Storm additionally heals allies in its final area for 8'},
+ returnShot:{id:'returnShot',name:'Return Shot',ranks:1,requires:'thirdRicochet',description:'Aimed Shot third ricochet sends an 8-damage arrow back to its original target if still alive'},
+ thornfall:{id:'thornfall',name:'Thornfall',ranks:1,requires:'rainOfMercy',description:'Arrow Rain final wave leaves two 6-damage poison pulses in the same area'},
+ solarAegis:{id:'solarAegis',name:'Solar Aegis',ranks:1,requires:'solarFlare',description:'LAZOR hitting at least one enemy also grants you a 15-HP shield for 3s'},
+ embersOfLife:{id:'embersOfLife',name:'Embers of Life',ranks:1,requires:'blazingHorizon',description:'Each Ember Afterglow pulse that hits an enemy heals you for 4'}
 } as const;
 export type TalentId=keyof typeof TALENT_NODES;
 export type TalentProgress={wins:BossId[];picks:Partial<Record<ClassId,TalentId[]>>};
 export const emptyTalents=():TalentProgress=>({wins:[],picks:{}});
 const BRANCHES={
- shaman:[['partingGift','violentFarewell','funeralBloom'],['stormConduit','livingCurrent','stormRebound']],
- defender:[['guardianNetwork','shelteredHearts','shieldReprieve'],['ironMarch','retaliatoryShell','thunderShell']],
- rogue:[['shadowAmbush','shadowstep','rippleStab'],['venomSpread','leechingVenom','venomCatalyst']],
- warrior:[['piercingCharge','impactWave','meteorWake'],['cleavingArc','defiantGuard','battleWard']],
- priest:[['healingCascade','sacredEcho','aegisMend'],['widerNova','avengingLight','dawnFlare']],
- lightningMage:[['forkedArc','arcOverload','arcSurge'],['stormWell','stormAftershock','stormShelter']],
- ranger:[['splitVolley','ricochetArrows','thirdRicochet'],['rainSurge','lastDownpour','rainOfMercy']],
- fireMage:[['prismBeam','searingBeam','solarFlare'],['volatileMines','emberAfterglow','blazingHorizon']]
+ shaman:[['partingGift','violentFarewell','funeralBloom','ancestralShelter'],['stormConduit','livingCurrent','stormRebound','stormMender']],
+ defender:[['guardianNetwork','shelteredHearts','shieldReprieve','aegisCommand'],['ironMarch','retaliatoryShell','thunderShell','bulwarkResonance']],
+ rogue:[['shadowAmbush','shadowstep','rippleStab','cloakOfThorns'],['venomSpread','leechingVenom','venomCatalyst','toxicEcho']],
+ warrior:[['piercingCharge','impactWave','meteorWake','seismicRenewal'],['cleavingArc','defiantGuard','battleWard','guardianRiposte']],
+ priest:[['healingCascade','sacredEcho','aegisMend','secondBenediction'],['widerNova','avengingLight','dawnFlare','radiantAegis']],
+ lightningMage:[['forkedArc','arcOverload','arcSurge','arcWard'],['stormWell','stormAftershock','stormShelter','stormRecovery']],
+ ranger:[['splitVolley','ricochetArrows','thirdRicochet','returnShot'],['rainSurge','lastDownpour','rainOfMercy','thornfall']],
+ fireMage:[['prismBeam','searingBeam','solarFlare','solarAegis'],['volatileMines','emberAfterglow','blazingHorizon','embersOfLife']]
 } as const satisfies Record<ClassId,readonly (readonly TalentId[])[]>;
 export const TALENT_TREE=Object.fromEntries((Object.keys(CLASS_DEFINITIONS) as ClassId[]).map(classId=>[
  classId,{classId,branches:BRANCHES[classId],nodes:[TALENT_NODES.unyieldingForce,...BRANCHES[classId].flat().map(id=>TALENT_NODES[id])]}

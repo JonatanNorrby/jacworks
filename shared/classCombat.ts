@@ -14,8 +14,10 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
       const from={...p.pos};let to={...p.pos};
       if(skill==='heroicShield'){
         const ally=targetId===undefined?p:this.players.get(String(targetId));if(!ally?.alive||distance(p.pos,ally.pos)>11)return true;
-        if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.solidBoss(),this.adds,d,this.pillars());ally.shield=Math.max(ally.shield,40+(p.offhand==='carapaceShield'?10:0));ally.shieldUntil=now+6000;}
-        p.shield=Math.max(p.shield,80+(p.offhand==='carapaceShield'?20:0));p.shieldUntil=now+6000;to={...p.pos};
+        if(ally!==p){const d=distance(p.pos,ally.pos);p.pos=chargeEnd(p.pos,{x:(ally.pos.x-p.pos.x)/d||0,z:(ally.pos.z-p.pos.z)/d||0},this.solidBoss(),this.adds,d,this.pillars(),this.arenaLimit());ally.shield=Math.max(ally.shield,40+(p.armour==='carapaceShield'?10:0));ally.shieldUntil=now+6000;
+        if(this.talented(p,'aegisCommand'))ally.guardUntil=Math.max(ally.guardUntil,now+1200);
+        }
+        p.shield=Math.max(p.shield,80+(p.armour==='carapaceShield'?20:0));p.shieldUntil=now+6000;to={...p.pos};
         const relay=(this.talented(p,'guardianNetwork')?20:0)+(p.offhand==='fractureAegis'?20:0);
         if(relay){
           const third=[...this.players.values()].filter(a=>a.alive&&a.id!==p.id&&a.id!==ally.id&&distance(a.pos,ally.pos)<=4)
@@ -39,6 +41,9 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           const behind=!victim||((p.pos.x-t.pos.x)*(victim.pos.x-t.pos.x)+(p.pos.z-t.pos.z)*(victim.pos.z-t.pos.z))<0;
           const strike=skill==='stab'?32:skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
           this.damageTarget(t.id,strike,p.id);
+          if(skill==='backstab'&&behind&&this.talented(p,'cloakOfThorns')){
+            p.shield=Math.max(p.shield,15);p.shieldUntil=now+2500;
+          }
           if(skill==='backstab'&&behind&&this.talented(p,'rippleStab')){
             const other=this.targets().filter(x=>x.id!==t.id&&distance(x.pos,t.pos)<=3&&this.visible(t.pos,x.pos))
               .sort((a,b)=>distance(a.pos,t.pos)-distance(b.pos,t.pos))[0];
@@ -69,7 +74,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     if(!['targetedHeal','holyLight','lightningStorm','lightningShield','aimedShot','arrowRain','splitShot','fireball','fireMine','earthShock','fireTotem','healingTotem'].includes(skill))return false;
     if(now<p.cooldowns[slot-1])return true;
     let pos:Vec2;
-    if(point!==undefined){const v=point as Vec2;if(!v||typeof v.x!=='number'||typeof v.z!=='number'||!Number.isFinite(v.x)||!Number.isFinite(v.z)||Math.abs(v.x)>12||Math.abs(v.z)>12||distance(p.pos,v)>11||!this.visible(p.pos,v)||this.pillars().some(c=>distance(c,v)<1.5))return true;pos={x:v.x,z:v.z};}
+    if(point!==undefined){const v=point as Vec2;if(!v||typeof v.x!=='number'||typeof v.z!=='number'||!Number.isFinite(v.x)||!Number.isFinite(v.z)||(Math.abs(v.x)>this.arenaLimit()||Math.abs(v.z)>this.arenaLimit()||(this.arenaLimit()>12&&Math.hypot(v.x,v.z)>this.arenaLimit()))||distance(p.pos,v)>11||!this.visible(p.pos,v)||this.pillars().some(c=>distance(c,v)<1.5))return true;pos={x:v.x,z:v.z};}
     else pos={...(this.targets().sort((a,b)=>distance(p.pos,a.pos)-distance(p.pos,b.pos))[0]?.pos??p.pos)};
     let ally:PlayerState|undefined,enemy:ReturnType<Game['targets']>[number]|undefined;
     if((skill==='targetedHeal'&&p.head!=='shadowHat')||skill==='lightningShield'){
@@ -95,7 +100,14 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
       if(second&&this.talented(p,'stormRebound')){
         const third=this.targets().filter(t=>t.id!==enemy!.id&&t.id!==second.id&&distance(t.pos,second.pos)<=5&&this.visible(second.pos,t.pos))
           .sort((a,b)=>distance(a.pos,second.pos)-distance(b.pos,second.pos))[0];
-        if(third){this.damageTarget(third.id,10,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});}
+        if(third){
+          this.damageTarget(third.id,10,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});
+          if(this.talented(p,'stormMender')){
+            const ally=[...this.players.values()].filter(a=>a.alive&&a.hp<a.maxHp&&distance(a.pos,third.pos)<=5)
+              .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+            if(ally)this.heal(ally,10,p.id);
+          }
+        }
       }
       if(this.talented(p,'livingCurrent')){
         const ally=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,enemy!.pos)<=5&&a.hp<a.maxHp)
@@ -118,11 +130,21 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           if(a.alive&&a.id!==ally!.id&&distance(a.pos,ally!.pos)<=4)this.heal(a,12,p.id);
         if(this.talented(p,'sacredEcho')&&ally!==p)this.heal(p,8,p.id);
         if(this.talented(p,'aegisMend')){ally!.shield=Math.max(ally!.shield,15);ally!.shieldUntil=now+5000;}
+        if(this.talented(p,'secondBenediction')){
+          const other=[...this.players.values()].filter(a=>a.alive&&a.id!==ally!.id&&a.hp<a.maxHp&&distance(a.pos,ally!.pos)<=4)
+            .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+          if(other){other.shield=Math.max(other.shield,10);other.shieldUntil=now+4000;}
+        }
       }
     }
     else if(skill==='holyLight'){
       this.damageTarget(enemy!.id,32,p.id);
       if(this.talented(p,'dawnFlare'))this.area(enemy!.pos,2,15,p.id);
+      if(this.talented(p,'radiantAegis')){
+        const other=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,enemy!.pos)<=5)
+          .sort((a,b)=>distance(a.pos,enemy!.pos)-distance(b.pos,enemy!.pos))[0];
+        if(other){other.shield=Math.max(other.shield,12);other.shieldUntil=now+3000;}
+      }
       if(p.offhand==='pheromoneChalice'){
         const friend=[...this.players.values()].filter(a=>a.alive&&a.hp<a.maxHp&&distance(a.pos,enemy!.pos)<=5)
           .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
@@ -177,7 +199,7 @@ export function tickClassEffects(this:Game,now:number){
           if(t.poisoned)this.effects.push({id:this.uuid(),owner:t.owner,skill:'fireTotem',pos:{...enemy.pos},from:{...t.pos},next:now+350,remaining:SPOREBOUND_BONUS.poisonCloudTicks,expires:now+3500,poisonCloud:true,radius:SPOREBOUND_BONUS.poisonCloudRadius,damage:SPOREBOUND_BONUS.poisonCloudDamage});
           else this.effects.push({id:this.uuid(),owner:t.owner,skill:'fireTotem',pos:{...enemy.pos},from:{...t.pos},targetId:enemy.id,next:now+350,remaining:1,expires:now+1000});
           this.emit({type:'abilityFx',skill:'fireTotem',playerId:t.owner,from:{...t.pos},to:{...enemy.pos}});
-          if(this.players.get(t.owner)?.offhand==='broodTotem'){
+          if(this.players.get(t.owner)?.weapon==='broodTotem'){
             const second=this.targets().filter(e=>e.id!==enemy.id&&distance(e.pos,enemy.pos)<=5&&this.visible(t.pos,e.pos))
               .sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))[0];
             if(second){this.damageTarget(second.id,10,t.owner);this.emit({type:'abilityFx',skill:'fireTotem',playerId:t.owner,from:{...t.pos},to:{...second.pos}});}
@@ -201,6 +223,8 @@ export function tickClassEffects(this:Game,now:number){
         if(this.talented(p,'stormShelter'))for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,c.target)<=(this.talented(p,'stormWell')?4:3)){
           ally.shield=Math.max(ally.shield,15);ally.shieldUntil=now+4000;
         }
+        if(this.talented(p,'stormRecovery'))for(const ally of this.players.values())
+          if(ally.alive&&distance(ally.pos,c.target)<=(this.talented(p,'stormWell')?4:3))this.heal(ally,8,p.id);
         continue;
       }
       const t=this.targets().find(t=>t.id===c.targetId);if(!t||distance(p.pos,t.pos)>11)continue;
@@ -208,7 +232,7 @@ export function tickClassEffects(this:Game,now:number){
       const impact=this.clip(p.pos,t.pos);
       const shots=c.skill==='fireball'&&p.armour==='cinderweaveArmour'?[-.9,0,.9]:[0];
       for(const offset of shots){
-        const hit={x:Math.max(-12,Math.min(12,impact.x+offset)),z:impact.z};
+        const hit={x:Math.max(-this.arenaLimit(),Math.min(this.arenaLimit(),impact.x+offset)),z:impact.z};
         this.effects.push({id:this.uuid(),owner:p.id,skill:c.skill,pos:hit,from:{...p.pos},targetId:this.visible(p.pos,t.pos)?t.id:undefined,next:now+350,remaining:1,expires:now+1000});
         this.emit({type:'abilityFx',skill:c.skill,playerId:p.id,from:{...p.pos},to:hit});
       }
@@ -222,7 +246,7 @@ export function tickClassEffects(this:Game,now:number){
           this.area(e.pos,this.talented(owner,'volatileMines')?4:3,95,e.owner);
           this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});
           if(this.talented(owner,'emberAfterglow'))
-            spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireMine',pos:{...e.pos},next:now+1000,remaining:3,expires:now+3400,afterglow:true,radius:this.talented(owner,'blazingHorizon')?4:3,damage:8});
+            spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireMine',pos:{...e.pos},next:now+1000,remaining:3,expires:now+3400,afterglow:true,talentAfterglow:true,radius:this.talented(owner,'blazingHorizon')?4:3,damage:8});
           if(owner.offhand==='moltenChitin')
             spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireMine',pos:{...e.pos},next:now+1000,remaining:2,expires:now+2600,afterglow:true,radius:3,damage:6});
           return false;
@@ -233,11 +257,23 @@ export function tickClassEffects(this:Game,now:number){
         else if(e.sporeBlast)this.area(e.pos,2,24,e.owner);
         else if(e.mandibleBleed)this.damageTarget(e.targetId!,8,e.owner);
         else if(e.broodVenom)this.damageTarget(e.targetId!,5,e.owner);
-        else if(e.afterglow)this.area(e.pos,e.radius??3,e.damage??8,e.owner);
+        else if(e.afterglow){
+          const hits=this.targets().some(t=>t.hp>0&&distance(t.pos,e.pos)<=(e.radius??3)&&this.visible(e.pos,t.pos));
+          this.area(e.pos,e.radius??3,e.damage??8,e.owner);
+          if(hits&&e.talentAfterglow&&this.talented(owner,'embersOfLife'))this.heal(owner,4,e.owner);
+        }
         else if(e.poisonCloud)this.area(e.pos,e.radius??1.5,e.damage??8,e.owner);
         else if(e.skill==='poisonEnchant'){
           this.damageTarget(e.targetId!,(owner.offhand==='venomFang'?CLASS_ITEM_BONUS.roguePoisonTick:BACKSTAB.poisonTick)+(this.talented(owner,'venomCatalyst')?4:0),e.owner);
           if(this.talented(owner,'leechingVenom'))this.heal(owner,2,e.owner);
+          if(this.talented(owner,'toxicEcho')){
+            const victim=this.targets().find(t=>t.id===e.targetId);
+            if(victim){
+              const other=this.targets().filter(t=>t.id!==victim.id&&distance(t.pos,victim.pos)<=3&&this.visible(victim.pos,t.pos))
+                .sort((a,b)=>distance(a.pos,victim.pos)-distance(b.pos,victim.pos))[0];
+              if(other)this.damageTarget(other.id,3,e.owner);
+            }
+          }
         }
         else if(e.skill==='aimedShot'){
           const t=this.targets().find(t=>t.id===e.targetId);
@@ -251,7 +287,13 @@ export function tickClassEffects(this:Game,now:number){
                 if(this.talented(owner,'thirdRicochet')){
                   const third=this.targets().filter(x=>x.id!==t.id&&x.id!==second.id&&distance(x.pos,second.pos)<=4&&this.visible(second.pos,x.pos))
                     .sort((a,b)=>distance(a.pos,second.pos)-distance(b.pos,second.pos))[0];
-                  if(third){this.damageTarget(third.id,12,e.owner);this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:second.pos,to:third.pos});}
+                  if(third){
+                    this.damageTarget(third.id,12,e.owner);this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:second.pos,to:third.pos});
+                    if(this.talented(owner,'returnShot')&&t.hp>0){
+                      this.damageTarget(t.id,8,e.owner);
+                      this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:third.pos,to:t.pos});
+                    }
+                  }
                 }
               }
             }
@@ -260,7 +302,11 @@ export function tickClassEffects(this:Game,now:number){
         else if(e.skill==='fireball'&&!e.targetId){/* Projectile struck cover; no splash through it. */}
         else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,24,e.owner);}
         else this.area(e.pos,e.skill==='fireball'?2:e.skill==='arrowRain'?(owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0):e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?(owner.weapon==='emberWand'?50:100):e.skill==='lightningShield'?14:e.skill==='arrowRain'?(e.remaining===1&&this.talented(owner,'rainSurge')?22:owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainDamage:28):28,e.owner);
-        if(e.skill==='arrowRain'&&this.talented(owner,'rainOfMercy')){
+        if(e.skill==='arrowRain'&&!e.poisonCloud&&e.remaining===1&&this.talented(owner,'thornfall')){
+          spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'arrowRain',pos:{...e.pos},next:now+1000,
+            remaining:2,expires:now+2600,poisonCloud:true,radius:owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5,damage:6});
+        }
+        if(e.skill==='arrowRain'&&!e.poisonCloud&&this.talented(owner,'rainOfMercy')){
           const radius=(owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0);
           for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,e.pos)<=radius)this.heal(ally,5,e.owner);
         }

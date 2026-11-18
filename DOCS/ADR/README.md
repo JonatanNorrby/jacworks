@@ -29,6 +29,7 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0014](0014-browser-local-rebindable-controls.md) | Accepted for prototype | Safe and persistent configurable keyboard controls |
 | [0015](0015-fracturer-cardinal-eruption.md) | Accepted for prototype | Cardinal Eruption: three unsafe compass sectors, one guaranteed intact safe corridor |
 | [0016](0016-ant-queen-objective-and-extended-builds.md) | Accepted for prototype | Ant Queen Guard-death objective, new Nest, south-facing bars, Hard Warden proximity and deeper builds |
+| [0017](0017-nest-layout-gear-slots-and-fourth-talents.md) | Accepted for prototype | Royal Chitin gear in distinct slots, southern Nest gate, enlarged cave and fourth-tier class talents |
 
 ## Workflow
 

@@ -57,8 +57,8 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  splitConductor:'Lightning Mage offhand: Arc Blast or Arc Spear forks a 25-damage bolt to a second nearby enemy',
  rottingFletching:'Ranger offhand: Arrow Rain leaves a three-tick poisonous spore field (6 damage each second)',
  prismLens:'Fire Mage offhand: LAZOR becomes two angled 60-damage beams instead of a single central beam',
- broodTotem:'Shaman offhand: Fire Totem attacks another enemy within 5 units for 10 damage',
- carapaceShield:'Defender offhand: Heroic Shield grants 20 extra self absorb and 10 additional absorb on another ally',
+ broodTotem:'Shaman weapon: Fire Totem attacks another enemy within 5 units for 10 damage',
+ carapaceShield:'Defender armour: Heroic Shield grants 20 extra self absorb and 10 additional absorb on another ally',
  mandibleDagger:'Rogue weapon: Backstab inflicts two 8-damage delayed mandible wounds',
  antLegGreaves:'Warrior boots: Charging Stab lands with 20 damage in a 2.5-unit area',
  pheromoneChalice:'Priest offhand: Holy Light also heals the most injured ally within 5 units of the enemy for 10',
@@ -76,7 +76,7 @@ export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand',
  nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour',
  twinTotemCapacitor:'offhand',fractureAegis:'offhand',sporeglassBlade:'weapon',twinrushBoots:'boots',
- haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand',broodTotem:'offhand',carapaceShield:'offhand',mandibleDagger:'weapon',antLegGreaves:'boots',pheromoneChalice:'offhand',antennaSpindle:'offhand',broodQuiver:'offhand',moltenChitin:'offhand'
+ haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand',broodTotem:'weapon',carapaceShield:'armour',mandibleDagger:'weapon',antLegGreaves:'boots',pheromoneChalice:'offhand',antennaSpindle:'offhand',broodQuiver:'offhand',moltenChitin:'offhand'
 };
 export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
  redtubeArmour:'warrior',primitiveWand:'lightningMage',pointyHat:'all',pointyOrb:'fireMage',
@@ -108,7 +108,7 @@ export type Inventory={
  renewalHalos:number;splitConductors:number;rottingFletchings:number;prismLenses:number;
  broodTotems:number;carapaceShields:number;mandibleDaggers:number;antLegPairs:number;
  pheromoneChalices:number;antennaSpindles:number;broodQuivers:number;moltenChitins:number;
- armour:'redtubeArmour'|'cinderweaveArmour'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
+ armour:'redtubeArmour'|'cinderweaveArmour'|'carapaceShield'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'|'broodTotem'|'carapaceShield'>|null;
  boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|'antLegGreaves'|null;
 };
 export const emptyInventory=():Inventory=>({
@@ -153,6 +153,10 @@ export function readInventory(raw:string|null):Inventory {
    if(typeof selected==='string'&&selected in RECIPES&&GEAR_SLOTS[selected as Gear]===slot&&countInventory(result)[selected as Gear]>0)
     (result as unknown as Record<string,unknown>)[slot]=selected;
   }
+  // v0.1.9 -> v0.1.10: migrate previously equipped Royal Ant gear into
+  // its proper slot. Keep an existing legitimate weapon/armour if occupied.
+  if(saved.offhand==='broodTotem'&&!result.weapon&&countInventory(result).broodTotem>0)result.weapon='broodTotem';
+  if(saved.offhand==='carapaceShield'&&!result.armour&&countInventory(result).carapaceShield>0)result.armour='carapaceShield';
   return result;
  }catch{return emptyInventory()}
 }
@@ -172,6 +176,6 @@ export function equip(v:Inventory,slot:EquipmentSlot,gear:Gear|null){
 }
 export function equipWeapon(v:Inventory,weapon:Weapon){return equip(v,'weapon',weapon)}
 export function inventoryView(v:Inventory){const counts=countInventory(v);return{
- materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'] as const).map(id=>({id,count:counts[id]})),
+ materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'] as const).map(id=>({id,count:counts[id]})),
  gear:(Object.keys(GEAR_SLOTS) as Gear[]).filter(id=>counts[id]>0).map(id=>({id,count:counts[id],slot:GEAR_SLOTS[id],equipped:v[GEAR_SLOTS[id]]===id}))
 }}

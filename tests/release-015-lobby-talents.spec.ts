@@ -10,7 +10,7 @@ test('v0.1.5: lobby hotbar stays visible and counts down, Double boss circle and
  await page.getByRole('button',{name:'Talent Tree'}).click();
  const tree=page.locator('#talent-tree-panel');await expect(tree).toBeVisible();
  await tree.locator('.talent-class-tabs').getByRole('button',{name:'Shaman'}).click();
- await expect(tree.locator('.talent-node')).toHaveCount(7);
+ await expect(tree.locator('.talent-node')).toHaveCount(9);
  await expect(tree.locator('.talent-node').first()).toContainText('Rank 0 / 1');
  await expect(tree.getByRole('button',{name:'Unlock Unyielding Force'})).toBeDisabled();
  await expect(tree.getByRole('button',{name:'Respec this class · Free'})).toBeDisabled();

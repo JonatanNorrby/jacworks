@@ -18,6 +18,23 @@ export const RECIPES={
  bulwarkCrest:{largeCylinder:1,sphericalBall:1}
 } as const;
 export type Gear=keyof typeof RECIPES;
+export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
+ redtubeArmour:'5% less boss damage and wider Sword Slash',
+ primitiveWand:'Arc Blast becomes Arc Spear',
+ pointyHat:'Three sequential Dash charges',
+ pointyOrb:'LAZOR burn and cooldown tradeoff',
+ sporeboundTotem:'Fire Totem projectiles deal 30 damage instead of 24',
+ verdantMenderTotem:'Healing Totem pulses restore 10 HP instead of 8',
+ sporefangQuiver:'Aimed Shot deals 70 damage instead of 58',
+ sporestormQuiver:'Arrow Rain waves deal 34 damage instead of 28',
+ splitthornQuiver:'Split Shot arrows deal 26 damage instead of 22',
+ fleetfootBoots:'15% faster movement',
+ mirewalkerBoots:'25% reduced poison cloud damage',
+ sunlitReliquary:'Targeted Heal restores 55 HP instead of 40',
+ venomFang:'Poison Enchant damage over time deals 9 per tick instead of 6',
+ bulwarkCrest:'Bulwark lasts 8 seconds instead of 6'
+};
+
 export type EquipmentSlot='weapon'|'head'|'offhand'|'armour'|'boots';
 export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  redtubeArmour:'armour',primitiveWand:'weapon',pointyHat:'head',pointyOrb:'offhand',

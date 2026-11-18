@@ -9,7 +9,7 @@ export class BallEncounter {
  brains=new Map<string,Brain>();
  private g:Game;
  constructor(g:Game){this.g=g;}
- bodies(){const g=this.g;return [{...g.boss,id:'boss',generation:0,radius:1.25},...g.adds].filter(b=>b.hp>0);}
+ bodies(){const g=this.g;return (g.boss.id==='duoYellowWarden'?g.adds.filter(b=>b.kind==='ball'||(b.kind==='duoBoss'&&b.bossId==='yellowBall')):[{...g.boss,id:'boss',generation:0,radius:1.25},...g.adds]).filter(b=>b.hp>0);}
  tick(now:number){
   const g=this.g,hard=g.boss.id==='hardYellowBall',limit=hard?3:1;
   // Freeze the roster: children cannot split or receive the parent's overkill this tick.

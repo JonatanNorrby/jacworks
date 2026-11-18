@@ -1,5 +1,5 @@
 import {createRoomChat} from './roomChat';
-import {BOSS_CIRCLES,BOSS_PEDESTALS,nearbyBoss} from '../../shared/boss-layout';
+import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../shared/boss-layout';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
@@ -26,7 +26,8 @@ import {
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft, equip, RECIPES, inventoryView } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equip, RECIPES, GEAR_CLASS, inventoryView } from './inventory';
+import type {Gear} from '../../shared/inventory';
 import { installGameDevLabs } from './gameDevLabs';
 declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
@@ -65,6 +66,7 @@ const message = document.querySelector<HTMLElement>("#message")!;
 const bossFill = document.querySelector<HTMLElement>("#boss-fill")!;
 const hpFill = document.querySelector<HTMLElement>("#player-hp-fill")!;
 const hpText = document.querySelector<HTMLElement>("#player-hp-text")!;
+document.querySelector('#abilities')?.classList.remove('encounter-only','hidden');
 const abilitySlots = [...document.querySelectorAll<HTMLElement>(".ability-slot")];
 const skillPanel=document.querySelector<HTMLElement>("#skill-panel")!;
 const trainerPrompt=document.querySelector<HTMLElement>("#trainer-prompt")!;
@@ -79,6 +81,7 @@ let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
+let crafterCategory:'all'|ClassId=selectedClass;
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 
@@ -92,8 +95,8 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills. Fleetfoot Boots: +15% movement. Mirewalker Boots: 25% less poison damage.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
- for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if((selectedBoss==='hardGreenCone'||selectedBoss==='fracturer')&&!snapshot?.supportedBosses?.includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}if(!atPedestal){const group=document.createElement('optgroup');group.label='Double boss';for(const [id,name] of DOUBLE_ENCOUNTERS){const o=document.createElement('option');o.value=id;o.textContent='Double · '+name;group.append(o)}select.append(group)}inventoryPanel.append(select);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if(snapshot?.supportedBosses&&!snapshot.supportedBosses.includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
@@ -472,7 +475,7 @@ function syncHub(state:Snapshot){
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
  for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer',duoYellowWarden:'Yellow Ball + Warden',duoTruffleFracturer:'Truffle Man + Fracturer'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -543,7 +546,7 @@ function connectEncounter() {
 
     if (packet.type === "snapshot") {
  inventory=readInventory(localStorage.getItem(inventoryKey));
- if(grantReward(inventory,packet.reward,myId)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Reward: '+ITEMS[packet.reward!.material];}
+ const earned=[packet.reward,...(packet.bonusRewards??[])].filter(reward=>grantReward(inventory,reward,myId));if(earned.length){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Rewards: '+earned.map(reward=>ITEMS[reward!.material]).join(' + ');}
       snapshot = packet;syncVote(packet);renderDps(packet);const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
@@ -569,7 +572,7 @@ function syncEncounter(state: Snapshot) {
  for(const t of state.totems.filter(t=>t.hp>0)){let mesh=totemMeshes.get(t.id);if(!mesh){mesh=MeshBuilder.CreateCylinder('totem-'+t.id,{height:1.2,diameter:.55,tessellation:8},scene);mesh.material=t.kind==='fireTotem'?dangerMat:holyMat;totemMeshes.set(t.id,mesh);}mesh.position.set(t.pos.x,.6,t.pos.z);}
 
  for(const [i,tile] of fractureFloorTiles.entries()){
- const cut=state.boss.id==='fracturer'?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
  tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
  }
  for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine')){mesh.dispose();fireMineMeshes.delete(id)}

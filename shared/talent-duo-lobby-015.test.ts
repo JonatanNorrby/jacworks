@@ -27,6 +27,8 @@ test('Talent rank starts at zero, earns a point only for first victory per uniqu
  assert.equal(hasTalent(p.talents,'shaman','partingGift'),false);
  g.message('a',{type:'talent',action:'unlock',classId:'shaman',nodeId:'unyieldingForce'},220);
  assert.equal(hasTalent(p.talents,'shaman','unyieldingForce'),true);assert.equal(talentAvailable(p.talents!),0);
+ g.message('a',{type:'join',classId:'shaman',loadout:CLASS_DEFINITIONS.shaman.skills,talents:emptyTalents()},230);
+ assert.equal(hasTalent(p.talents,'shaman','unyieldingForce'),true,'a stale client inventory sync must not erase server-side talent purchases');
  start(g,'warden',300);g.damageTarget('boss',5000,'a');result=g.tick(320);
  assert.deepEqual(result.talentAward?.players,[]);assert.equal(p.talents!.wins.length,1);
  g.message('a',{type:'hub'},350);

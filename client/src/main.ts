@@ -111,6 +111,7 @@ const talentKey='jacworks-talent-progress-v1';
 let playerTalents=readTalents(localStorage.getItem(talentKey));
 let savedTalentString=JSON.stringify(playerTalents);
 const talentTree=createTalentTree((action,classId,nodeId)=>send({type:'talent',action,classId,nodeId}));
+talentTree.update(playerTalents);
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 
@@ -610,8 +611,11 @@ function connectEncounter() {
  inventory=readInventory(localStorage.getItem(inventoryKey));
  const earned=[packet.reward,...(packet.bonusRewards??[])].filter(reward=>grantReward(inventory,reward,myId));if(earned.length){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Rewards: '+earned.map(reward=>ITEMS[reward!.material]).join(' + ');}
       snapshot = packet;syncVote(packet);renderDps(packet);
+      const firstClear=packet.talentAward?.players.includes(myId)&&!playerTalents.wins.includes(packet.talentAward.boss);
       const authoritativeTalents=packet.players.find(p=>p.id===myId)?.talents;
-      if(authoritativeTalents){const updated=JSON.stringify(authoritativeTalents);if(updated!==savedTalentString){playerTalents=readTalents(authoritativeTalents);savedTalentString=JSON.stringify(playerTalents);localStorage.setItem(talentKey,savedTalentString);talentTree.update(playerTalents)}}const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
+      if(authoritativeTalents){const updated=JSON.stringify(authoritativeTalents);if(updated!==savedTalentString){playerTalents=readTalents(authoritativeTalents);savedTalentString=JSON.stringify(playerTalents);localStorage.setItem(talentKey,savedTalentString);talentTree.update(playerTalents)}}
+      if(firstClear)message.textContent='First clear! +1 talent point · Open the Talent Tree in the hub.';
+      const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
       roster.replaceChildren(...packet.players.map(p=>{const row=document.createElement('p');row.className='party-member';const dot=document.createElement('span');dot.className='party-color';dot.style.backgroundColor='#'+playerColor(p.id).toHexString().slice(1);const name=document.createElement('span');name.textContent=p.name+(p.id===myId?' (you)':'');const health=document.createElement('span');health.className='party-health-text';health.textContent=Math.ceil(p.hp)+' / '+p.maxHp;const track=document.createElement('span');track.className='party-health-track';const fill=document.createElement('span');fill.className='party-health-fill';fill.style.width=(p.maxHp>0?Math.max(0,Math.min(100,p.hp/p.maxHp*100)):0)+'%';track.append(fill);row.append(dot,name,health,track);row.dataset.playerId=p.id;row.dataset.x=String(p.pos.x);row.dataset.z=String(p.pos.z);return row}));
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');

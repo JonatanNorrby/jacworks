@@ -4,6 +4,9 @@ Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_
 
 ## Prototype 01
 
+**Current release: 0.1.6.** Eight class talent trees now have real prerequisite arrows and two branches each; eight class-specific recipes use Twin Core and Fractured Spore to change existing abilities. See [0.1.6 release notes](DOCS/RELEASE_0_1_6.md) and [ADR-0013](DOCS/ADR/0013-branching-talents-and-duo-gear.md). Progression and inventory remain browser-local in this prototype.
+
+
 Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
 
 The prototype includes a deliberately small **Sanctum Hub** shell before the encounter so the team can evaluate the intended loop without turning Prototype 01 into a world-building project:

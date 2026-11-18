@@ -209,3 +209,29 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
 .talent-node small{color:#cbd5d8}
 .talent-node button:disabled{opacity:.5;cursor:not-allowed}
 .talent-controls{display:flex;justify-content:center;margin-top:.8rem}
+
+/* 0.1.6: branching talent graph. Actual DOM connections, not decorative text arrows. */
+#talent-tree-panel{width:min(960px,calc(100vw - 24px));box-sizing:border-box}
+.talent-nodes{display:block}
+.talent-nodes h3{text-align:center;font:700 18px Georgia,serif;color:#b0e8c1}
+.talent-tree-viewport{max-width:100%;overflow-x:auto;overflow-y:hidden;padding:4px 4px 14px;scrollbar-color:#548c75 #18252b}
+.talent-tree-graph{--line:#8dd9ab;min-width:580px;margin:auto;padding:0 8px}
+.talent-tree-root{display:flex;justify-content:center;position:relative;padding-bottom:27px}
+.talent-tree-root>.talent-node{max-width:270px}
+.talent-tree-root:after{content:'';position:absolute;bottom:0;left:50%;height:27px;border-left:3px solid var(--line)}
+.talent-branches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;position:relative;padding-top:27px}
+.talent-branches:before{content:'';position:absolute;left:25%;right:25%;top:0;border-top:3px solid var(--line)}
+.talent-branch{display:flex;flex-direction:column;align-items:center;position:relative;padding-top:11px;gap:0}
+.talent-branch:before{content:'';position:absolute;left:50%;top:-27px;height:38px;border-left:3px solid var(--line)}
+.talent-branch:after{content:'▼';position:absolute;left:calc(50% - 7px);top:0;font-size:14px;color:var(--line)}
+.talent-vertical-link{height:35px;width:0;border-left:3px solid var(--line);position:relative}
+.talent-vertical-link:after{content:'▼';position:absolute;bottom:-3px;left:-8px;font-size:14px;color:var(--line)}
+.talent-tree-graph .talent-node{box-sizing:border-box;width:100%;max-width:340px;min-height:152px;padding:.7rem .85rem;gap:.25rem}
+.talent-tree-graph .talent-node strong{font-size:1rem}
+.talent-tree-graph .talent-node p{font-size:.82rem;line-height:1.35}
+.talent-tree-graph .talent-node small{font-size:.73rem}
+.talent-tree-graph .talent-node button{padding:.4rem .6rem;margin:0 auto}
+.talent-tree-graph .talent-node.available{border-color:#d7bd6c}
+.talent-tree-graph .talent-node.locked{opacity:.72}
+.talent-tree-graph .talent-node.unlocked{border-color:#8cebb1}
+.talent-note{text-align:center;font-size:.84rem;max-width:740px;margin:12px auto}

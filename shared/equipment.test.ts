@@ -6,7 +6,7 @@ import {craft,countInventory,emptyInventory,equipWeapon,readInventory} from './i
 const owned=()=>readInventory(JSON.stringify({rewards:{w:'cylinderTube',y:'sphericalBall'},crafted:1}));
 const room=()=>new Game(()=>{},()=> 'fight');
 test('legacy contraptions migrate to unequipped wands without refunding materials',()=>{
- const inv=owned();assert.deepEqual(countInventory(inv),{largeSphere:0,largeCylinder:0,redtubeArmour:0,cylinderTube:0,sphericalBall:0,conicalTaper:0,hardTruffleSpore:0,duoCore:0,duoSpore:0,primitiveWand:1,pointyHat:0,pointyOrb:0,sporeboundTotem:0,sporefangQuiver:0,fleetfootBoots:0,mirewalkerBoots:0,verdantMenderTotem:0,sporestormQuiver:0,splitthornQuiver:0,sunlitReliquary:0,venomFang:0,bulwarkCrest:0,nightshadeHood:0,shadowHat:0,emberWand:0,cinderweaveArmour:0});assert.equal(inv.weapon,null);
+ const inv=owned();assert.deepEqual(countInventory(inv),{largeSphere:0,largeCylinder:0,redtubeArmour:0,cylinderTube:0,sphericalBall:0,conicalTaper:0,hardTruffleSpore:0,duoCore:0,duoSpore:0,primitiveWand:1,pointyHat:0,pointyOrb:0,sporeboundTotem:0,sporefangQuiver:0,fleetfootBoots:0,mirewalkerBoots:0,verdantMenderTotem:0,sporestormQuiver:0,splitthornQuiver:0,sunlitReliquary:0,venomFang:0,bulwarkCrest:0,nightshadeHood:0,shadowHat:0,emberWand:0,cinderweaveArmour:0,twinTotemCapacitor:0,fractureAegis:0,sporeglassBlade:0,twinrushBoots:0,haloOfRenewal:0,splitConductor:0,rottingFletching:0,prismLens:0});assert.equal(inv.weapon,null);
  assert.ok(equipWeapon(inv,'primitiveWand'));assert.equal(readInventory(JSON.stringify(inv)).weapon,'primitiveWand');
  assert.ok(equipWeapon(inv,null));assert.equal(readInventory(JSON.stringify(inv)).weapon,null);assert.equal(inv.crafted,1);
 });

@@ -317,7 +317,7 @@ export class Game {
       if(isBall(this)||this.boss.id==='duoYellowWarden')this.balls.tick(now);
       if(!isBall(this)&&this.boss.hp>0&&now>=this.next)this.schedule(now);
       const partner=this.adds.find(a=>a.kind==='duoBoss'&&a.hp>0);
-      if(partner&&partner.bossId!=='yellowBall'&&now>=this.nextDuoAt){const live=[...this.players.values()].filter(p=>p.alive);if(live.length){const target=live[this.mechanic%live.length];this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:partner.bossId==='yellowBall'?3.2:2.8,resolvesAt:now+1500});this.system((partner.bossId==='yellowBall'?'Yellow Ball':'Fracturer')+' prepares a blast!');}this.nextDuoAt=now+4700;}
+      if(partner&&partner.bossId!=='yellowBall'&&now>=this.nextDuoAt){const live=[...this.players.values()].filter(p=>p.alive);if(live.length){const target=live[this.mechanic%live.length];this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:2.8,resolvesAt:now+1500});this.system('Fracturer prepares a blast!');}this.nextDuoAt=now+4700;}
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,p.boots==='mirewalkerBoots'?amount*.75:amount));
       const deployment=this.scatter[0];
       if(deployment&&deployment.at<=now){

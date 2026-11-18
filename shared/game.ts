@@ -68,7 +68,8 @@ export class Game {
   telegraphs:Telegraph[]=[]; reward:Snapshot['reward']; next=0; mechanic=0; fightId=''; motion?:Motion;
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
-  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,readonly liveTalents=false) {this.emit=emit;this.uuid=uuid;}
+  readonly liveTalents:boolean;
+  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,liveTalents=false) {this.emit=emit;this.uuid=uuid;this.liveTalents=liveTalents;}
   add(id:string) {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0};

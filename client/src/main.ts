@@ -110,13 +110,28 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
  for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
- const materials=document.createElement('div');materials.className='material-inventory';const title=document.createElement('h3');title.textContent='Material inventory';materials.append(title);
+ const materials=document.createElement('div');materials.className='material-inventory';const materialTitle=document.createElement('h3');materialTitle.textContent='Material inventory';materials.append(materialTitle);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
- for(const gear of ['primitiveWand','pointyHat','pointyOrb','redtubeArmour','sporeboundTotem','sporefangQuiver','fleetfootBoots','mirewalkerBoots'] as const){
-  const row=document.createElement('p');row.textContent=Object.entries(RECIPES[gear]).map(([m,n])=>n+' '+ITEMS[m as keyof typeof ITEMS]).join(' + ')+' = '+ITEMS[gear];inventoryPanel.append(row);
-  const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];const c=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([m,n])=>c[m as keyof typeof c]<n!);
-  button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};inventoryPanel.append(button);
+ const tabs=document.createElement('nav');tabs.className='crafter-tabs';tabs.setAttribute('aria-label','Crafter class categories');inventoryPanel.append(tabs);
+ const grid=document.createElement('div');grid.className='crafter-recipes';inventoryPanel.append(grid);
+ const categories:[string,string][]=[['all','Shared equipment'],...Object.entries(CLASS_DEFINITIONS).map(([id,cls])=>[id,cls.name])];
+ function showCategory(category:'all'|ClassId){
+  crafterCategory=category;grid.replaceChildren();tabs.replaceChildren();
+  for(const [id,label] of categories){const tab=document.createElement('button');tab.type='button';tab.textContent=label;tab.className=id===category?'active':'';tab.setAttribute('aria-pressed',String(id===category));tab.onclick=()=>showCategory(id as 'all'|ClassId);tabs.append(tab);}
+  const gears=(Object.keys(RECIPES) as Gear[]).filter(gear=>GEAR_CLASS[gear]===category);
+  if(!gears.length){const empty=document.createElement('p');empty.textContent='No class equipment recipes yet.';grid.append(empty);}
+  for(const gear of gears){
+   const card=document.createElement('div');card.className='crafter-recipe';
+   const title=document.createElement('strong');title.textContent=ITEMS[gear];
+   const recipe=document.createElement('p');recipe.textContent=Object.entries(RECIPES[gear]).map(([material,cost])=>cost+' '+ITEMS[material as keyof typeof ITEMS]).join(' + ');
+   const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];
+   const counts=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([material,cost])=>counts[material as keyof typeof counts]<cost);
+   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};
+   card.append(title,recipe,button);grid.append(card);
+  }
  }
+ showCategory(crafterCategory);
+
  }
  const close=document.createElement('button');close.textContent='Close';close.onclick=closeHubPanel;inventoryPanel.append(close);
 }

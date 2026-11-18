@@ -15,7 +15,7 @@ function started(cls:keyof typeof CLASS_DEFINITIONS,inventory=emptyInventory()){
 function equipped(gear:keyof typeof RECIPES,slot:'head'|'offhand'|'armour'|'weapon'){
  const inv=emptyInventory();
  let counter=0;
- for(const [material,n] of Object.entries(RECIPES[gear]))for(let i=0;i<n;i++)inv.rewards['receipt-'+counter++]=material as keyof typeof inv.rewards extends never?never:any;
+ for(const [material,n] of Object.entries(RECIPES[gear]))for(let i=0;i<n;i++)inv.rewards[gear+'-receipt-'+counter++]=material as import('./inventory').Material;
  assert.equal(craft(inv,gear),true);
  assert.equal(equip(inv,slot,gear),true);
  return inv;

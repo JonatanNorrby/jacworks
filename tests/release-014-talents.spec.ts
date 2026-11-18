@@ -1,22 +1,23 @@
 import {test,expect} from '@playwright/test';
+import {NETWORK_VERSION} from '../shared/protocol';
 test('v0.1.5 exposes all starter class talent trees and the new equipment build',async({page,baseURL})=>{
  test.setTimeout(120000);
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto(baseURL+'/?room=talents'+crypto.randomUUID().replaceAll('-','').slice(0,18));
  await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
  await page.locator('#options-button').click();
- await expect(page.locator('#game-version')).toContainText('Client 0.1.5+');
- await expect(page.locator('#game-version')).toContainText('Server 0.1.5');
+ await expect(page.locator('#game-version')).toContainText('Client '+NETWORK_VERSION+'+');
+ await expect(page.locator('#game-version')).toContainText('Server '+NETWORK_VERSION);
  await page.locator('#options-panel').getByRole('button',{name:'Close'}).click();
  await page.getByRole('button',{name:'Talent Tree'}).click();
  const tree=page.locator('#talent-tree-panel');
  await expect(tree).toBeVisible();
  await expect(tree.locator('.talent-class-tabs button')).toHaveCount(8);
- await expect(tree.locator('.talent-node')).toHaveCount(1);
+ await expect(tree.locator('.talent-node')).toHaveCount(5);
  await expect(tree).toContainText('Rank 0 / 1');
  await expect(tree).toContainText('+3% damage dealt and 3% less damage taken');
  await tree.locator('.talent-class-tabs').getByRole('button',{name:'Fire Mage'}).click();
- await expect(tree).toContainText('Fire Mage · Talent tree');
+ await expect(tree).toContainText('Fire Mage · Choose a path');
  await tree.getByRole('button',{name:'Close talent tree'}).click();
  await expect(tree).toBeHidden();
  expect(errors).toEqual([]);

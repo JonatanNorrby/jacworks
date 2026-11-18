@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {NETWORK_VERSION} from '../shared/protocol';
 
 test('v0.1.5 lets a player select a double encounter and inspect the healing meter',async({page,baseURL})=>{
  test.setTimeout(120000);
@@ -6,8 +7,8 @@ test('v0.1.5 lets a player select a double encounter and inspect the healing met
  await page.goto(baseURL+'/?room=duo'+crypto.randomUUID().replaceAll('-','').slice(0,18));
  await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
  await page.locator('#options-button').click();
- await expect(page.locator('#game-version')).toContainText('Client 0.1.5+');
- await expect(page.locator('#game-version')).toContainText('Server 0.1.5');
+ await expect(page.locator('#game-version')).toContainText('Client '+NETWORK_VERSION+'+');
+ await expect(page.locator('#game-version')).toContainText('Server '+NETWORK_VERSION);
  await page.locator('#options-panel').getByRole('button',{name:'Close'}).click();
  await expect(page.locator('#abilities')).toBeVisible();
  await page.getByRole('button',{name:'Propose boss'}).click();

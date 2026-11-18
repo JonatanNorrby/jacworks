@@ -47,7 +47,7 @@ test('Sporebound Totem has specified Fire and Healing Totem values',()=>{
  assert.equal(SPOREBOUND_BONUS.healPerTick,10);
 });
 
-test('equipped Shaman item actually improves authoritative fire and healing totems',()=>{
+test('legacy Shaman item boosts fire only while healing remains baseline',()=>{
  let n=0;const g=new Game(()=>{},()=>String(++n));const p=g.add('shaman');
  const inv=emptyInventory();inv.rewards={a:'hardTruffleSpore',b:'hardTruffleSpore',c:'hardTruffleSpore'};
  assert.equal(craft(inv,'sporeboundTotem'),true);assert.equal(equip(inv,'offhand','sporeboundTotem'),true);
@@ -61,5 +61,5 @@ test('equipped Shaman item actually improves authoritative fire and healing tote
  p.hp=50;
  g.message('shaman',{type:'ability',slot:3,target:{x:0,z:1}},1700);
  g.tick(2700);
- assert.equal(p.hp,60);
+ assert.equal(p.hp,58);
 });

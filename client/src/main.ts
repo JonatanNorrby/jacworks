@@ -64,6 +64,27 @@ glow.intensity = 0.65;
 const status = document.querySelector<HTMLElement>("#status")!;
 const message = document.querySelector<HTMLElement>("#message")!;
 const bossFill = document.querySelector<HTMLElement>("#boss-fill")!;
+const duoHealth=document.createElement('div');duoHealth.id='duo-health';duoHealth.hidden=true;
+document.querySelector('#boss-wrap')!.append(duoHealth);
+function renderDuoHealth(state:Snapshot){
+ const isWarden=state.boss.id==='duoYellowWarden',isTruffle=state.boss.id==='duoTruffleFracturer';
+ duoHealth.hidden=!isWarden&&!isTruffle;
+ if(duoHealth.hidden)return;
+ const partner=state.adds.find(a=>a.kind==='duoBoss');
+ const entries=[
+  {name:isWarden?'Warden':'Truffle Man',hp:state.boss.hp,max:state.boss.maxHp},
+  {name:isWarden?'Yellow Ball':'Fracturer',hp:partner?.hp??0,max:isWarden?1800:2500}
+ ];
+ duoHealth.replaceChildren();
+ for(const entry of entries){
+  const row=document.createElement('div');row.className='duo-health-row';
+  const name=document.createElement('span');name.textContent=entry.name+' · '+Math.ceil(entry.hp)+' / '+entry.max;
+  const track=document.createElement('div');track.className='duo-health-track';
+  const fill=document.createElement('div');fill.className='duo-health-fill';fill.style.width=Math.max(0,Math.min(100,entry.hp/entry.max*100))+'%';
+  track.append(fill);row.append(name,track);duoHealth.append(row);
+ }
+}
+
 const hpFill = document.querySelector<HTMLElement>("#player-hp-fill")!;
 const hpText = document.querySelector<HTMLElement>("#player-hp-text")!;
 document.querySelector('#abilities')?.classList.remove('encounter-only','hidden');
@@ -578,6 +599,7 @@ function connectEncounter() {
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
       if(packet.phase==='lobby'&&mode==='encounter'&&!gameDevLabs.isOpen()){clearEncounterMeshes();setMode('hub');}
       if(mode==='hub'){syncHub(packet);return;}
+      renderDuoHealth(packet);
       bossFill.style.width = `${Math.max(0,Math.min(100,(packet.boss.hp+packet.adds.filter(a=>a.kind==='ball'||a.kind==='duoBoss').reduce((n,a)=>n+a.hp,0))/(packet.boss.maxHp+(packet.boss.id==='duoYellowWarden'?1800:packet.boss.id==='duoTruffleFracturer'?2500:0))*100))}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);

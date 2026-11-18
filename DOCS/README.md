@@ -26,6 +26,7 @@ See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI c
 ## Consolidation and releases
 
 - [Connected Labs decision](ADR/0012-connected-development-labs.md)
+- [0.1.11 Ranger builds, class equipment memory, threat, HP scaling, Chaos Arena and Guide](RELEASE_0_1_11.md)
 - [0.1.10 Royal gear slot changes, Nest layout and fourth-tier talents](RELEASE_0_1_10.md)
 - [0.1.9 Ant Queen, Royal Chitin gear, HP-bar readability and deeper talents](RELEASE_0_1_9.md)
 - [0.1.8 combat fixes, Wardrobe tabs and Fracturer cardinal safe-sector attack](RELEASE_0_1_8.md)

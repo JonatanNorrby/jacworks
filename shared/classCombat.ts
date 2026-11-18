@@ -18,6 +18,11 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
         if(this.talented(p,'aegisCommand'))ally.guardUntil=Math.max(ally.guardUntil,now+1200);
         }
         p.shield=Math.max(p.shield,80+(p.armour==='carapaceShield'?20:0));p.shieldUntil=now+6000;to={...p.pos};
+        this.taunt(p.id,now,this.talented(p,'shieldSignal')?3500:2500);
+        if(this.talented(p,'unbrokenLine')&&ally!==p){
+          const index=p.loadout.indexOf('bulwark');
+          if(index>=0)p.cooldowns[index]=Math.max(now,p.cooldowns[index]-1500);
+        }
         const relay=(this.talented(p,'guardianNetwork')?20:0)+(p.offhand==='fractureAegis'?20:0);
         if(relay){
           const third=[...this.players.values()].filter(a=>a.alive&&a.id!==p.id&&a.id!==ally.id&&distance(a.pos,ally.pos)<=4)
@@ -26,10 +31,15 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
         }
         if(this.talented(p,'shelteredHearts'))this.heal(ally,12,p.id);
         if(this.talented(p,'shieldReprieve')&&ally!==p)this.heal(p,10,p.id);
-      }else if(skill==='bulwark')p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderBulwarkMs:6000);
+      }else if(skill==='bulwark'){
+        p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderBulwarkMs:6000);
+        this.taunt(p.id,now,2600);
+      }
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
       else if(skill==='vanish'){
         p.invisibleUntil=now+4000;p.loadout[slot-1]='backstab';
+        if(this.talented(p,'fadingStep'))this.threat.set(p.id,(this.threat.get(p.id)??0)*.5);
+        if(this.talented(p,'shadowGuard')){p.shield=Math.max(p.shield,8);p.shieldUntil=now+4000;}
         if(this.talented(p,'shadowstep')&&p.dashCharges===0){
           p.dashCharges=1;if(p.head!=='pointyHat')p.dashRechargeAt=0;const dashSlot=p.loadout.indexOf('dash');if(dashSlot>=0)p.cooldowns[dashSlot]=0;
         }
@@ -39,8 +49,17 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           // Boss faces its current target; rear attack requires opposite side of that facing.
           const victim=[...this.players.values()].filter(a=>a.alive&&a.invisibleUntil<=now).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
           const behind=!victim||((p.pos.x-t.pos.x)*(victim.pos.x-t.pos.x)+(p.pos.z-t.pos.z)*(victim.pos.z-t.pos.z))<0;
-          const strike=skill==='stab'?32:skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
+          const ambush=skill==='quickStab'&&p.invisibleUntil>now&&this.talented(p,'openingStrike');
+          const strike=skill==='stab'?32:skill==='quickStab'?24+(ambush?16:0):skill==='backstab'&&behind?BACKSTAB.rear+(this.talented(p,'shadowAmbush')?20:0):BACKSTAB.normal;
           this.damageTarget(t.id,strike,p.id);
+          if(skill==='stab'&&this.talented(p,'menacingStab'))this.addThreat(p.id,80);
+          if(ambush){
+            p.invisibleUntil=0;const vanish=p.loadout.indexOf('backstab');if(vanish>=0)p.loadout[vanish]='vanish';
+            if(this.talented(p,'smokeReturn')){
+              const dash=p.loadout.indexOf('dash');if(dash>=0)p.cooldowns[dash]=Math.max(now,p.cooldowns[dash]-1200);
+              if(p.dashRechargeAt)p.dashRechargeAt=Math.max(now,p.dashRechargeAt-1200);
+            }
+          }
           if(skill==='backstab'&&behind&&this.talented(p,'cloakOfThorns')){
             p.shield=Math.max(p.shield,15);p.shieldUntil=now+2500;
           }
@@ -109,6 +128,14 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           }
         }
       }
+      if(this.talented(p,'spiritEcho')){
+        const healer=this.totems.find(t=>t.hp>0&&t.kind==='healingTotem'&&t.owner===p.id&&t.expires>now);
+        if(healer){
+          const ally=[...this.players.values()].filter(a=>a.alive&&a.hp<a.maxHp&&distance(a.pos,healer.pos)<=4)
+            .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+          if(ally)this.heal(ally,10,p.id);
+        }
+      }
       if(this.talented(p,'livingCurrent')){
         const ally=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,enemy!.pos)<=5&&a.hp<a.maxHp)
           .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
@@ -121,11 +148,12 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
       }
     }
     else if(skill==='aimedShot'||skill==='fireball'||skill==='lightningStorm'){
-      p.cast={skill,slot,endsAt:now+(skill==='aimedShot'?(p.offhand==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotCastMs:1000):skill==='fireball'?(p.weapon==='emberWand'?1000:2000):3000),target:pos,targetId:enemy?.id,nextTick:skill==='lightningStorm'?now+500:undefined};
+      p.cast={skill,slot,endsAt:now+(skill==='aimedShot'?(p.weapon==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotCastMs:1000):skill==='fireball'?(p.weapon==='emberWand'?1000:2000):3000),target:pos,targetId:enemy?.id,nextTick:skill==='lightningStorm'?now+500:undefined};
     }else if(skill==='targetedHeal'){
       if(p.head==='shadowHat')this.damageTarget(enemy!.id,40,p.id);
       else{
         this.heal(ally!,p.offhand==='sunlitReliquary'?CLASS_ITEM_BONUS.priestHeal:40,p.id);
+        if(this.talented(p,'blessingOfSpeed'))ally!.cooldowns=ally!.cooldowns.map(end=>Math.max(now,end-250));
         if(this.talented(p,'healingCascade'))for(const a of this.players.values())
           if(a.alive&&a.id!==ally!.id&&distance(a.pos,ally!.pos)<=4)this.heal(a,12,p.id);
         if(this.talented(p,'sacredEcho')&&ally!==p)this.heal(p,8,p.id);
@@ -139,6 +167,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     }
     else if(skill==='holyLight'){
       this.damageTarget(enemy!.id,32,p.id);
+      if(this.talented(p,'prayerEcho'))this.heal(p,6,p.id);
       if(this.talented(p,'dawnFlare'))this.area(enemy!.pos,2,15,p.id);
       if(this.talented(p,'radiantAegis')){
         const other=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,enemy!.pos)<=5)
@@ -157,8 +186,12 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
       }
     }
     else if(skill==='splitShot'){
-      const arrows=(p.offhand==='splitthornQuiver'?[-.5,-.25,0,.25,.5]:[-.3,0,.3]).map(a=>({angle:a,power:p.offhand==='splitthornQuiver'?SPOREFANG_BONUS.splitShotDamage:22}));
+      const arrows=(p.head==='splitthornQuiver'?[-.5,-.25,0,.25,.5]:[-.3,0,.3]).map(a=>({angle:a,power:p.head==='splitthornQuiver'?SPOREFANG_BONUS.splitShotDamage:22}));
       if(this.talented(p,'splitVolley'))arrows.push({angle:-.7,power:16},{angle:.7,power:16});
+      if(this.talented(p,'skirmishRhythm')&&(p.skirmishUntil??0)>now){
+        arrows.push({angle:0,power:12});p.skirmishUntil=0;
+      }
+      const volleyTargets=new Set<string>();
       const broodHit=new Set<string>();
       for(const {angle,power} of arrows){
         const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};
@@ -167,7 +200,7 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
           const hitRadius=t.id==='boss'||add?.kind==='duoBoss'?1.3:add?.radius??.75;
           const forward=(t.pos.x-p.pos.x)*dir.x+(t.pos.z-p.pos.z)*dir.z;
           if(forward>0&&this.beamHits(p.pos,dir,t.pos,10,hitRadius)){
-            this.damageTarget(t.id,power,p.id);
+            this.damageTarget(t.id,power,p.id);volleyTargets.add(t.id);
             if(p.offhand==='broodQuiver'&&!broodHit.has(t.id)){
               broodHit.add(t.id);
               this.effects.push({id:this.uuid(),owner:p.id,skill:'splitShot',targetId:t.id,pos:{...t.pos},
@@ -177,10 +210,17 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
         }
         this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});
       }
+      if(volleyTargets.size&&this.talented(p,'evasiveVolley')){
+        p.shield=Math.max(p.shield,8);p.shieldUntil=now+2000;
+      }
+      if(volleyTargets.size>=2&&this.talented(p,'quickRecovery'))p.cooldowns[slot-1]=Math.max(now,p.cooldowns[slot-1]-500);
       pos=this.clip(p.pos,{x:p.pos.x+p.facing.x*10,z:p.pos.z+p.facing.z*10});
     }else{
+      if(skill==='lightningShield'&&ally&&this.talented(p,'chargedAegis')){
+        ally.shield=Math.max(ally.shield,10);ally.shieldUntil=now+4000;
+      }
       this.effects.push({id:this.uuid(),owner:p.id,skill,pos,targetId:ally?.id,next:now+(skill==='arrowRain'?400:1000),remaining:skill==='arrowRain'&&this.talented(p,'rainSurge')?4:skill==='arrowRain'?3:6,expires:now+(skill==='fireMine'?12000:6500)});
-      if(skill==='arrowRain'&&p.offhand==='rottingFletching')
+      if(skill==='arrowRain'&&p.boots==='rottingFletching')
         this.effects.push({id:this.uuid(),owner:p.id,skill,pos:{...pos},next:now+2600,remaining:3,expires:now+5700,poisonCloud:true,radius:2.5,damage:6});
     }
     if(!['aimedShot','fireball','splitShot'].includes(skill))this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:pos});return true;
@@ -191,7 +231,18 @@ export function tickClassEffects(this:Game,now:number){
     this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&!!this.players.get(t.owner)?.alive);
     for(const t of this.totems)while(now>=t.next&&t.next<t.expires){
       if(t.kind==='healingTotem'){
-        for(const p of this.players.values())if(p.alive&&distance(t.pos,p.pos)<=(this.players.get(t.owner)?.offhand==='verdantMenderTotem'?SPOREBOUND_BONUS.healRange:4)&&this.visible(t.pos,p.pos))this.heal(p,this.players.get(t.owner)?.offhand==='verdantMenderTotem'?SPOREBOUND_BONUS.healPerTick:8,t.owner);
+        const owner=this.players.get(t.owner);
+        const both=this.totems.some(other=>other.hp>0&&other.owner===t.owner&&other.kind==='fireTotem');
+        const radius=owner?.offhand==='verdantMenderTotem'?SPOREBOUND_BONUS.healRange:4;
+        for(const ally of this.players.values())if(ally.alive&&distance(t.pos,ally.pos)<=radius&&this.visible(t.pos,ally.pos))
+          this.heal(ally,(owner?.offhand==='verdantMenderTotem'?SPOREBOUND_BONUS.healPerTick:8)+
+            (owner&&this.talented(owner,'restorativeRhythm')?3:0)+
+            (owner&&both&&this.talented(owner,'sacredGrove')?4:0),t.owner);
+        if(owner&&this.talented(owner,'stoneSkinWard')){
+          const wounded=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,t.pos)<=radius)
+            .sort((a,b)=>(a.hp/a.maxHp)-(b.hp/b.maxHp))[0];
+          if(wounded){wounded.shield=Math.max(wounded.shield,6);wounded.shieldUntil=now+2000;}
+        }
         this.emit({type:'abilityFx',skill:t.kind,playerId:t.owner,from:t.pos,to:t.pos});
       }else{
         const enemy=this.targets().filter(e=>distance(t.pos,e.pos)<=(t.poisoned?SPOREBOUND_BONUS.range:11)&&this.visible(t.pos,e.pos)).sort((a,b)=>distance(t.pos,a.pos)-distance(t.pos,b.pos))[0];
@@ -199,6 +250,9 @@ export function tickClassEffects(this:Game,now:number){
           if(t.poisoned)this.effects.push({id:this.uuid(),owner:t.owner,skill:'fireTotem',pos:{...enemy.pos},from:{...t.pos},next:now+350,remaining:SPOREBOUND_BONUS.poisonCloudTicks,expires:now+3500,poisonCloud:true,radius:SPOREBOUND_BONUS.poisonCloudRadius,damage:SPOREBOUND_BONUS.poisonCloudDamage});
           else this.effects.push({id:this.uuid(),owner:t.owner,skill:'fireTotem',pos:{...enemy.pos},from:{...t.pos},targetId:enemy.id,next:now+350,remaining:1,expires:now+1000});
           this.emit({type:'abilityFx',skill:'fireTotem',playerId:t.owner,from:{...t.pos},to:{...enemy.pos}});
+          const owner=this.players.get(t.owner);
+          if(owner&&this.talented(owner,'sacredGrove')&&this.totems.some(other=>other.hp>0&&other.owner===t.owner&&other.kind==='healingTotem'))
+            this.damageTarget(enemy.id,8,t.owner);
           if(this.players.get(t.owner)?.weapon==='broodTotem'){
             const second=this.targets().filter(e=>e.id!==enemy.id&&distance(e.pos,enemy.pos)<=5&&this.visible(t.pos,e.pos))
               .sort((a,b)=>distance(a.pos,enemy.pos)-distance(b.pos,enemy.pos))[0];
@@ -253,7 +307,7 @@ export function tickClassEffects(this:Game,now:number){
         }return true;
       }
       while(e.remaining&&now>=e.next){
-        if(e.healingField){for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,e.pos)<=4)this.heal(ally,5,e.owner);}
+        if(e.healingField){for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,e.pos)<=4)this.heal(ally,e.damage??5,e.owner);}
         else if(e.sporeBlast)this.area(e.pos,2,24,e.owner);
         else if(e.mandibleBleed)this.damageTarget(e.targetId!,8,e.owner);
         else if(e.broodVenom)this.damageTarget(e.targetId!,5,e.owner);
@@ -278,7 +332,7 @@ export function tickClassEffects(this:Game,now:number){
         else if(e.skill==='aimedShot'){
           const t=this.targets().find(t=>t.id===e.targetId);
           if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos))){
-            this.damageTarget(t.id,owner.offhand==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotDamage:58,e.owner);
+            this.damageTarget(t.id,owner.weapon==='sporefangQuiver'?SPOREFANG_BONUS.aimedShotDamage:58,e.owner);
             if(this.talented(owner,'ricochetArrows')){
               const second=this.targets().filter(x=>x.id!==t.id&&distance(x.pos,t.pos)<=4&&this.visible(t.pos,x.pos))
                 .sort((a,b)=>distance(a.pos,t.pos)-distance(b.pos,t.pos))[0];
@@ -301,13 +355,36 @@ export function tickClassEffects(this:Game,now:number){
         }
         else if(e.skill==='fireball'&&!e.targetId){/* Projectile struck cover; no splash through it. */}
         else if(e.skill==='fireTotem'){const t=this.targets().find(t=>t.id===e.targetId);if(t&&distance(e.pos,t.pos)<=1.6&&(!e.from||this.visible(e.from,t.pos)))this.damageTarget(t.id,24,e.owner);}
-        else this.area(e.pos,e.skill==='fireball'?2:e.skill==='arrowRain'?(owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0):e.skill==='lightningShield'?3:3.5,e.skill==='fireball'?(owner.weapon==='emberWand'?50:100):e.skill==='lightningShield'?14:e.skill==='arrowRain'?(e.remaining===1&&this.talented(owner,'rainSurge')?22:owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainDamage:28):28,e.owner);
+        else this.area(e.pos,e.skill==='fireball'?(this.talented(owner,'wildfire')?2.5:2):e.skill==='arrowRain'?(owner.armour==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0):e.skill==='lightningShield'?(this.talented(owner,'thunderhead')?4:3):3.5,e.skill==='fireball'?(owner.armour==='cinderweaveArmour'?(owner.weapon==='emberWand'?24:48):(owner.weapon==='emberWand'?70:140)):e.skill==='lightningShield'?(this.talented(owner,'overchargedPulse')?18:14):e.skill==='arrowRain'?(e.remaining===1&&this.talented(owner,'rainSurge')?22:owner.armour==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainDamage:28):28,e.owner);
+        if(e.skill==='lightningShield'&&this.talented(owner,'conduitMender')){
+          const ally=this.players.get(e.targetId!);if(ally?.alive)this.heal(ally,3,e.owner);
+        }
+        if(e.skill==='fireball'&&e.targetId){
+          const hits=this.targets().filter(t=>distance(t.pos,e.pos)<=(this.talented(owner,'wildfire')?2.5:2)&&this.visible(e.pos,t.pos));
+          if(hits.length){
+            if(this.talented(owner,'ashShield')){owner.shield=Math.max(owner.shield,10);owner.shieldUntil=now+3000;}
+            if(this.talented(owner,'rollingEmbers'))for(const t of hits){
+              const key=e.owner+':'+t.id+':fireball';
+              this.burns.set(key,{target:t.id,next:now+1000,remaining:2});
+            }
+            if(this.talented(owner,'flashIgnition')){
+              const mine=this.effects.find(m=>m!==e&&m.owner===e.owner&&m.skill==='fireMine'&&!m.afterglow&&m.remaining>0&&distance(m.pos,e.pos)<=3.8);
+              if(mine){
+                this.area(mine.pos,3,95,e.owner);mine.remaining=0;
+                this.emit({type:'abilityFx',skill:'fireMine',playerId:e.owner,from:mine.pos,to:mine.pos});
+              }
+            }
+            if(this.talented(owner,'wildfire'))
+              spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireball',pos:{...e.pos},next:now+1000,
+                remaining:1,expires:now+1500,afterglow:true,radius:2.5,damage:8});
+          }
+        }
         if(e.skill==='arrowRain'&&!e.poisonCloud&&e.remaining===1&&this.talented(owner,'thornfall')){
           spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'arrowRain',pos:{...e.pos},next:now+1000,
-            remaining:2,expires:now+2600,poisonCloud:true,radius:owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5,damage:6});
+            remaining:2,expires:now+2600,poisonCloud:true,radius:owner.armour==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5,damage:6});
         }
         if(e.skill==='arrowRain'&&!e.poisonCloud&&this.talented(owner,'rainOfMercy')){
-          const radius=(owner.offhand==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0);
+          const radius=(owner.armour==='sporestormQuiver'?SPOREFANG_BONUS.arrowRainRadius:3.5)+(e.remaining===1&&this.talented(owner,'lastDownpour')?1:0);
           for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,e.pos)<=radius)this.heal(ally,5,e.owner);
         }
         if(e.skill!=='aimedShot'&&e.skill!=='fireTotem')this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});e.remaining--;e.next+=e.skill==='arrowRain'?600:1000;

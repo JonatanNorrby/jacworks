@@ -88,7 +88,7 @@ test('Ranger tradeoffs have slower aim, smaller rain, and five weaker arrows',()
  assert.equal(SPOREFANG_BONUS.arrowRainRadius,1.75);
  assert.equal(SPOREFANG_BONUS.splitShotArrows,5);
  assert.equal(SPOREFANG_BONUS.splitShotDamage,16);
- const {g,p}=started('ranger',equipped('sporefangQuiver','offhand'));p.pos={x:0,z:2};
+ const {g,p}=started('ranger',equipped('sporefangQuiver','weapon'));p.pos={x:0,z:2};
  g.message('p',{type:'ability',slot:1,target:{x:0,z:0}},200);
  assert.equal(p.cast?.endsAt,2200);
 });
@@ -101,7 +101,7 @@ test('Fire Mage wand and armour can stack to give three 50-damage fireballs at h
  assert.equal(p.cast?.endsAt,1200);
  g.tick(1200);const fx=g.effects.filter(e=>e.skill==='fireball');
  assert.equal(fx.length,3);
- g.tick(1550);assert.equal(g.boss.hp,1650);
+ g.tick(1550);assert.equal(g.boss.hp,1728);
 });
 test('dummies are now far to the west of the hub',()=>{
  const g=new Game(()=>{},()=> 'id');

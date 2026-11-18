@@ -4,7 +4,7 @@ import type {ClassId} from './classes';
 export const SPOREBOUND_BONUS={poisonCloudDamage:8,poisonCloudRadius:1.5,poisonCloudTicks:3,range:7,healPerTick:16,healRange:2} as const;
 export const SPOREFANG_BONUS={aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5} as const;
 export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:15,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
-export type Material='antChitin'|'largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
+export type Material='chaosSigil'|'antChitin'|'largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
 export const RECIPES={
  redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},
  pointyHat:{conicalTaper:3},pointyOrb:{conicalTaper:1,sphericalBall:1},
@@ -37,9 +37,9 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  pointyOrb:'Fire Mage-only: LAZOR applies burn and adds 2s cooldown',
  sporeboundTotem:'Fire Totem turns green, with a small poison cloud (1.5 radius, 8 damage per tick) and shorter 7-unit range',
  verdantMenderTotem:'Healing Totem heals 16 HP per pulse but range is halved to 2 units',
- sporefangQuiver:'Aimed Shot deals 100 damage but cast time doubles to 2 seconds',
- sporestormQuiver:'Arrow Rain deals 35 damage per wave but has half the radius',
- splitthornQuiver:'Split Shot fires five arrows instead of three, each dealing 16 instead of 22 damage',
+ sporefangQuiver:'Ranger weapon: Aimed Shot deals 100 damage but cast time doubles to 2 seconds',
+ sporestormQuiver:'Ranger armour: Arrow Rain deals 35 damage per wave but has half the radius',
+ splitthornQuiver:'Ranger head: Split Shot fires five arrows instead of three, each dealing 16 instead of 22 damage',
  fleetfootBoots:'15% faster movement',
  mirewalkerBoots:'25% reduced poison cloud damage',
  sunlitReliquary:'Targeted Heal restores 55 HP instead of 40',
@@ -47,15 +47,15 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  bulwarkCrest:'Bulwark lasts 8 seconds and increases damage reduction from 50% to 65%',
  nightshadeHood:'Rogue head: doubles Poison Enchant tick count (stacks with Venom Fang)',
  shadowHat:'Priest head: Targeted Heal damages bosses instead of healing allies',
- emberWand:'Fire Mage weapon: Fireball deals half damage with half cast time',
- cinderweaveArmour:'Fire Mage armour: Fireball launches three projectiles instead of one',
+ emberWand:'Fire Mage weapon: Fireball deals 70 instead of 140 damage with half cast time (1s)',
+ cinderweaveArmour:'Fire Mage armour: Fireball splits into 3 smaller 48-damage explosions (144 total on direct overlap, versus 140) for wider coverage',
  twinTotemCapacitor:'Shaman offhand: Earth Shock orders your active Fire Totem to strike its target for 20 extra damage',
  fractureAegis:'Defender offhand: Heroic Shield shares 20 absorb with a nearby third ally (stacks with Guardian Network)',
  sporeglassBlade:'Rogue weapon: Backstab plants a delayed 24-damage spore blast around the target',
  twinrushBoots:'Warrior boots: Charging Stab travels 7 units instead of 5',
  haloOfRenewal:'Priest head: Holy Nova leaves a three-tick healing field (5 HP to allies each second)',
  splitConductor:'Lightning Mage offhand: Arc Blast or Arc Spear forks a 25-damage bolt to a second nearby enemy',
- rottingFletching:'Ranger offhand: Arrow Rain leaves a three-tick poisonous spore field (6 damage each second)',
+ rottingFletching:'Ranger boots: Arrow Rain leaves a three-tick poisonous spore field (6 damage each second)',
  prismLens:'Fire Mage offhand: LAZOR becomes two angled 60-damage beams instead of a single central beam',
  broodTotem:'Shaman weapon: Fire Totem attacks another enemy within 5 units for 10 damage',
  carapaceShield:'Defender armour: Heroic Shield grants 20 extra self absorb and 10 additional absorb on another ally',
@@ -68,15 +68,16 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
 };
 
 export type EquipmentSlot='weapon'|'head'|'offhand'|'armour'|'boots';
+export const EQUIPMENT_SLOTS=['weapon','head','offhand','armour','boots'] as const satisfies readonly EquipmentSlot[];
 export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  redtubeArmour:'armour',primitiveWand:'weapon',pointyHat:'head',pointyOrb:'offhand',
  sporeboundTotem:'offhand',verdantMenderTotem:'offhand',
- sporefangQuiver:'offhand',sporestormQuiver:'offhand',splitthornQuiver:'offhand',
+ sporefangQuiver:'weapon',sporestormQuiver:'armour',splitthornQuiver:'head',
  fleetfootBoots:'boots',mirewalkerBoots:'boots',
  sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand',
  nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour',
  twinTotemCapacitor:'offhand',fractureAegis:'offhand',sporeglassBlade:'weapon',twinrushBoots:'boots',
- haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand',broodTotem:'weapon',carapaceShield:'armour',mandibleDagger:'weapon',antLegGreaves:'boots',pheromoneChalice:'offhand',antennaSpindle:'offhand',broodQuiver:'offhand',moltenChitin:'offhand'
+ haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'boots',prismLens:'offhand',broodTotem:'weapon',carapaceShield:'armour',mandibleDagger:'weapon',antLegGreaves:'boots',pheromoneChalice:'offhand',antennaSpindle:'offhand',broodQuiver:'offhand',moltenChitin:'offhand'
 };
 export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
  redtubeArmour:'warrior',primitiveWand:'lightningMage',pointyHat:'all',pointyOrb:'fireMage',
@@ -100,6 +101,7 @@ const COUNTERS={
 } as const;
 export type Inventory={
  rewards:Record<string,Material>;
+ gearSets:Partial<Record<ClassId,Partial<Record<EquipmentSlot,Gear|null>>>>;
  crafted:number;hats:number;orbs:number;armours:number;sporeTotems:number;sporeQuivers:number;
  fleetfootPairs:number;mirewalkerPairs:number;menderTotems:number;stormQuivers:number;thornQuivers:number;
  reliquaries:number;venomFangs:number;bulwarkCrests:number;
@@ -108,11 +110,11 @@ export type Inventory={
  renewalHalos:number;splitConductors:number;rottingFletchings:number;prismLenses:number;
  broodTotems:number;carapaceShields:number;mandibleDaggers:number;antLegPairs:number;
  pheromoneChalices:number;antennaSpindles:number;broodQuivers:number;moltenChitins:number;
- armour:'redtubeArmour'|'cinderweaveArmour'|'carapaceShield'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'|'broodTotem'|'carapaceShield'>|null;
- boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|'antLegGreaves'|null;
+ armour:'redtubeArmour'|'cinderweaveArmour'|'carapaceShield'|'sporestormQuiver'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|'splitthornQuiver'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'|'broodTotem'|'carapaceShield'|'sporefangQuiver'|'sporestormQuiver'|'splitthornQuiver'|'rottingFletching'>|null;
+ boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|'antLegGreaves'|'rottingFletching'|null;
 };
 export const emptyInventory=():Inventory=>({
- rewards:{},crafted:0,hats:0,orbs:0,armours:0,sporeTotems:0,sporeQuivers:0,
+ rewards:{},gearSets:{},crafted:0,hats:0,orbs:0,armours:0,sporeTotems:0,sporeQuivers:0,
  fleetfootPairs:0,mirewalkerPairs:0,menderTotems:0,stormQuivers:0,thornQuivers:0,
  reliquaries:0,venomFangs:0,bulwarkCrests:0,
  nightshadeHoods:0,shadowHats:0,emberWands:0,cinderweaveArmours:0,
@@ -123,7 +125,7 @@ export const emptyInventory=():Inventory=>({
 });
 export function countInventory(v:Inventory):Record<Material|Gear,number>{
  const totals={} as Record<Material|Gear,number>;
- for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'] as Material[])
+ for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin','chaosSigil'] as Material[])
   totals[material]=Object.values(v.rewards).filter(m=>m===material).length;
  for(const gear of Object.keys(RECIPES) as Gear[]){
   const n=v[COUNTERS[gear]]??0;
@@ -138,7 +140,7 @@ export function readInventory(raw:string|null):Inventory {
   if(!saved||typeof saved!=='object'||!saved.rewards||typeof saved.rewards!=='object'||Array.isArray(saved.rewards))return emptyInventory();
   const result=emptyInventory();
   for(const [receipt,material] of Object.entries(saved.rewards))
-   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'].includes(String(material)))
+   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin','chaosSigil'].includes(String(material)))
     Object.defineProperty(result.rewards,receipt,{value:material,enumerable:true,writable:true,configurable:true});
   // Allocation order keeps existing crafted items before new recipes, avoiding negative material balances.
   for(const gear of Object.keys(RECIPES) as Gear[]){
@@ -152,6 +154,24 @@ export function readInventory(raw:string|null):Inventory {
    const selected=saved[slot];
    if(typeof selected==='string'&&selected in RECIPES&&GEAR_SLOTS[selected as Gear]===slot&&countInventory(result)[selected as Gear]>0)
     (result as unknown as Record<string,unknown>)[slot]=selected;
+  }
+  const oldRanger:{[key:string]:EquipmentSlot}={sporefangQuiver:'weapon',sporestormQuiver:'armour',splitthornQuiver:'head',rottingFletching:'boots'};
+  for(const [gear,slot] of Object.entries(oldRanger)){
+    if(saved.offhand===gear&&!result[slot]&&countInventory(result)[gear as Gear]>0)
+      (result as unknown as Record<string,unknown>)[slot]=gear;
+  }
+  if(saved.gearSets&&typeof saved.gearSets==='object'&&!Array.isArray(saved.gearSets)){
+    for(const [classId,selection] of Object.entries(saved.gearSets)){
+      if(!['shaman','defender','rogue','warrior','priest','lightningMage','ranger','fireMage'].includes(classId)||!selection||typeof selection!=='object')continue;
+      const set:Partial<Record<EquipmentSlot,Gear|null>>={};
+      for(const slot of EQUIPMENT_SLOTS){
+        const id=(selection as Record<string,unknown>)[slot];
+        if(id===null)set[slot]=null;
+        if(typeof id==='string'&&Object.hasOwn(RECIPES,id)&&GEAR_SLOTS[id as Gear]===slot&&
+           (GEAR_CLASS[id as Gear]===classId||GEAR_CLASS[id as Gear]==='all')&&countInventory(result)[id as Gear]>0)set[slot]=id as Gear;
+      }
+      result.gearSets[classId as ClassId]=set;
+    }
   }
   // v0.1.9 -> v0.1.10: migrate previously equipped Royal Ant gear into
   // its proper slot. Keep an existing legitimate weapon/armour if occupied.
@@ -176,6 +196,34 @@ export function equip(v:Inventory,slot:EquipmentSlot,gear:Gear|null){
 }
 export function equipWeapon(v:Inventory,weapon:Weapon){return equip(v,'weapon',weapon)}
 export function inventoryView(v:Inventory){const counts=countInventory(v);return{
- materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'] as const).map(id=>({id,count:counts[id]})),
+ materials:(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin','chaosSigil'] as const).map(id=>({id,count:counts[id]})),
  gear:(Object.keys(GEAR_SLOTS) as Gear[]).filter(id=>counts[id]>0).map(id=>({id,count:counts[id],slot:GEAR_SLOTS[id],equipped:v[GEAR_SLOTS[id]]===id}))
 }}
+
+/** Presets are browser-local equipment selections, not extra copies of gear.
+ * Craft ownership and slot/class validity are rechecked upon activation. */
+export function rememberClassGear(v:Inventory,classId:ClassId){
+ const set:Partial<Record<EquipmentSlot,Gear|null>>={};
+ for(const slot of EQUIPMENT_SLOTS){
+  const id=v[slot] as Gear|null;
+  set[slot]=id&&GEAR_CLASS[id]!=='all'&&GEAR_CLASS[id]!==classId?null:id;
+ }
+ v.gearSets[classId]=set;
+}
+export function activateClassGear(v:Inventory,classId:ClassId){
+ if(!v.gearSets[classId])rememberClassGear(v,classId);
+ const set=v.gearSets[classId]!;
+ for(const slot of EQUIPMENT_SLOTS){
+  const id=set[slot];
+  const valid=id&&Object.hasOwn(RECIPES,id)&&GEAR_SLOTS[id]===slot&&
+    (GEAR_CLASS[id]===classId||GEAR_CLASS[id]==='all')&&countInventory(v)[id]>0?id:null;
+  (v as unknown as Record<string,unknown>)[slot]=valid;
+ }
+ return v;
+}
+export function equipForClass(v:Inventory,classId:ClassId,slot:EquipmentSlot,gear:Gear|null){
+ if(gear&&GEAR_CLASS[gear]!=='all'&&GEAR_CLASS[gear]!==classId)return false;
+ if(!equip(v,slot,gear))return false;
+ rememberClassGear(v,classId);
+ return true;
+}

@@ -18,6 +18,8 @@ JAC Works is developed concurrently by three human developers and may also have 
 - Document significant architectural and durable game-design decisions as ADRs in `DOCS/ADR/`, not only in chats, issues, or PRs.
 - Never commit credentials, passwords, API tokens, secrets, or private keys.
 
+Recent accepted gameplay direction is documented in ADR-0018: class-specific equipment presets, five Ranger equipment slots, 3×4-class talent branches, server-authoritative threat and group boss scaling, Chaos Arena, and the discovery-based Field Guide. See the precise rules and provenance before modifying these systems.
+
 ## Architecture Decision Records (ADRs)
 
 JAC Works uses ADRs as the durable decision log for significant architecture, workflow, and core game-system decisions. Read `DOCS/ADR/README.md` and relevant Accepted ADRs before making changes that may affect them.

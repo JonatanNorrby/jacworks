@@ -15,9 +15,9 @@ test('Ranger Sporefang Quiver requires both Hard Truffle and large cylinder rece
  assert.equal(craft(inv,'sporefangQuiver'),false);
  assert.equal(countInventory(inv).largeCylinder,0);
  assert.equal(countInventory(inv).hardTruffleSpore,0);
- assert.equal(equip(inv,'offhand','sporefangQuiver'),true);
+ assert.equal(equip(inv,'weapon','sporefangQuiver'),true);
  const loaded=readInventory(JSON.stringify(inv));
- assert.equal(loaded.offhand,'sporefangQuiver');
+ assert.equal(loaded.weapon,'sporefangQuiver');
  assert.equal(loaded.sporeQuivers,1);
  assert.equal(gearEligible('ranger','sporefangQuiver'),true);
  assert.equal(gearEligible('shaman','sporefangQuiver'),false);
@@ -25,7 +25,7 @@ test('Ranger Sporefang Quiver requires both Hard Truffle and large cylinder rece
  for(const cls of ['ranger','shaman'] as const){
   const g=new Game(()=>{},()=> 'id');const p=g.add('p');
   g.message('p',{type:'join',classId:cls,loadout:CLASS_DEFINITIONS[cls].skills,inventory:inv},100);
-  assert.equal(p.offhand,cls==='ranger'?'sporefangQuiver':null);
+  assert.equal(p.weapon,cls==='ranger'?'sporefangQuiver':null);
  }
 });
 test('Boot slots are independent from other gear and persist after reload',()=>{

@@ -74,5 +74,5 @@ export function buildAntCave(scene:Scene){
  }
  const queen=antModel('ant-queen',false,true);
  queen.position.set(0,1.52,10.5);queen.setEnabled(false);
- return {props,queen,floor,earth,createWorker:()=>antModel('worker-ant',false),createRoyal:()=>antModel('royal-guard-ant',true)};
+ return {props,queen,floor,earth,createWorker:()=>antModel('worker-ant',false),createRoyal:()=>antModel('royal-guard-ant',true),createQueen:()=>antModel('chaos-queen',false,true)};
 }

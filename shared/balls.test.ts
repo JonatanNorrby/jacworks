@@ -27,7 +27,7 @@ test('split cancels parent motion, telegraphs and stale projectile/poison/burn t
 });
 test('targeted, AoE and directional abilities hit children; Large Sphere never substitutes for crafting materials',()=>{
  const g=fight('hardYellowBall'),p=g.players.get('p')!;g.damageTarget('boss',1200);g.tick(150);p.pos={x:0,z:3};p.facing={x:0,z:-1};p.loadout=['lazor','fireball','fireMine','dash'];g.message('p',{type:'ability',slot:1},200);assert.ok(g.adds.every(a=>a.hp===510));
- g.effects.push({id:'splash',owner:'p',skill:'fireball',targetId:g.adds[0].id,pos:{x:0,z:0},next:250,remaining:1,expires:1000});g.tick(250);assert.ok(g.adds.every(a=>a.hp===410));g.area({x:0,z:0},4,200);g.tick(300);assert.equal(g.adds.length,4);
+ g.effects.push({id:'splash',owner:'p',skill:'fireball',targetId:g.adds[0].id,pos:{x:0,z:0},next:250,remaining:1,expires:1000});g.tick(250);assert.ok(g.adds.every(a=>a.hp===370));g.area({x:0,z:0},4,200);g.tick(300);assert.equal(g.adds.length,4);
  const v=readInventory(JSON.stringify({rewards:{old:'sphericalBall',new:'largeSphere'},crafted:0}));assert.equal(countInventory(v).largeSphere,1);assert.equal(countInventory(v).sphericalBall,1);assert.ok(inventoryView(v).materials.some(m=>m.id==='largeSphere'&&m.count===1));assert.ok(!craft(v));
 });
 

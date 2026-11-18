@@ -43,7 +43,7 @@ test('Lightning Storm channels six area ticks and moving interrupts remaining pu
 test('Lightning Shield follows ally and periodically damages only nearby enemies',()=>{
  const {g,p,use}=setup('lightningMage');const a=g.add('a');a.pos={x:0,z:2};use('lightningShield',200,{targetId:'a'});g.tick(1200);assert.equal(g.boss.hp,1786);a.pos={x:8,z:8};g.tick(2200);assert.equal(g.boss.hp,1786);a.alive=false;g.tick(3200);assert.equal(g.effects.length,0);assert.equal(p.hp,100);
 });
-for(const [classId,skill,duration,damage] of [['ranger','aimedShot',1000,58],['fireMage','fireball',2000,100]] as const){
+for(const [classId,skill,duration,damage] of [['ranger','aimedShot',1000,58],['fireMage','fireball',2000,140]] as const){
  test(`${skill}: timed cast, projectile travel, cooldown and movement/Dash/death interrupts`,()=>{
   const {g,p,use}=setup(classId);use(skill);g.tick(200+duration-1);assert.equal(g.boss.hp,1800);assert.ok(p.cast);g.tick(200+duration);assert.equal(p.cast,undefined);assert.equal(g.boss.hp,1800);g.tick(550+duration);assert.equal(g.boss.hp,1800-damage);
   for(const action of ['movement','dash','death']){
@@ -58,7 +58,7 @@ test('target areas reject invalid coordinates, Arrow Rain has three waves, Split
 });
 test('Fire Mine persists, triggers once, expires; Fireball has small area splash',()=>{
  const {g,p,use}=setup('fireMage');use('fireMine',200,{target:{x:5,z:0}});g.tick(300);assert.equal(g.boss.hp,1800);g.boss.pos={x:5,z:0};g.tick(400);assert.equal(g.boss.hp,1705);g.tick(500);assert.equal(g.boss.hp,1705);
- p.pos={x:5,z:2};g.adds=[{id:'a',pos:{x:6,z:0},hp:150,maxHp:150,attackAt:99999}];use('fireball',700,{targetId:'boss'});g.tick(2700);g.tick(3050);assert.equal(g.boss.hp,1605);assert.equal(g.adds[0].hp,50);
+ p.pos={x:5,z:2};g.adds=[{id:'a',pos:{x:6,z:0},hp:150,maxHp:150,attackAt:99999}];use('fireball',700,{targetId:'boss'});g.tick(2700);g.tick(3050);assert.equal(g.boss.hp,1565);assert.equal(g.adds[0].hp,10);
  p.cooldowns[2]=0;use('fireMine',4000,{target:{x:0,z:0}});g.tick(16001);assert.equal(g.effects.length,0);
 });
 test('class gear eligibility preserves all inventory receipts, ownership and saved equipment',()=>{

@@ -25,11 +25,12 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0011](0011-yellow-ball-splits.md) | Accepted | Yellow Ball split encounters and Large Sphere |
 
 | [0012](0012-connected-development-labs.md) | Accepted | Connected development Labs and consolidation |
-| [0013](0013-branching-talents-and-duo-gear.md) | Accepted for prototype | Class talent branches and dual-encounter skill mutation gear |
+| [0013](0013-branching-talents-and-duo-gear.md) | Partially superseded by 0018 (talent branch count), otherwise accepted | Class talent branches and dual-encounter skill mutation gear |
 | [0014](0014-browser-local-rebindable-controls.md) | Accepted for prototype | Safe and persistent configurable keyboard controls |
 | [0015](0015-fracturer-cardinal-eruption.md) | Accepted for prototype | Cardinal Eruption: three unsafe compass sectors, one guaranteed intact safe corridor |
 | [0016](0016-ant-queen-objective-and-extended-builds.md) | Accepted for prototype | Ant Queen Guard-death objective, new Nest, south-facing bars, Hard Warden proximity and deeper builds |
-| [0017](0017-nest-layout-gear-slots-and-fourth-talents.md) | Accepted for prototype | Royal Chitin gear in distinct slots, southern Nest gate, enlarged cave and fourth-tier class talents |
+| [0017](0017-nest-layout-gear-slots-and-fourth-talents.md) | Partially superseded by 0018 (Ranger slots), otherwise accepted | Royal Chitin gear in distinct slots, southern Nest gate, enlarged cave and fourth-tier class talents |
+| [0018](0018-chaos-threat-class-loadouts-codex.md) | Accepted for prototype | Five Ranger slots, class equipment presets, threat, three talent branches, HP scaling, Chaos Arena, Guide |
 
 ## Workflow
 

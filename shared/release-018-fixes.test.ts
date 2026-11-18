@@ -38,10 +38,10 @@ test('Ember Afterglow never re-triggers Fire Mine: one 95 explosion + three 8-da
 test('Split Shot independently damages once per projectile contact: 3 × 22 and 5 × 16',()=>{
  const normal=fight('ranger');normal.g.message('p',{type:'ability',slot:3},200);
  assert.equal(normal.g.boss.hp,1800-66,'all three close-range rays strike boss');
- const quiver=fight('ranger');quiver.p.offhand='splitthornQuiver';
+ const quiver=fight('ranger');quiver.p.head='splitthornQuiver';
  quiver.g.message('p',{type:'ability',slot:3},200);
  assert.equal(quiver.g.boss.hp,1800-80,'all five close-range rays strike boss');
- const talented=fight('ranger');talented.p.pos={x:0,z:1.85};talented.p.offhand='splitthornQuiver';
+ const talented=fight('ranger');talented.p.pos={x:0,z:1.85};talented.p.head='splitthornQuiver';
  talented.p.talents={wins:['warden','yellowBall'],picks:{ranger:['unyieldingForce','splitVolley']}};
  talented.g.message('p',{type:'ability',slot:3},200);
  assert.ok(talented.g.boss.hp<1800-80*1.03,'Split Volley adds independently colliding outer arrows');

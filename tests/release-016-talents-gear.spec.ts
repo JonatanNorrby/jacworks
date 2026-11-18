@@ -12,13 +12,13 @@ test('v0.1.6: every class has a genuinely branched, arrow-linked talent graph',a
  for(const name of classes){
    await tree.locator('.talent-class-tabs').getByRole('button',{name,exact:true}).click();
    await expect(tree.locator('.talent-tree-graph')).toBeVisible();
-   await expect(tree.locator('.talent-branch')).toHaveCount(2);
-   await expect(tree.locator('.talent-vertical-link')).toHaveCount(6);
-   await expect(tree.locator('.talent-node')).toHaveCount(9);
+   await expect(tree.locator('.talent-branch')).toHaveCount(3);
+   await expect(tree.locator('.talent-vertical-link')).toHaveCount(9);
+   await expect(tree.locator('.talent-node')).toHaveCount(13);
    await expect(tree.locator('.talent-tree-root .talent-node')).toContainText('Unyielding Force');
    await expect(tree.locator('.talent-node').first()).toContainText('Rank 0 / 1');
    await expect(tree.locator('.talent-node.available')).toHaveCount(1);
-   await expect(tree.locator('.talent-node.locked')).toHaveCount(8);
+   await expect(tree.locator('.talent-node.locked')).toHaveCount(12);
  }
  const edges=await tree.evaluate(element=>{
    const root=element.querySelector('.talent-tree-root')!;

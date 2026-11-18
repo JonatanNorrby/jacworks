@@ -194,6 +194,7 @@ function openTrainer(){draftClass=selectedClass;draft=[...loadout];trainerOpen=t
 function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{const skill=SKILLS[active[i]];el.querySelector("strong")!.textContent=skill.name;el.querySelector("small")!.textContent=skill.description;el.title=skill.name+': '+skill.description})}
 renderAbilityBar();
 const classButton=document.createElement('button');classButton.textContent='Choose class';classButton.onclick=openTrainer;document.querySelector('#hub-card')!.append(classButton);
+const treeButton=document.createElement('button');treeButton.textContent='Talent Tree';treeButton.onclick=()=>{keys.clear();talentTree.open(selectedClass)};document.querySelector('#hub-card')!.append(treeButton);
 const gateButton=document.createElement('button');gateButton.textContent='Propose boss';gateButton.onclick=()=>openHubPanel('gate');document.querySelector('#hub-card')!.append(gateButton);
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];

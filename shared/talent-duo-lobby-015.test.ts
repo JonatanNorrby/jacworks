@@ -110,3 +110,16 @@ test('Lobby skills create a visible totem and real cooldowns, then recharge',()=
  g.tick(3100);assert.equal(p.dashCharges,1);
  g.tick(15300);assert.equal(g.totems.length,0);
 });
+
+test('Earned totem expiry talent also damages practice dummies in lobby',()=>{
+ const g=make(),p=g.add('a');
+ g.message('a',{type:'join',classId:'shaman',loadout:CLASS_DEFINITIONS.shaman.skills},100);
+ p.talents={wins:['warden','greenCone'],picks:{shaman:['unyieldingForce','partingGift']}};
+ p.pos={x:-10,z:0};p.facing={x:-1,z:0};
+ g.message('a',{type:'practice',slot:2,dummyId:''},200);
+ assert.equal(g.totems.length,1);
+ const nearby=g.trainingDummies.find(d=>Math.hypot(d.pos.x-g.totems[0].pos.x,d.pos.z-g.totems[0].pos.z)<=3)!;
+ const hp=nearby.hp;
+ g.tick(15201);
+ assert.equal(g.totems.length,0);assert.equal(nearby.hp,hp-30);
+});

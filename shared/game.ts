@@ -120,9 +120,13 @@ export class Game {
       const dummy=typeof v.dummyId==='string'?this.trainingDummies.find(d=>d.id===v.dummyId&&d.hp>0&&distance(p.pos,d.pos)<=8):undefined;
       const from={...p.pos};
       let to=dummy?{...dummy.pos}:{x:Math.max(-12,Math.min(12,p.pos.x+p.facing.x*3)),z:Math.max(-10,Math.min(10,p.pos.z+p.facing.z*3))};
-      if(skill==='dash'){p.pos=moveHubPlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.hubNpc.state.pos);to={...p.pos};}
+      if(skill==='dash'){p.pos=moveHubPlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.hubNpc.state.pos);to={...p.pos};p.dashCharges=0;p.dashRechargeAt=now+SKILLS.dash.cooldown;}
       else if(skill==='targetedHeal')this.heal(p,p.offhand==='sunlitReliquary'?55:40,p.id);
-      else if(skill==='pulseNova'||skill==='holyNova'||skill==='healingTotem'){
+      else if(skill==='fireTotem'||skill==='healingTotem'){
+        this.totems=this.totems.filter(t=>t.owner!==id||t.kind!==skill);
+        this.totems.push({id:this.uuid(),owner:id,kind:skill,pos:{...to},hp:1,next:now+1000,expires:now+15000,poisoned:skill==='fireTotem'&&p.offhand==='sporeboundTotem'});
+      }
+      else if(skill==='pulseNova'||skill==='holyNova'){
         const heal=skill==='pulseNova'?18:skill==='holyNova'?25:p.offhand==='verdantMenderTotem'?16:8;
         for(const ally of this.players.values())if(distance(ally.pos,p.pos)<=4.5)this.heal(ally,heal,p.id);
       }else if(skill==='bulwark')p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?8000:6000);
@@ -258,6 +262,9 @@ export class Game {
     if(this.vote&&now>=this.vote.expires)this.cancelVote();
     if(this.phase==='lobby') {
       for(const d of this.trainingDummies)if(d.hp<=0&&now>=d.respawnAt)d.hp=d.maxHp;
+      for(const p of this.players.values())this.recharge(p,now);
+      this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&this.players.has(t.owner));
+      for(const t of this.totems)if(t.kind==='healingTotem'&&now>=t.next){const owner=this.players.get(t.owner);const radius=owner?.offhand==='verdantMenderTotem'?2:4;const amount=owner?.offhand==='verdantMenderTotem'?16:8;for(const p of this.players.values())if(p.alive&&distance(p.pos,t.pos)<=radius)this.heal(p,amount,t.owner);t.next=now+1000;}
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
       this.hubNpc.tick(dt,[...this.players.values()].map(p=>p.pos));
       for(const p of this.players.values()) {

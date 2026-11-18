@@ -3,7 +3,8 @@ import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffl
 import {BallEncounter,isBall} from './balls';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
-import { readInventory } from './inventory';
+import { readInventory,CLASS_ITEM_BONUS } from './inventory';
+import {talentDamage,talentMitigation} from './talents';
 import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, NETWORK_VERSION } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
 
@@ -43,7 +44,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
   arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];
-  trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-7,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-7,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-7,z:2},hp:500,maxHp:500,respawnAt:0}];
+  trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-11,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-11,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-11,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();healingTotals=new Map<string,number>();
   recordDamage(source:string|undefined,amount:number){if(source&&amount>0&&this.phase==='fight')this.damageTotals.set(source,(this.damageTotals.get(source)??0)+amount);}
@@ -67,7 +68,8 @@ export class Game {
   telegraphs:Telegraph[]=[]; reward:Snapshot['reward']; next=0; mechanic=0; fightId=''; motion?:Motion;
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
-  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string) {this.emit=emit;this.uuid=uuid;}
+  readonly liveTalents:boolean;
+  constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,liveTalents=false) {this.emit=emit;this.uuid=uuid;this.liveTalents=liveTalents;}
   add(id:string) {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0};
@@ -81,7 +83,7 @@ export class Game {
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
-    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head?3:1;p.dashRechargeAt=0;}
+    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;}
   }
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
@@ -96,7 +98,7 @@ export class Game {
       if(first)this.system(`${p.name} joined the room.`);
       const inventory=readInventory(JSON.stringify(v.inventory??null));
       this.clearBuffs(p);p.classId=readClass(v.classId);p.cast=undefined;p.cooldowns=[0,0,0,0];
-      p.armour=gearEligible(p.classId,'redtubeArmour')?inventory.armour:null;p.weapon=gearEligible(p.classId,'primitiveWand')?inventory.weapon:null;p.head=inventory.head;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
+      p.armour=inventory.armour&&gearEligible(p.classId,inventory.armour)?inventory.armour:null;p.weapon=inventory.weapon&&gearEligible(p.classId,inventory.weapon)?inventory.weapon:null;p.head=inventory.head&&gearEligible(p.classId,inventory.head)?inventory.head:null;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
@@ -110,7 +112,7 @@ export class Game {
       if(skill==='dash'){p.pos=moveHubPlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5},this.hubNpc.state.pos);to={...p.pos};}
       else if(skill==='targetedHeal')this.heal(p,p.offhand==='sunlitReliquary'?55:40,p.id);
       else if(skill==='pulseNova'||skill==='holyNova'||skill==='healingTotem'){
-        const heal=skill==='pulseNova'?18:skill==='holyNova'?25:p.offhand==='verdantMenderTotem'?10:8;
+        const heal=skill==='pulseNova'?18:skill==='holyNova'?25:p.offhand==='verdantMenderTotem'?16:8;
         for(const ally of this.players.values())if(distance(ally.pos,p.pos)<=4.5)this.heal(ally,heal,p.id);
       }else if(skill==='bulwark')p.bulwarkUntil=now+(p.offhand==='bulwarkCrest'?8000:6000);
       else if(skill==='guard')p.guardUntil=now+1600;
@@ -118,10 +120,10 @@ export class Game {
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
       const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:24,backstab:24,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:100,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
       let amount=damage[skill]??0;
-      if(p.offhand==='sporefangQuiver'&&skill==='aimedShot')amount=70;
-      if(p.offhand==='sporestormQuiver'&&skill==='arrowRain')amount=102;
-      if(p.offhand==='splitthornQuiver'&&skill==='splitShot')amount=78;
-      if(p.offhand==='sporeboundTotem'&&skill==='fireTotem')amount=30;
+      if(p.offhand==='sporefangQuiver'&&skill==='aimedShot')amount=100;
+      if(p.offhand==='sporestormQuiver'&&skill==='arrowRain')amount=105;
+      if(p.offhand==='splitthornQuiver'&&skill==='splitShot')amount=80;
+      if(p.offhand==='sporeboundTotem'&&skill==='fireTotem')amount=24;
       if(dummy&&amount>0){dummy.hp=Math.max(0,dummy.hp-amount);if(dummy.hp===0)dummy.respawnAt=now+5000;}
       p.cooldowns[slot]=now+SKILLS[skill].cooldown;
       this.emit({type:'abilityFx',skill,playerId:id,from,to});
@@ -158,12 +160,12 @@ export class Game {
     const d=distance(p.pos,this.boss.pos);
     const target=[{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0).sort((a,b)=>distance(p.pos,a.pos)-distance(p.pos,b.pos))[0];
     if((skill==='arcBolt'||skill==='arcSpear')&&(!target||distance(p.pos,target.pos)>11))return;
-    p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
+    p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand==='pointyOrb'?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
     if(skill==='dash')p.pos=this.movePlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5});
     if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,5,this.pillars());
     if(skill==='swordSwing'||skill==='chargingStab') {
-      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour?4:3,angle=skill==='chargingStab'?.85:p.armour?0:.5;
+      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour==='redtubeArmour'?4:3,angle=skill==='chargingStab'?.85:p.armour==='redtubeArmour'?0:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
       if(this.visible(origin,this.boss.pos)&&meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
       for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))this.damageTarget(a.id,skill==='swordSwing'?38:60,p.id);
@@ -175,7 +177,7 @@ export class Game {
     if(skill==='arcBolt'||skill==='arcSpear'){this.damageTarget(target.id,damage,p.id)}
     else this.damageTarget('boss',damage,p.id);
     for(const a of this.adds)if(a.hp>0&&((skill==='lazor'&&this.beamHits(from,p.facing,a.pos))||(skill==='pulseNova'&&this.visible(from,a.pos)&&distance(from,a.pos)<=4.2)))this.damageTarget(a.id,skill==='lazor'?90:45,p.id);
-    if(skill==='lazor'&&p.offhand)for(const t of [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds])if(t.hp>0&&this.beamHits(from,p.facing,t.pos))this.burns.set(p.id+':'+t.id,{target:t.id,next:now+1000,remaining:4});
+    if(skill==='lazor'&&p.offhand==='pointyOrb')for(const t of [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds])if(t.hp>0&&this.beamHits(from,p.facing,t.pos))this.burns.set(p.id+':'+t.id,{target:t.id,next:now+1000,remaining:4});
     this.emit({type:'abilityFx',skill,playerId:p.id,from,to:skill==='dash'?{...p.pos}:['lazor','swordSwing','chargingStab'].includes(skill)?this.clip(from,to):to});
   }
   beamHits=(from:Vec2,dir:Vec2,target:Vec2,length=14,radius=1.6)=>{
@@ -187,13 +189,13 @@ export class Game {
   damageTarget(id:string,amount:number,source?:string){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
     const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
     const floor=isBall(this)&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
-    const previous=t.hp;t.hp=Math.max(floor,t.hp-amount);this.recordDamage(source,previous-t.hp);
+    const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&this.players.has(source)?1:0));this.recordDamage(source,previous-t.hp);
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
   tickClassEffects(now:number){tickClassEffects.call(this,now)}
   recharge(p:PlayerState,now:number) {
-    const max=p.head?3:1;
+    const max=p.head==='pointyHat'?3:1;
     // Spending another charge never restarts the current sequential recharge.
     while(p.dashRechargeAt&&now>=p.dashRechargeAt) {
       p.dashCharges++;
@@ -213,7 +215,7 @@ export class Game {
   pillars(){return this.boss.id==='hardWarden'?HARD_PILLARS:[]}
   clearBuffs(p:PlayerState){p.bulwarkUntil=p.invisibleUntil=p.poisonUntil=p.shield=p.shieldUntil=0;const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}
   hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
-    let damage=amount*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?.5:1)*(bossDamage&&p.armour?.95:1);
+    let damage=talentMitigation(amount,this.liveTalents?1:0)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
     if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }

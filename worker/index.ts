@@ -24,7 +24,7 @@ export default {
 export class GameRoom extends DurableObject<Env> {
   private sockets = new Map<WebSocket, string>();
   private timer: ReturnType<typeof setInterval> | undefined;
-  private game = new Game(message => this.broadcast(message), () => crypto.randomUUID());
+  private game = new Game(message => this.broadcast(message), () => crypto.randomUUID(), true);
 
   private broadcast(message: unknown) {
     const payload = JSON.stringify(message);

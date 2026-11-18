@@ -43,8 +43,8 @@ test('Hard Truffle victory awards spores; normal Truffle still awards Conical Ta
  }
 });
 test('Sporebound Totem has specified Fire and Healing Totem values',()=>{
- assert.equal(SPOREBOUND_BONUS.fireDamage,30);
- assert.equal(SPOREBOUND_BONUS.healPerTick,10);
+ assert.equal(SPOREBOUND_BONUS.poisonCloudDamage,8);assert.equal(SPOREBOUND_BONUS.poisonCloudRadius,1.5);assert.equal(SPOREBOUND_BONUS.range,7);
+ assert.equal(SPOREBOUND_BONUS.healPerTick,16);assert.equal(SPOREBOUND_BONUS.healRange,2);
 });
 
 test('legacy Shaman item boosts fire only while healing remains baseline',()=>{
@@ -57,7 +57,7 @@ test('legacy Shaman item boosts fire only while healing remains baseline',()=>{
  g.next=Infinity;p.pos={x:0,z:2};
  g.message('shaman',{type:'ability',slot:2,target:{x:0,z:1}},200);
  g.tick(1200);g.tick(1550);
- assert.equal(g.boss.hp,1770);
+ assert.equal(g.boss.hp,1792);
  p.hp=50;
  g.message('shaman',{type:'ability',slot:3,target:{x:0,z:1}},1700);
  g.tick(2700);

@@ -215,3 +215,26 @@ The in-fight combat meter has **Damage** and **Healing** tabs. Healing records o
 **Double encounters (from the Expedition Gate):** **Yellow Ball + Warden** and **Truffle Man + Fracturer** put two independent, attackable enemies with separate HP in the same arena. Both enemies contribute telegraphed attacks; Fracturer still collapses marked corners and Truffle Man still summons mushrooms and deploys poison. Both must die to win, and each encounter awards one material receipt per boss. Because the two fights are simultaneous, the secondary boss uses its own telegraphed attacks rather than the complete solo Yellow Ball split sequence; this is the first playable dual-boss implementation.
 
 Options displays Client build version/commit and Server protocol version, both 0.1.3 when the deployment is current.
+
+
+### Version 0.1.4: class identity, item tradeoffs, and the first talent tree
+
+**Class-restricted existing equipment:** Primitive Wand is now Lightning Mage only, Pointy Orb Fire Mage only, and Redtube Armour Warrior only. A mismatched saved item remains in inventory but cannot be equipped by an ineligible class. The class Crafter lists the target gear slot on every recipe.
+
+**Shaman:** The **Sporebound Fire Totem** transforms Fire Totem into a green poison-cloud totem: it targets enemies within 7 units rather than 11 and places radius-1.5 clouds dealing 8 poison damage per tick for three ticks. The cloud is displayed on the ground. The **Verdant Mender Totem** now heals **16 HP per pulse** within **2 units**, rather than 10 HP within 4. These are mutually exclusive offhands.
+
+**Defender:** **Bulwark Crest** keeps its 8-second duration and increases Bulwark damage reduction from 50% to **65%** while active.
+
+**Rogue:** **Venom Fang** is an offhand that changes Poison Enchant from four ticks of 6 to **two ticks of 15**. **Nightshade Hood** is a new head-slot craft (2 Conical Tapers + 1 Corrupted Truffle Spore) that doubles Poison Enchant's tick count. The hood and Venom Fang can be equipped together, producing **four ticks of 15**.
+
+**Priest:** **Shadow Hat**, crafted with 1 Large Sphere and 1 Conical Taper, occupies the head slot and makes Targeted Heal a **40-damage hostile cast** against bosses/adds rather than an ally heal. It can be paired with a Priest offhand.
+
+**Ranger:** **Splitthorn Quiver** now fires **five** Split Shot arrows at **16 damage each**, compared with three at 22. **Sporestorm Quiver** makes Arrow Rain waves deal **35** damage each with **half radius (1.75)**. **Sporefang Quiver** makes Aimed Shot deal **100** damage but doubles cast time to **2 seconds**. Each is an exclusive offhand, so only one tradeoff can be active.
+
+**Fire Mage:** **Ember Wand**, crafted from 1 Cylinder Tube and 1 Corrupted Truffle Spore, occupies the weapon slot and changes Fireball to **50 damage with a 1-second cast**. **Cinderweave Armour**, crafted from 2 Large Cylinders and 1 Spherical Ball, occupies the armour slot and launches **three separate Fireball projectiles**. Both can be equipped together for three 50-damage fireballs per cast.
+
+**Talent tree:** A large, interactable tree is in the eastern hub at (9, 3). Walk nearby and press **E**, or use the hub's **Talent Tree** shortcut. There is a tab for each of the eight classes. Each automatically starts with one unlocked 1/1 node, **Unyielding Force**, providing **+3% damage dealt and -3% damage taken**. The bonuses are enforced by the actual multiplayer Node and Cloudflare game rooms. Base-combat regression fixtures can opt out explicitly to retain unmodified per-skill testing; new live-talent tests verify the boosts. No talent points or extra nodes are unlocked yet.
+
+**Training area:** The three target dummies now sit at x=-11, further west while retaining the same 5-second respawn.
+
+**Release status:** Client and Server protocol 0.1.4 will appear in Options after both deployments update.

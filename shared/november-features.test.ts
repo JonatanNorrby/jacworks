@@ -21,7 +21,7 @@ test('Ranger Sporefang Quiver requires both Hard Truffle and large cylinder rece
  assert.equal(loaded.sporeQuivers,1);
  assert.equal(gearEligible('ranger','sporefangQuiver'),true);
  assert.equal(gearEligible('shaman','sporefangQuiver'),false);
- assert.deepEqual(SPOREFANG_BONUS,{aimedShotDamage:70,arrowRainDamage:34,splitShotDamage:26});
+ assert.deepEqual(SPOREFANG_BONUS,{aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5});
  for(const cls of ['ranger','shaman'] as const){
   const g=new Game(()=>{},()=> 'id');const p=g.add('p');
   g.message('p',{type:'join',classId:cls,loadout:CLASS_DEFINITIONS[cls].skills,inventory:inv},100);

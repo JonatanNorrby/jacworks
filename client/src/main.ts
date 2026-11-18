@@ -114,7 +114,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
  const tabs=document.createElement('nav');tabs.className='crafter-tabs';tabs.setAttribute('aria-label','Crafter class categories');inventoryPanel.append(tabs);
  const grid=document.createElement('div');grid.className='crafter-recipes';inventoryPanel.append(grid);
- const categories:[string,string][]=[['all','Shared equipment'],...Object.entries(CLASS_DEFINITIONS).map(([id,cls])=>[id,cls.name])];
+ const categories:[string,string][]=[['all','Shared equipment'],...Object.entries(CLASS_DEFINITIONS).map(([id,cls]):[string,string]=>[id,cls.name])];
  function showCategory(category:'all'|ClassId){
   crafterCategory=category;grid.replaceChildren();tabs.replaceChildren();
   for(const [id,label] of categories){const tab=document.createElement('button');tab.type='button';tab.textContent=label;tab.className=id===category?'active':'';tab.setAttribute('aria-pressed',String(id===category));tab.onclick=()=>showCategory(id as 'all'|ClassId);tabs.append(tab);}

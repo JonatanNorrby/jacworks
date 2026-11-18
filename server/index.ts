@@ -12,7 +12,7 @@ wss.on('connection', (socket, request) => {
   let room=rooms.get(key);
   if(!room){
     const sockets=new Map<WebSocket,string>();
-    const game=new Game(message=>{const payload=JSON.stringify(message);for(const s of sockets.keys())if(s.readyState===WebSocket.OPEN)s.send(payload)},randomUUID);
+    const game=new Game(message=>{const payload=JSON.stringify(message);for(const s of sockets.keys())if(s.readyState===WebSocket.OPEN)s.send(payload)},randomUUID,true);
     room={game,sockets};rooms.set(key,room);
   }
   const {game,sockets}=room;

@@ -10,6 +10,9 @@ test('v0.1.7 keybinding editor saves and restores shortcuts without breaking lob
  await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
  const openOptions=async()=>{await page.locator('#options-button').click();await expect(page.locator('#keybindings')).toBeVisible()};
  await openOptions();
+ // Escape must close Options even when its camera checkbox owns keyboard focus.
+ await page.keyboard.press('Escape');await expect(page.locator('#options-panel')).toBeHidden();
+ await openOptions();
  await expect(page.locator('.keybinding-row')).toHaveCount(12);
  const movement=page.getByRole('button',{name:'Rebind Move forward'});
  const ability1=page.getByRole('button',{name:'Rebind Ability 1'});

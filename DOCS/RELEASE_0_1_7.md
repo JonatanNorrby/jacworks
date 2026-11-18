@@ -4,7 +4,7 @@
 
 ## Feature
 
-Open **Options → Keybindings**, click any action's displayed key, then press a new key. You will see the new key immediately in the control list and, for abilities, on the game HUD. Escape cancels capture without changing an assignment.
+Open **Options → Keybindings**, click any action's displayed key, then press a new key. You will see the new key immediately in the control list and, for abilities, on the game HUD. Escape cancels capture without changing an assignment; when not capturing, Escape closes Options even if a settings field has focus.
 
 | Action | Default |
 |---|---|

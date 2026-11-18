@@ -889,14 +889,14 @@ addEventListener("keydown", (event) => {
   if(keybindingEditor.keydown(event))return;
   const key=pressedBindingKey(event);
   if(gameDevLabs.isOpen()){if(key==='escape')gameDevLabs.back();return;}
+  if(snapshot?.vote){if(key==='escape'){event.preventDefault();send({type:'vote',proposalId:snapshot.vote.id,accept:false});}return;}
+  if(optionsOpen){if(key==='escape'){event.preventDefault();closeOptions();}return;}
+  if(talentTree.isOpen()){if(key==='escape'){event.preventDefault();talentTree.close();}return;}
+  if(hubPanelOpen){if(key==='escape'){event.preventDefault();closeHubPanel();}return;}
+  if(trainerOpen){if(key==='escape'){event.preventDefault();closeTrainer(false);}return;}
   if(event.target instanceof HTMLElement&&(
     event.target.isContentEditable||event.target.closest('input,select,textarea,button,a')
   ))return;
-  if(snapshot?.vote){if(key==='escape')send({type:'vote',proposalId:snapshot.vote.id,accept:false});return;}
-  if(optionsOpen){if(key==='escape')closeOptions();return;}
-  if(talentTree.isOpen()){if(key==='escape')talentTree.close();return;}
-  if(hubPanelOpen){if(key==='escape')closeHubPanel();return;}
-  if(trainerOpen){if(key==='escape')closeTrainer(false);return;}
   if(event.altKey||event.ctrlKey||event.metaKey)return;
   if(roomChat.keydown(event))return;
   if(BINDING_ACTIONS.some(action=>bindings[action]===key)){

@@ -134,7 +134,7 @@ test('Fire Mage Prism Lens replaces main beam with two rays, and mine talents le
  assert.ok(g.boss.hp<1800-120,'two lens rays plus flanking talent rays hit boss');
  assert.ok(g.burns.size>0);
  g.message('p',{type:'ability',slot:3,target:{x:0,z:0}},300);
- g.tick(350);assert.ok(g.effects.some(e=>e.skill==='fireMine'&&e.poisonCloud));
+ g.tick(350);assert.ok(g.effects.some(e=>e.skill==='fireMine'&&e.afterglow));
  const before=g.boss.hp;g.tick(1400);assert.ok(g.boss.hp<before);
 });
 

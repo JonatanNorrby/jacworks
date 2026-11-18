@@ -254,3 +254,11 @@ body:has(#game-dev-labs:not(.hidden)) #options-button{display:none}
  #options-panel{padding:16px}
  .keybinding-row{padding:6px 9px}
 }
+
+/* 0.1.8: slot filters within Wardrobe; paper doll stays visible. */
+.wardrobe-slot-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 14px;padding:4px;border-bottom:1px solid #8cafcf55}
+.wardrobe-slot-tabs button{flex:1 0 auto;padding:9px 11px;border-radius:7px;background:#243246;color:#d7e5ed;font-size:12px}
+.wardrobe-slot-tabs button.active,.wardrobe-slot-tabs button[aria-pressed="true"]{background:#38617a;color:white;border-color:#a9daee;box-shadow:inset 0 -2px #bce8fe}
+.wardrobe-slot-tabs button:focus-visible{outline:2px solid #f9e8a8;outline-offset:2px}
+.wardrobe-empty{grid-column:1/-1;margin:10px 0;color:#b6cad5}
+@media(max-width:550px){.wardrobe-slot-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.wardrobe-slot-tabs button{white-space:normal;min-width:0}.gear-grid{grid-template-columns:1fr}}

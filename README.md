@@ -4,7 +4,7 @@ Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_
 
 ## Prototype 01
 
-**Current release: 0.1.7.** Options now includes twelve configurable keyboard shortcuts with conflict warnings and restore defaults. See [release 0.1.7](DOCS/RELEASE_0_1_7.md) and [ADR-0014](DOCS/ADR/0014-browser-local-rebindable-controls.md). Eight class talent trees now have real prerequisite arrows and two branches each; eight class-specific recipes use Twin Core and Fractured Spore to change existing abilities. See [0.1.6 release notes](DOCS/RELEASE_0_1_6.md) and [ADR-0013](DOCS/ADR/0013-branching-talents-and-duo-gear.md). Progression and inventory remain browser-local in this prototype.
+**Current release: 0.1.8.** Fire Mine afterglow damage, per-arrow Split Shot, Warden facing, slot-filtered Wardrobe, and the Fracturer's cardinal-safe-sector attack are implemented. See [v0.1.8 release notes](DOCS/RELEASE_0_1_8.md) and [ADR-0015](DOCS/ADR/0015-fracturer-cardinal-eruption.md). Options now includes twelve configurable keyboard shortcuts with conflict warnings and restore defaults. See [release 0.1.7](DOCS/RELEASE_0_1_7.md) and [ADR-0014](DOCS/ADR/0014-browser-local-rebindable-controls.md). Eight class talent trees now have real prerequisite arrows and two branches each; eight class-specific recipes use Twin Core and Fractured Spore to change existing abilities. See [0.1.6 release notes](DOCS/RELEASE_0_1_6.md) and [ADR-0013](DOCS/ADR/0013-branching-talents-and-duo-gear.md). Progression and inventory remain browser-local in this prototype.
 
 
 Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
@@ -36,6 +36,8 @@ The deployed build serves the Vite client as Worker static assets and routes `/w
 For testing from other devices on the LAN, open the Vite host address on those devices and ensure TCP 5173/8787 are reachable.
 
 ### Controls
+
+The Sanctum Hub also has a direct **Wardrobe** button. In the Wardrobe, filter owned gear by slot (All / Weapons / Head / Offhand / Armour / Boots) or use the in-world wardrobe.
 
 All listed keys are defaults. Open **Options → Keybindings** to rebind movement, interaction, abilities, boss retry, return to hub and room chat. Changes are saved to this browser and reflected in the HUD immediately; Escape cancels a change and Restore Defaults resets all bindings.
 

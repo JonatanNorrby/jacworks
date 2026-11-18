@@ -115,7 +115,16 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     else if(skill==='splitShot'){
       const arrows=(p.offhand==='splitthornQuiver'?[-.5,-.25,0,.25,.5]:[-.3,0,.3]).map(a=>({angle:a,power:p.offhand==='splitthornQuiver'?SPOREFANG_BONUS.splitShotDamage:22}));
       if(this.talented(p,'splitVolley'))arrows.push({angle:-.7,power:16},{angle:.7,power:16});
-      for(const {angle,power} of arrows){const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};for(const t of this.targets())if(this.beamHits(p.pos,dir,t.pos,10,.65))this.damageTarget(t.id,power,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});}
+      for(const {angle,power} of arrows){
+        const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};
+        for(const t of this.targets()){
+          const add=t.id==='boss'?undefined:this.adds.find(a=>a.id===t.id);
+          const hitRadius=t.id==='boss'||add?.kind==='duoBoss'?1.3:add?.radius??.75;
+          const forward=(t.pos.x-p.pos.x)*dir.x+(t.pos.z-p.pos.z)*dir.z;
+          if(forward>0&&this.beamHits(p.pos,dir,t.pos,10,hitRadius))this.damageTarget(t.id,power,p.id);
+        }
+        this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:this.clip(p.pos,{x:p.pos.x+dir.x*10,z:p.pos.z+dir.z*10})});
+      }
       pos=this.clip(p.pos,{x:p.pos.x+p.facing.x*10,z:p.pos.z+p.facing.z*10});
     }else{
       this.effects.push({id:this.uuid(),owner:p.id,skill,pos,targetId:ally?.id,next:now+(skill==='arrowRain'?400:1000),remaining:skill==='arrowRain'&&this.talented(p,'rainSurge')?4:skill==='arrowRain'?3:6,expires:now+(skill==='fireMine'?12000:6500)});
@@ -170,18 +179,19 @@ export function tickClassEffects(this:Game,now:number){
     this.effects=this.effects.filter(e=>{
       const owner=this.players.get(e.owner);if(!owner?.alive||now>e.expires)return false;
       if(e.skill==='lightningShield'){const ally=this.players.get(e.targetId!);if(!ally?.alive)return false;e.pos={...ally.pos};}
-      if(e.skill==='fireMine'){
+      if(e.skill==='fireMine'&&!e.afterglow){
         if(this.targets().some(t=>distance(e.pos,t.pos)<=(this.talented(owner,'volatileMines')?2.7:2)&&this.visible(e.pos,t.pos))){
           this.area(e.pos,this.talented(owner,'volatileMines')?4:3,95,e.owner);
           this.emit({type:'abilityFx',skill:e.skill,playerId:e.owner,from:e.pos,to:e.pos});
           if(this.talented(owner,'emberAfterglow'))
-            spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireMine',pos:{...e.pos},next:now+1000,remaining:3,expires:now+3400,poisonCloud:true,radius:3,damage:8});
+            spawnedEffects.push({id:this.uuid(),owner:e.owner,skill:'fireMine',pos:{...e.pos},next:now+1000,remaining:3,expires:now+3400,afterglow:true,radius:3,damage:8});
           return false;
         }return true;
       }
       while(e.remaining&&now>=e.next){
         if(e.healingField){for(const ally of this.players.values())if(ally.alive&&distance(ally.pos,e.pos)<=4)this.heal(ally,5,e.owner);}
         else if(e.sporeBlast)this.area(e.pos,2,24,e.owner);
+        else if(e.afterglow)this.area(e.pos,e.radius??3,e.damage??8,e.owner);
         else if(e.poisonCloud)this.area(e.pos,e.radius??1.5,e.damage??8,e.owner);
         else if(e.skill==='poisonEnchant'){
           this.damageTarget(e.targetId!,owner.offhand==='venomFang'?CLASS_ITEM_BONUS.roguePoisonTick:BACKSTAB.poisonTick,e.owner);

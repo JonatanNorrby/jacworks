@@ -42,6 +42,8 @@ ADRs 0008–0011 extend this original minimum with eight classes, multiple encou
 
 Game Dev Labs v2 is a separate in-game presentation/testing area. It retains room membership and voting: combat continues and the player remains vulnerable. Movement/abilities are blocked while inspecting Labs; returning restores the latest scene. Keep speed/scale VFX controls and character health-bar visibility. Boss studies are illustrative, not a combat authority. Skill-mutation crafting proposals remain Proposed.
 
+Fracturer Cardinal Eruption (ADR-0015) extends the playable encounter with one safe cardinal sector against three dangerous sectors. It retains the old corner collapse and explicitly preserves traversable central pathways, supporting the learnable-telegraph requirement.
+
 ## Remaining scope boundaries
 Do not delay Prototype 01 for loot, crafting, long-term progression, talent/build progression, Codex, story/lore, housing/base, a large hub/world, matchmaking, AI companions, PvP, cosmetics/transmog, final account systems, or broad content production.
 

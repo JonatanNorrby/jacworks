@@ -46,6 +46,8 @@ Fracturer Cardinal Eruption (ADR-0015) extends the playable encounter with one s
 
 Ant Queen objective-only damage and expanded southern-row Nest cave, her separate arena and normal/hard encounter extensions (ADR-0016 and ADR-0017) widen the playable mechanic set. The new Royal Ant Chitin items and rank-three talent leaves remain prototype balance experiments. Health bars now face south independently of player movement, serving the readability success criterion.
 
+The v0.1.11 user-requested extension (ADR-0018) adds class-specific saved equipment, threat, three talent branches, group-size boss scaling, a simultaneous five-boss Chaos Arena and a first-version discovery-led Guide. This is explicit prototype expansion for cooperative combat and discoverability playtesting. The normal boss flow and game ownership boundaries remain unchanged.
+
 ## Remaining scope boundaries
 Do not delay Prototype 01 for loot, crafting, long-term progression, talent/build progression, Codex, story/lore, housing/base, a large hub/world, matchmaking, AI companions, PvP, cosmetics/transmog, final account systems, or broad content production.
 

@@ -8,7 +8,7 @@ const owned=()=>{const v=emptyInventory();v.rewards={w:'cylinderTube',b:'spheric
 test('all recipes consume exact materials, equipment persists and legacy saves migrate',()=>{
  const v=owned();assert.ok(craft(v));assert.ok(craft(v,'pointyHat'));assert.ok(craft(v,'pointyOrb'));assert.equal(craft(v,'pointyOrb'),false);
  for(const [slot,item] of [['weapon','primitiveWand'],['head','pointyHat'],['offhand','pointyOrb']] as const)assert.ok(equip(v,slot,item));
- assert.deepEqual(readInventory(JSON.stringify(v)),v);assert.deepEqual(countInventory(v),{largeSphere:0,largeCylinder:0,redtubeArmour:0,cylinderTube:0,sphericalBall:0,conicalTaper:0,hardTruffleSpore:0,duoCore:0,duoSpore:0,primitiveWand:1,pointyHat:1,pointyOrb:1,sporeboundTotem:0,sporefangQuiver:0,fleetfootBoots:0,mirewalkerBoots:0,verdantMenderTotem:0,sporestormQuiver:0,splitthornQuiver:0,sunlitReliquary:0,venomFang:0,bulwarkCrest:0,nightshadeHood:0,shadowHat:0,emberWand:0,cinderweaveArmour:0,twinTotemCapacitor:0,fractureAegis:0,sporeglassBlade:0,twinrushBoots:0,haloOfRenewal:0,splitConductor:0,rottingFletching:0,prismLens:0,broodTotem:0,carapaceShield:0,mandibleDagger:0,antLegGreaves:0,pheromoneChalice:0,antennaSpindle:0,broodQuiver:0,moltenChitin:0,antChitin:0});
+ assert.deepEqual(readInventory(JSON.stringify(v)),v);assert.deepEqual(countInventory(v),{largeSphere:0,largeCylinder:0,redtubeArmour:0,cylinderTube:0,sphericalBall:0,conicalTaper:0,hardTruffleSpore:0,duoCore:0,duoSpore:0,chaosSigil:0,primitiveWand:1,pointyHat:1,pointyOrb:1,sporeboundTotem:0,sporefangQuiver:0,fleetfootBoots:0,mirewalkerBoots:0,verdantMenderTotem:0,sporestormQuiver:0,splitthornQuiver:0,sunlitReliquary:0,venomFang:0,bulwarkCrest:0,nightshadeHood:0,shadowHat:0,emberWand:0,cinderweaveArmour:0,twinTotemCapacitor:0,fractureAegis:0,sporeglassBlade:0,twinrushBoots:0,haloOfRenewal:0,splitConductor:0,rottingFletching:0,prismLens:0,broodTotem:0,carapaceShield:0,mandibleDagger:0,antLegGreaves:0,pheromoneChalice:0,antennaSpindle:0,broodQuiver:0,moltenChitin:0,antChitin:0});
  for(const slot of ['weapon','head','offhand'] as const)assert.ok(equip(v,slot,null));assert.equal(countInventory(v).pointyHat,1);
  assert.equal(readInventory(JSON.stringify({rewards:{a:'cylinderTube',b:'sphericalBall'},crafted:1,weapon:'primitiveWand'})).weapon,'primitiveWand');
  assert.equal(readInventory(JSON.stringify({rewards:{},crafted:1,hats:3,orbs:2,head:'pointyHat',offhand:'pointyOrb'})).head,null);
@@ -37,9 +37,9 @@ test('hat charges spend independently and recharge one at a time without restart
 });
 test('orb adds exactly two seconds and server burn ticks on beam hits including adds',()=>{
  const g=room(),p=g.add('p'),v=owned();craft(v,'pointyOrb');equip(v,'offhand','pointyOrb');g.message('p',{type:'join',inventory:v,classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});const other=g.add('other');g.message('p',{type:'ready'},100);g.message('p',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.message('other',{type:'ready'},100);g.message('other',{type:'vote',proposalId:g.vote?.id,accept:true},100);p.pos={x:0,z:4};p.facing={x:0,z:-1};
- g.adds.push({id:'a',pos:{x:0,z:2},hp:200,maxHp:200,attackAt:99999});g.message('p',{type:'ability',slot:1,burn:99999},200);assert.equal(p.cooldowns[0],200+SKILLS.lazor.cooldown+2000);assert.equal(other.offhand,null);assert.equal(g.boss.hp,1710);assert.equal(g.adds[0].hp,110);
- g.tick(1199);assert.equal(g.boss.hp,1710);g.tick(1200);assert.equal(g.boss.hp,1702);assert.equal(g.adds[0].hp,102);g.tick(4200);assert.equal(g.boss.hp,1678);assert.equal(g.adds[0].hp,78);
- g.message('p',{type:'ability',slot:1},4599);assert.equal(g.boss.hp,1678);p.facing={x:1,z:0};g.message('p',{type:'ability',slot:1},4600);g.tick(5600);assert.equal(g.boss.hp,1678);
+ g.adds.push({id:'a',pos:{x:0,z:2},hp:200,maxHp:200,attackAt:99999});g.message('p',{type:'ability',slot:1,burn:99999},200);assert.equal(p.cooldowns[0],200+SKILLS.lazor.cooldown+2000);assert.equal(other.offhand,null);assert.equal(g.boss.hp,2610);assert.equal(g.adds[0].hp,110);
+ g.tick(1199);assert.equal(g.boss.hp,2610);g.tick(1200);assert.equal(g.boss.hp,2602);assert.equal(g.adds[0].hp,102);g.tick(4200);assert.equal(g.boss.hp,2578);assert.equal(g.adds[0].hp,78);
+ g.message('p',{type:'ability',slot:1},4599);assert.equal(g.boss.hp,2578);p.facing={x:1,z:0};g.message('p',{type:'ability',slot:1},4600);g.tick(5600);assert.equal(g.boss.hp,2578);
 });
 test('forged gear, charge fields, invalid abilities and active re-equipping are ignored',()=>{
  const g=room(),p=g.add('p');g.message('p',{type:'join',inventory:{rewards:{x:'greenTriangle'},crafted:0,hats:1,orbs:1,head:'pointyHat',offhand:'pointyOrb'},dashCharges:99});assert.equal(p.head,null);assert.equal(p.offhand,null);assert.equal(p.dashCharges,1);
@@ -52,7 +52,7 @@ test('different players burn independently and gear remains isolated in snapshot
  for(const id of ['a','b']){const p=g.add(id);g.message(id,{type:'join',inventory:v,classId:'fireMage',loadout:['lazor','dash','fireball','fireMine']});p.pos={x:0,z:4};p.facing={x:0,z:-1};}
  g.message('a',{type:'ready'},100);g.message('a',{type:'vote',proposalId:g.vote?.id,accept:true},100);g.message('b',{type:'ready'},100);g.message('b',{type:'vote',proposalId:g.vote?.id,accept:true},100);
  for(const id of ['a','b'])g.message(id,{type:'ability',slot:1},200);
- assert.equal(g.boss.hp,1620);const s=g.tick(1200);assert.equal(s.boss.hp,1604);assert.equal(s.players[0].offhand,'pointyOrb');assert.equal(s.players[1].offhand,'pointyOrb');assert.equal(g.burns.size,2);
+ assert.equal(g.boss.hp,2520);const s=g.tick(1200);assert.equal(s.boss.hp,2504);assert.equal(s.players[0].offhand,'pointyOrb');assert.equal(s.players[1].offhand,'pointyOrb');assert.equal(g.burns.size,2);
  g.reset();assert.equal(g.burns.size,0);assert.equal(g.adds.length,0);
 });
 test('cone adds respect Guard and never attack dead players; summon count is bounded',()=>{

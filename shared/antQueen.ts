@@ -16,7 +16,7 @@ export function startAntQueen(this:Game,now:number){
  this.nextAntWaveAt=now+1250;
  this.nextAntRockfallAt=now+6500;
  this.boss.pos={...ANT_QUEEN_POS};
- this.boss.hp=this.boss.maxHp=ANT_QUEEN_HP;
+ this.boss.hp=this.boss.maxHp=ANT_QUEEN_HP*this.bossScale;
  // Start opposite the nesting chambers rather than inside the queen's body.
  const players=[...this.players.values()];
  players.forEach((p,i)=>{p.pos={x:(i-(players.length-1)/2)*1.8,z:-10.5};p.facing={x:0,z:1}});
@@ -29,10 +29,11 @@ function spawnWorker(this:Game,wave:number,i:number):AddState{
 }
 function spawnRoyalGuard(this:Game,wave:number):AddState{
  return {id:'royal-guard-'+this.uuid(),kind:'royalGuard',pos:{x:wave%2?3.5:-3.5,z:7.8},
- hp:ROYAL_GUARD_HP,maxHp:ROYAL_GUARD_HP,radius:.92,attackAt:0};
+ hp:ROYAL_GUARD_HP*this.bossScale,maxHp:ROYAL_GUARD_HP*this.bossScale,radius:.92,attackAt:0};
 }
 export function tickAntQueen(this:Game,now:number){
- if(this.phase!=='fight'||this.boss.id!=='antQueen'||this.boss.hp<=0)return;
+ if(this.phase!=='fight'||(this.boss.id!=='antQueen'&&this.boss.id!=='chaosArena')||this.boss.hp<=0)return;
+ if(this.boss.id==='chaosArena'&&!this.adds.some(a=>a.kind==='chaosBoss'&&a.bossId==='antQueen'&&a.hp>0))return;
  if(now>=this.nextAntWaveAt){
   this.queenWave++;
   const workers=this.adds.filter(a=>a.kind==='antWorker'&&a.hp>0).length;
@@ -52,7 +53,8 @@ export function tickAntQueen(this:Game,now:number){
     const angle=(i+this.queenWave)*Math.PI/3;
     const proposed={x:target.pos.x+(i?Math.cos(angle)*1.8:0),z:target.pos.z+(i?Math.sin(angle)*1.8:0)};
     const length=Math.hypot(proposed.x,proposed.z);
-    const pos=length>ANT_ARENA_LIMIT?{x:proposed.x*ANT_ARENA_LIMIT/length,z:proposed.z*ANT_ARENA_LIMIT/length}:proposed;
+    const limit=this.arenaLimit();
+    const pos=length>limit?{x:proposed.x*limit/length,z:proposed.z*limit/length}:proposed;
     this.telegraphs.push({id:'ant-rock-'+this.uuid(),kind:'circle',style:'rockfall',pos,radius:2,
      damage:26,resolvesAt:now+1750});
    }
@@ -62,8 +64,11 @@ export function tickAntQueen(this:Game,now:number){
  }
 }
 export function royalGuardKilled(this:Game,source:string|undefined){
- if(this.boss.id!=='antQueen'||this.phase!=='fight')return;
+ if((this.boss.id!=='antQueen'&&this.boss.id!=='chaosArena')||this.phase!=='fight')return;
  this.royalsDefeated++;
- this.boss.hp=Math.max(0,this.boss.hp-ROYAL_DEATH_DAMAGE);
+ if(this.boss.id==='chaosArena'){
+   const queen=this.adds.find(a=>a.kind==='chaosBoss'&&a.bossId==='antQueen'&&a.hp>0);
+   if(queen)queen.hp=Math.max(0,queen.hp-ROYAL_DEATH_DAMAGE*this.bossScale);
+ }else this.boss.hp=Math.max(0,this.boss.hp-ROYAL_DEATH_DAMAGE*this.bossScale);
  this.emit({type:'event',text:'The fallen Royal Guard wounds the Queen! -'+ROYAL_DEATH_DAMAGE+' HP ('+this.royalsDefeated+'/4)'});
 }

@@ -54,8 +54,8 @@ test('v0.1.10: larger Nest fight and nine-node talent branches synchronize over 
  await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
  await page.getByRole('button',{name:'Talent Tree'}).click();
  const tree=page.locator('#talent-tree-panel');await expect(tree).toBeVisible();
- await expect(tree.locator('.talent-node')).toHaveCount(9);
- await expect(tree.locator('.talent-vertical-link')).toHaveCount(6);
+ await expect(tree.locator('.talent-node')).toHaveCount(13);
+ await expect(tree.locator('.talent-vertical-link')).toHaveCount(9);
  await tree.locator('.talent-class-tabs').getByRole('button',{name:'Shaman'}).click();
  await expect(tree).toContainText('Ancestral Shelter');
  await expect(tree).toContainText('Storm Mender');
@@ -67,7 +67,7 @@ test('v0.1.10: larger Nest fight and nine-node talent branches synchronize over 
  await page.getByRole('button',{name:'Propose encounter'}).click();
  await page.getByRole('button',{name:'Accept'}).click();
  await expect(page.locator('#boss-label')).toContainText('ANT QUEEN',{timeout:15000});
- await expect.poll(()=>cave.some(p=>p.version==='0.1.10'&&p.queenZ===10.5&&p.playerZ===-10.5&&Math.abs(p.workerX)>10),
+ await expect.poll(()=>cave.some(p=>p.version==='0.1.11'&&p.queenZ===10.5&&p.playerZ===-10.5&&Math.abs(p.workerX)>10),
  {timeout:10000}).toBeTruthy();
  expect(errors).toEqual([]);
 });

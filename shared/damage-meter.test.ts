@@ -13,7 +13,7 @@ test('server damage meter counts actual damage and never counts overkill',()=>{
  const snapshot=g.tick(2100);
  const alice=snapshot.damageMeter!.entries.find(e=>e.playerId==='alice')!;
  const bob=snapshot.damageMeter!.entries.find(e=>e.playerId==='bob')!;
- assert.equal(alice.damage,1770);
+ assert.equal(alice.damage,2670);
  assert.equal(bob.damage,30);
  assert.equal(snapshot.damageMeter!.elapsedMs,2000);
 });

@@ -12,7 +12,7 @@ test('room vote requires every connection including proposer; cannot forge, repe
  g.message('a',{type:'vote',proposalId:'old',accept:true},102);g.message('a',{type:'vote',proposalId:id,accept:'true'},102);g.message('outsider',{type:'vote',proposalId:id,accept:true},102);assert.deepEqual(g.vote!.accepted,[]);
  g.message('a',{type:'propose',boss:'warden'},102);assert.equal(g.vote!.boss,'hardWarden');
  g.message('a',{type:'vote',proposalId:id,accept:true,playerId:'b'},103);g.message('a',{type:'vote',proposalId:id,accept:true},104);assert.deepEqual(g.vote!.accepted,['a']);assert.equal(g.phase,'lobby');
- g.message('b',{type:'vote',proposalId:id,accept:true},105);assert.equal(g.phase,'fight');assert.equal(g.boss.id,'hardWarden');assert.equal(g.boss.hp,3000);assert.equal(g.vote,undefined);
+ g.message('b',{type:'vote',proposalId:id,accept:true},105);assert.equal(g.phase,'fight');assert.equal(g.boss.id,'hardWarden');assert.equal(g.boss.hp,4500);assert.equal(g.vote,undefined);
  g.message('a',{type:'propose',boss:'warden'},106);assert.equal(g.vote,undefined);g.message('a',{type:'hub'},107);g.message('a',{type:'propose',boss:'warden'},108);assert.notEqual(g.vote!.id,id);g.message('b',{type:'vote',proposalId:id,accept:true},109);assert.deepEqual(g.vote!.accepted,[]);
 });
 test('decline, timeout, disconnect and new connections cancel without starting; retry needs fresh unanimous vote',()=>{

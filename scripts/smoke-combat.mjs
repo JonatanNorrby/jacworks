@@ -28,7 +28,7 @@ try{
  await waitFor(()=>clients.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.skill==='chargingStab')),'charge broadcast');
  c.ws.send(JSON.stringify({type:'ability',slot:1}));
  await waitFor(()=>clients.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.skill==='swordSwing')),'cleave broadcast');
- await waitFor(()=>clients.every(c=>c.snapshot.boss.hp<1800),'shared damage');
+ await waitFor(()=>clients.every(c=>c.snapshot.boss.hp<c.snapshot.boss.maxHp),'shared damage');
  for(const c of clients){assert.equal(c.snapshot.players.find(p=>p.id===clients[0].id).classId,'warrior');assert.ok(c.snapshot.players.find(p=>p.id===clients[0].id).cooldowns[1]>0)}
  for(const skill of ['chargingStab','swordSwing'])assert.deepEqual(clients[0].packets.find(m=>m.type==='abilityFx'&&m.skill===skill),clients[1].packets.find(m=>m.type==='abilityFx'&&m.skill===skill));
  console.log('TWO_CLIENT_SMOKE_OK: shared room, loadouts, class ID, charge/cleave FX, damage and cooldowns');
@@ -59,7 +59,7 @@ try{
     await waitFor(()=>pairClients.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill)),`${pair[i]} ${skill} shared FX`);
     const events=pairClients.map(c=>c.packets.filter(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill));assert.deepEqual(events[0],events[1]);
    }
-   for(const c of pairClients){const p=c.snapshot.players.find(p=>p.id===sender.id);assert.equal(p.classId,pair[i]);assert.deepEqual(p.loadout,definitions[pair[i]]);assert.ok(p.cooldowns.some(n=>n>0));assert.ok(c.snapshot.boss.hp<1800&&c.snapshot.boss.hp>0);}
+   for(const c of pairClients){const p=c.snapshot.players.find(p=>p.id===sender.id);assert.equal(p.classId,pair[i]);assert.deepEqual(p.loadout,definitions[pair[i]]);assert.ok(p.cooldowns.some(n=>n>0));assert.ok(c.snapshot.boss.hp<c.snapshot.boss.maxHp&&c.snapshot.boss.hp>0);}
   }
   console.log('MIXED_CLASS_SMOKE_OK: '+pair.join(' + ')+' skills, casts, friendly targeting, snapshots, FX and damage');
   for(const c of pairClients)c.ws.close();await delay(200);
@@ -85,7 +85,7 @@ try{
  await waitFor(()=>duo.every(c=>{const d=c.snapshot.players.find(p=>p.id===defender.id),r=c.snapshot.players.find(p=>p.id===rogue.id);return d.shield===80&&r.shield===40&&d.bulwarkUntil>c.snapshot.now&&r.loadout[1]==='backstab'&&r.invisibleUntil-c.snapshot.now<=4000&&r.armour===null&&d.armour===null}),'shared shields, buffs, class-locked armour and skill swap');
  for(const c of duo)c.ws.send(JSON.stringify({type:'ability',slot:1,damage:999999}));
  rogue.ws.send(JSON.stringify({type:'ability',slot:2}));
- await waitFor(()=>duo.every(c=>c.snapshot.boss.hp<3000&&c.snapshot.boss.hp>2500&&c.snapshot.players.find(p=>p.id===rogue.id).loadout[1]==='vanish'),'authoritative stabs and restoration');
+ await waitFor(()=>duo.every(c=>c.snapshot.boss.hp<c.snapshot.boss.maxHp&&c.snapshot.boss.hp>c.snapshot.boss.maxHp-500&&c.snapshot.players.find(p=>p.id===rogue.id).loadout[1]==='vanish'),'authoritative stabs and restoration');
  for(const c of duo)c.ws.send(JSON.stringify({type:'ability',slot:4}));
  for(const [sender,skills] of [[defender,['stab','bulwark','heroicShield','dash']],[rogue,['quickStab','vanish','poisonEnchant','backstab','dash']]])for(const skill of skills){
   await waitFor(()=>duo.every(c=>c.packets.some(m=>m.type==='abilityFx'&&m.playerId===sender.id&&m.skill===skill)),skill+' broadcast');

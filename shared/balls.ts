@@ -3,13 +3,13 @@ import {beamHits,distance} from './game';
 import type {Vec2,Telegraph} from './protocol';
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 type Brain={next:number;step:number;chain:number;motion?:Motion};
-const bounded=(p:Vec2)=>({x:Math.max(-10,Math.min(10,p.x)),z:Math.max(-10,Math.min(10,p.z))});
+const bounded=(p:Vec2,limit=10)=>({x:Math.max(-limit,Math.min(limit,p.x)),z:Math.max(-limit,Math.min(limit,p.z))});
 export const isBall=(g:Game)=>g.boss.id==='yellowBall'||g.boss.id==='hardYellowBall';
 export class BallEncounter {
  brains=new Map<string,Brain>();
  private g:Game;
  constructor(g:Game){this.g=g;}
- bodies(){const g=this.g;return (g.boss.id==='duoYellowWarden'?g.adds.filter(b=>b.kind==='ball'||(b.kind==='duoBoss'&&b.bossId==='yellowBall')):[{...g.boss,id:'boss',generation:0,radius:1.25},...g.adds]).filter(b=>b.hp>0);}
+ bodies(){const g=this.g;return ((g.boss.id==='duoYellowWarden'||g.boss.id==='chaosArena')?g.adds.filter(b=>b.kind==='ball'||((b.kind==='duoBoss'||b.kind==='chaosBoss')&&b.bossId==='yellowBall')):[{...g.boss,id:'boss',generation:0,radius:1.25},...g.adds]).filter(b=>b.hp>0);}
  tick(now:number){
   const g=this.g,hard=g.boss.id==='hardYellowBall',limit=hard?3:1;
   // Freeze the roster: children cannot split or receive the parent's overkill this tick.
@@ -17,7 +17,7 @@ export class BallEncounter {
    if(b.id==='boss'){g.boss.hp=0;g.boss.height=0;g.motion=undefined;}else g.adds=g.adds.filter(a=>a.id!==b.id);
    this.brains.delete(b.id);g.telegraphs=g.telegraphs.filter(t=>t.ownerId!==b.id);
    for(const sign of [-1,1]){const generation=(b.generation??0)+1,radius=1.25*Math.pow(.72,generation),maxHp=b.maxHp/4;
-    const id=g.uuid();g.adds.push({id,kind:'ball',generation,radius,height:0,pos:bounded({x:b.pos.x+sign*(radius+.3),z:b.pos.z}),hp:maxHp,maxHp,attackAt:now+1800});
+    const id=g.uuid();g.adds.push({id,kind:'ball',generation,radius,height:0,pos:bounded({x:b.pos.x+sign*(radius+.3),z:b.pos.z},g.boss.id==='chaosArena'?21:10),hp:maxHp,maxHp,attackAt:now+1800});
     this.brains.set(id,{next:now+1800+(sign===1?500:0),step:0,chain:0});
    }
    g.emit({type:'event',text:'Yellow Ball splits into two!'});
@@ -39,7 +39,7 @@ export class BallEncounter {
    }
    const due=g.telegraphs.find(t=>t.ownerId===body.id&&t.resolvesAt<=now);
    if(due){const to=due.kind==='line'?{x:due.pos.x+due.direction!.x*10,z:due.pos.z+due.direction!.z*10}:due.pos;
-    brain.motion={kind:due.kind==='line'?'roll':'bounce',from:{...b.pos},to:bounded(to),start:now,end:now+(due.kind==='line'?800-generation*100:1000-generation*100),hit:new Set()};
+    brain.motion={kind:due.kind==='line'?'roll':'bounce',from:{...b.pos},to:bounded(to,g.boss.id==='chaosArena'?21:10),start:now,end:now+(due.kind==='line'?800-generation*100:1000-generation*100),hit:new Set()};
     if(body.id==='boss')g.motion=brain.motion;g.telegraphs=g.telegraphs.filter(t=>t!==due);
    }
    if(!brain.motion&&!g.telegraphs.some(t=>t.ownerId===body.id)&&now>=brain.next){
@@ -49,7 +49,7 @@ export class BallEncounter {
     if(!roll&&brain.chain===0)brain.chain=hard?3:1;
     if(!roll)brain.chain--;
     const d=distance(b.pos,target.pos)||1;
-    const t:Telegraph=roll?{id:g.uuid(),ownerId:body.id,kind:'line',pos:{...b.pos},direction:{x:(target.pos.x-b.pos.x)/d,z:(target.pos.z-b.pos.z)/d},width:(radius+.48)*2,length:10,resolvesAt:now+1500}:{id:g.uuid(),ownerId:body.id,kind:'circle',pos:bounded(target.pos),radius:2.8-generation*.45,resolvesAt:now+(hard?1100:1500)};
+    const t:Telegraph=roll?{id:g.uuid(),ownerId:body.id,kind:'line',pos:{...b.pos},direction:{x:(target.pos.x-b.pos.x)/d,z:(target.pos.z-b.pos.z)/d},width:(radius+.48)*2,length:10,resolvesAt:now+1500}:{id:g.uuid(),ownerId:body.id,kind:'circle',pos:bounded(target.pos,g.boss.id==='chaosArena'?21:10),radius:2.8-generation*.45,resolvesAt:now+(hard?1100:1500)};
     g.telegraphs.push(t);
     if(body.id==='boss')g.emit({type:'event',text:roll?'Yellow Ball: rolling charge!':hard?'Hard Yellow Ball: triple bounce!':'Yellow Ball: bouncing slam!'});
    }

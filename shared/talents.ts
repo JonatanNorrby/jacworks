@@ -68,25 +68,57 @@ export const TALENT_NODES={
  returnShot:{id:'returnShot',name:'Return Shot',ranks:1,requires:'thirdRicochet',description:'Aimed Shot third ricochet sends an 8-damage arrow back to its original target if still alive'},
  thornfall:{id:'thornfall',name:'Thornfall',ranks:1,requires:'rainOfMercy',description:'Arrow Rain final wave leaves two 6-damage poison pulses in the same area'},
  solarAegis:{id:'solarAegis',name:'Solar Aegis',ranks:1,requires:'solarFlare',description:'LAZOR hitting at least one enemy also grants you a 15-HP shield for 3s'},
- embersOfLife:{id:'embersOfLife',name:'Embers of Life',ranks:1,requires:'blazingHorizon',description:'Each Ember Afterglow pulse that hits an enemy heals you for 4'}
+ embersOfLife:{id:'embersOfLife',name:'Embers of Life',ranks:1,requires:'blazingHorizon',description:'Each Ember Afterglow pulse that hits an enemy heals you for 4'},
+ restorativeRhythm:{id:'restorativeRhythm',name:'Restorative Rhythm',ranks:1,requires:'unyieldingForce',description:'Healing Totem heals 3 more per pulse'},
+ stoneSkinWard:{id:'stoneSkinWard',name:'Stone-Skin Ward',ranks:1,requires:'restorativeRhythm',description:'Healing Totem pulses shield the most injured ally within range for 6 HP over 2s'},
+ spiritEcho:{id:'spiritEcho',name:'Spirit Echo',ranks:1,requires:'stoneSkinWard',description:'Earth Shock triggers an immediate 10-HP Healing Totem pulse to its most injured nearby ally'},
+ sacredGrove:{id:'sacredGrove',name:'Sacred Grove',ranks:1,requires:'spiritEcho',description:'While both totem types are active, Fire Totem attacks deal 8 extra damage and Healing Totem heals 4 more'},
+ menacingStab:{id:'menacingStab',name:'Menacing Stab',ranks:1,requires:'unyieldingForce',description:'Stab gives you 80 additional threat against the boss'},
+ shieldSignal:{id:'shieldSignal',name:'Shield Signal',ranks:1,requires:'menacingStab',description:'Heroic Shield forces the boss to attack you one second longer'},
+ fortressAura:{id:'fortressAura',name:'Fortress Aura',ranks:1,requires:'shieldSignal',description:'Bulwark also reduces damage to allies within 4 units by 15%'},
+ unbrokenLine:{id:'unbrokenLine',name:'Unbroken Line',ranks:1,requires:'fortressAura',description:'Shielding an ally with Heroic Shield reduces your remaining Bulwark cooldown by 1.5s'},
+ fadingStep:{id:'fadingStep',name:'Fading Step',ranks:1,requires:'unyieldingForce',description:'Vanish cuts your accumulated threat in half'},
+ shadowGuard:{id:'shadowGuard',name:'Shadow Guard',ranks:1,requires:'fadingStep',description:'Vanish grants an 8-HP shield for 4 seconds'},
+ openingStrike:{id:'openingStrike',name:'Opening Strike',ranks:1,requires:'shadowGuard',description:'Quick Stab during Vanish gains 16 damage and breaks stealth'},
+ smokeReturn:{id:'smokeReturn',name:'Smoke Return',ranks:1,requires:'openingStrike',description:'Opening Strike refunds 1.2 seconds of Dash cooldown'},
+ battleCry:{id:'battleCry',name:'Battle Cry',ranks:1,requires:'unyieldingForce',description:'Guard creates 80 additional threat against the boss'},
+ holdGround:{id:'holdGround',name:'Hold Ground',ranks:1,requires:'battleCry',description:'Guard lasts an extra 0.4 seconds'},
+ rallyingAdvance:{id:'rallyingAdvance',name:'Rallying Advance',ranks:1,requires:'holdGround',description:'Charging Stab shields the nearest other ally within 4 units for 12 over 3s'},
+ frontlineLeader:{id:'frontlineLeader',name:'Frontline Leader',ranks:1,requires:'rallyingAdvance',description:'Sword Slash during Guard heals the nearest injured ally within 4 for 8'},
+ sereneNova:{id:'sereneNova',name:'Serene Nova',ranks:1,requires:'unyieldingForce',description:'Holy Nova shields nearby allies for 8 over 3 seconds'},
+ blessingOfSpeed:{id:'blessingOfSpeed',name:'Blessing of Speed',ranks:1,requires:'sereneNova',description:'Targeted Heal reduces the target ally remaining cooldowns by 0.25s'},
+ prayerEcho:{id:'prayerEcho',name:'Prayer Echo',ranks:1,requires:'blessingOfSpeed',description:'Holy Light also restores 6 HP to its caster'},
+ sanctuaryPulse:{id:'sanctuaryPulse',name:'Sanctuary Pulse',ranks:1,requires:'prayerEcho',description:'Holy Nova leaves an extra delayed 8-HP group heal pulse'},
+ chargedAegis:{id:'chargedAegis',name:'Charged Aegis',ranks:1,requires:'unyieldingForce',description:'Lightning Shield grants its primary ally 10 HP absorb for 4s'},
+ overchargedPulse:{id:'overchargedPulse',name:'Overcharged Pulse',ranks:1,requires:'chargedAegis',description:'Lightning Shield pulses deal 4 additional damage'},
+ conduitMender:{id:'conduitMender',name:'Conduit Mender',ranks:1,requires:'overchargedPulse',description:'Each Lightning Shield pulse heals its protected ally for 3'},
+ thunderhead:{id:'thunderhead',name:'Thunderhead',ranks:1,requires:'conduitMender',description:'Lightning Shield pulse radius grows from 3 to 4 units'},
+ evasiveVolley:{id:'evasiveVolley',name:'Evasive Volley',ranks:1,requires:'unyieldingForce',description:'Landing at least one Split Shot arrow gives you an 8 HP shield for 2s'},
+ quickRecovery:{id:'quickRecovery',name:'Quick Recovery',ranks:1,requires:'evasiveVolley',description:'Hitting two distinct targets with Split Shot refunds 0.5s of its cooldown'},
+ windStep:{id:'windStep',name:'Wind Step',ranks:1,requires:'quickRecovery',description:'Dash also grants a 12 HP shield for 4s'},
+ skirmishRhythm:{id:'skirmishRhythm',name:'Skirmish Rhythm',ranks:1,requires:'windStep',description:'After Dash, the next Split Shot within 3s fires one extra central 12-damage arrow'},
+ rollingEmbers:{id:'rollingEmbers',name:'Rolling Embers',ranks:1,requires:'unyieldingForce',description:'Fireball hits apply two delayed 8-damage burn ticks'},
+ flashIgnition:{id:'flashIgnition',name:'Flash Ignition',ranks:1,requires:'rollingEmbers',description:'Fireball hitting an enemy near one of your Fire Mines triggers that mine immediately'},
+ ashShield:{id:'ashShield',name:'Ash Shield',ranks:1,requires:'flashIgnition',description:'A Fireball hit grants the caster a 10 HP shield for 3s'},
+ wildfire:{id:'wildfire',name:'Wildfire',ranks:1,requires:'ashShield',description:'Fireball impact radius increases to 2.5 and adds one delayed 8-damage ember pulse'}
 } as const;
 export type TalentId=keyof typeof TALENT_NODES;
 export type TalentProgress={wins:BossId[];picks:Partial<Record<ClassId,TalentId[]>>};
 export const emptyTalents=():TalentProgress=>({wins:[],picks:{}});
 const BRANCHES={
- shaman:[['partingGift','violentFarewell','funeralBloom','ancestralShelter'],['stormConduit','livingCurrent','stormRebound','stormMender']],
- defender:[['guardianNetwork','shelteredHearts','shieldReprieve','aegisCommand'],['ironMarch','retaliatoryShell','thunderShell','bulwarkResonance']],
- rogue:[['shadowAmbush','shadowstep','rippleStab','cloakOfThorns'],['venomSpread','leechingVenom','venomCatalyst','toxicEcho']],
- warrior:[['piercingCharge','impactWave','meteorWake','seismicRenewal'],['cleavingArc','defiantGuard','battleWard','guardianRiposte']],
- priest:[['healingCascade','sacredEcho','aegisMend','secondBenediction'],['widerNova','avengingLight','dawnFlare','radiantAegis']],
- lightningMage:[['forkedArc','arcOverload','arcSurge','arcWard'],['stormWell','stormAftershock','stormShelter','stormRecovery']],
- ranger:[['splitVolley','ricochetArrows','thirdRicochet','returnShot'],['rainSurge','lastDownpour','rainOfMercy','thornfall']],
- fireMage:[['prismBeam','searingBeam','solarFlare','solarAegis'],['volatileMines','emberAfterglow','blazingHorizon','embersOfLife']]
+ shaman:[['restorativeRhythm','stoneSkinWard','spiritEcho','sacredGrove'],['partingGift','violentFarewell','funeralBloom','ancestralShelter'],['stormConduit','livingCurrent','stormRebound','stormMender']],
+ defender:[['menacingStab','shieldSignal','fortressAura','unbrokenLine'],['guardianNetwork','shelteredHearts','shieldReprieve','aegisCommand'],['ironMarch','retaliatoryShell','thunderShell','bulwarkResonance']],
+ rogue:[['fadingStep','shadowGuard','openingStrike','smokeReturn'],['shadowAmbush','shadowstep','rippleStab','cloakOfThorns'],['venomSpread','leechingVenom','venomCatalyst','toxicEcho']],
+ warrior:[['battleCry','holdGround','rallyingAdvance','frontlineLeader'],['piercingCharge','impactWave','meteorWake','seismicRenewal'],['cleavingArc','defiantGuard','battleWard','guardianRiposte']],
+ priest:[['sereneNova','blessingOfSpeed','prayerEcho','sanctuaryPulse'],['healingCascade','sacredEcho','aegisMend','secondBenediction'],['widerNova','avengingLight','dawnFlare','radiantAegis']],
+ lightningMage:[['chargedAegis','overchargedPulse','conduitMender','thunderhead'],['forkedArc','arcOverload','arcSurge','arcWard'],['stormWell','stormAftershock','stormShelter','stormRecovery']],
+ ranger:[['evasiveVolley','quickRecovery','windStep','skirmishRhythm'],['splitVolley','ricochetArrows','thirdRicochet','returnShot'],['rainSurge','lastDownpour','rainOfMercy','thornfall']],
+ fireMage:[['rollingEmbers','flashIgnition','ashShield','wildfire'],['prismBeam','searingBeam','solarFlare','solarAegis'],['volatileMines','emberAfterglow','blazingHorizon','embersOfLife']]
 } as const satisfies Record<ClassId,readonly (readonly TalentId[])[]>;
 export const TALENT_TREE=Object.fromEntries((Object.keys(CLASS_DEFINITIONS) as ClassId[]).map(classId=>[
  classId,{classId,branches:BRANCHES[classId],nodes:[TALENT_NODES.unyieldingForce,...BRANCHES[classId].flat().map(id=>TALENT_NODES[id])]}
 ])) as unknown as Record<ClassId,{classId:ClassId;branches:readonly (readonly TalentId[])[];nodes:readonly (typeof TALENT_NODES[TalentId])[]}>;
-export const TALENT_POINT_BOSSES=['warden','yellowBall','greenCone','fracturer','hardWarden','hardYellowBall','hardGreenCone','duoYellowWarden','duoTruffleFracturer','antQueen'] as const satisfies readonly BossId[];
+export const TALENT_POINT_BOSSES=['warden','yellowBall','greenCone','fracturer','hardWarden','hardYellowBall','hardGreenCone','duoYellowWarden','duoTruffleFracturer','antQueen','chaosArena'] as const satisfies readonly BossId[];
 export const talentSpent=(p:TalentProgress)=>Object.values(p.picks).reduce((total,items)=>total+(items?.length??0),0);
 export const talentAvailable=(p:TalentProgress)=>Math.max(0,p.wins.length-talentSpent(p));
 export const hasTalent=(p:TalentProgress|undefined,cls:ClassId,node:TalentId)=>!!p?.picks[cls]?.includes(node);

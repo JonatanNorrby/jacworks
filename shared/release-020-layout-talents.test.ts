@@ -32,7 +32,7 @@ const chains:Partial<Record<ClassId,[TalentId[],TalentId[]]>>={
  fireMage:[['prismBeam','searingBeam','solarFlare','solarAegis'],['volatileMines','emberAfterglow','blazingHorizon','embersOfLife']]
 };
 test('Nest gate is beside the other three boss circles, not isolated in north field',()=>{
- const nest=BOSS_CIRCLES.find(c=>c.difficulty==='Nest')!,other=BOSS_CIRCLES.filter(c=>c.difficulty!=='Nest');
+ const nest=BOSS_CIRCLES.find(c=>c.difficulty==='Nest')!,other=BOSS_CIRCLES.filter(c=>c.difficulty!=='Nest'&&c.difficulty!=='Chaos');
  assert.equal(nest.center.z,-6.5);assert.ok(other.every(c=>c.center.z===nest.center.z));
  assert.ok(nest.center.x<Math.min(...other.map(c=>c.center.x)));
  assert.equal(BOSS_PEDESTALS.find(p=>p.id==='antQueen')?.pos.z,nest.center.z);
@@ -72,10 +72,10 @@ test('Royal items now use weapon, armour and offhand and migrate old equipped of
  assert.equal(inventoryView(spare).materials.find(m=>m.id==='antChitin')?.count,1);
 });
 test('All eight classes have two four-deep prerequisite paths; old talent IDs and points remain valid',()=>{
- assert.equal(Object.keys(TALENT_TREE).length,8);assert.equal(TALENT_POINT_BOSSES.length,10);
+ assert.equal(Object.keys(TALENT_TREE).length,8);assert.equal(TALENT_POINT_BOSSES.length,11);
  for(const [cls,branches] of Object.entries(chains) as [ClassId,[TalentId[],TalentId[]]][]){
-  const tree=TALENT_TREE[cls];assert.equal(tree.nodes.length,9);
-  assert.equal(tree.branches.length,2);
+  const tree=TALENT_TREE[cls];assert.equal(tree.nodes.length,13);
+  assert.equal(tree.branches.length,3);
   for(const chain of branches){
    assert.equal(chain.length,4);
    const p=emptyTalents();p.wins=[...TALENT_POINT_BOSSES];

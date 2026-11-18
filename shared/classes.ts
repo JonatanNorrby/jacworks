@@ -23,9 +23,6 @@ export function eligibleLoadout(definition:ClassDefinition,value:unknown):Loadou
  return selected as Loadout;
 }
 export function gearEligible(id:ClassId,item:string){
- if(item==='redtubeArmour')return ['warrior','defender','rogue'].includes(id);
- if(item==='primitiveWand')return ['priest','lightningMage','fireMage'].includes(id);
- if(item==='pointyOrb')return ['lightningMage','fireMage'].includes(id);
  if(item==='pointyHat'||item==='fleetfootBoots'||item==='mirewalkerBoots')return true;
  return Object.prototype.hasOwnProperty.call(GEAR_CLASS,item)&&GEAR_CLASS[item as keyof typeof GEAR_CLASS]===id;
 }

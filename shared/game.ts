@@ -82,6 +82,7 @@ export class Game {
   emit:(m:ServerMessage)=>void;
   uuid:()=>string;
   readonly liveTalents:boolean;
+  talented(p:PlayerState,node:TalentId){return this.liveTalents&&hasTalent(p.talents,p.classId,node);}
   constructor(emit:(m:ServerMessage)=>void,uuid:()=>string,liveTalents=false) {this.emit=emit;this.uuid=uuid;this.liveTalents=liveTalents;}
   add(id:string) {
     this.cancelVote();
@@ -96,7 +97,7 @@ export class Game {
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
     this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
-    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;}
+    for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;p.retaliationAt=undefined;}
   }
   message(id:string,m:unknown,now=Date.now()) {
     const p=this.players.get(id);if(!p||!m||typeof m!=='object')return;
@@ -190,21 +191,63 @@ export class Game {
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand==='pointyOrb'?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
     if(skill==='dash')p.pos=this.movePlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5});
-    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,5,this.pillars());
+    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,p.boots==='twinrushBoots'?7:5,this.pillars());
     if(skill==='swordSwing'||skill==='chargingStab') {
-      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour==='redtubeArmour'?4:3,angle=skill==='chargingStab'?.85:p.armour==='redtubeArmour'?0:.5;
+      const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour==='redtubeArmour'?4:this.talented(p,'cleavingArc')?3.7:3,angle=skill==='chargingStab'?.85:p.armour==='redtubeArmour'?0:this.talented(p,'cleavingArc')?.15:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
       if(this.visible(origin,this.boss.pos)&&meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
       for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))this.damageTarget(a.id,skill==='swordSwing'?38:60,p.id);
     }
-    if(skill==='lazor') {to={x:from.x+p.facing.x*14,z:from.z+p.facing.z*14};if(this.beamHits(from,p.facing,this.boss.pos))damage=90;}
+    if(skill==='chargingStab'){
+      const travel=distance(from,p.pos);
+      if(this.talented(p,'piercingCharge'))for(const t of this.targets())
+        if(this.visible(from,t.pos)&&beamHits(from,p.facing,t.pos,travel,1.1))this.damageTarget(t.id,22,p.id);
+      if(this.talented(p,'impactWave'))this.area(p.pos,2.5,18,p.id);
+    }
+    // Prism Lens replaces LAZOR's central beam; Prism Beam adds weaker flanking rays.
+    if(skill==='lazor'){
+      const prism=p.offhand==='prismLens';
+      const rays=prism?[[-.23,60],[.23,60]]:[[0,90]];
+      if(this.talented(p,'prismBeam'))rays.push([-.36,20],[.36,20]);
+      for(const [angle,power] of rays){
+        const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};
+        for(const t of this.targets())if(this.beamHits(from,dir,t.pos,14,prism?1.05:1.6)){
+          this.damageTarget(t.id,power,p.id);
+          const ticks=p.offhand==='pointyOrb'?4:this.talented(p,'searingBeam')?2:0;
+          if(ticks){const key=p.id+':'+t.id,old=this.burns.get(key);this.burns.set(key,{target:t.id,next:now+1000,remaining:Math.max(old?.remaining??0,ticks)});}
+        }
+        this.emit({type:'abilityFx',skill,playerId:p.id,from,to:this.clip(from,{x:from.x+dir.x*14,z:from.z+dir.z*14})});
+      }
+      return;
+    }
     if(skill==='arcBolt'||skill==='arcSpear') {damage=this.visible(from,target.pos)?(skill==='arcBolt'?18:72):0;to=this.clip(from,target.pos);}
-    if(skill==='pulseNova'){for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)this.heal(a,18,p.id);if(d<=4.2&&this.visible(from,this.boss.pos))damage=45;}if(skill==='guard')p.guardUntil=now+1600;
+    if(skill==='pulseNova'){
+      const radius=this.talented(p,'widerNova')?5.5:4.5;
+      for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=radius)this.heal(a,this.talented(p,'widerNova')?22:18,p.id);
+      if(d<=radius-.3&&this.visible(from,this.boss.pos))damage=45;
+      if(p.head==='haloOfRenewal')this.effects.push({id:this.uuid(),owner:p.id,skill:'pulseNova',pos:{...p.pos},next:now+1000,remaining:3,expires:now+3500,healingField:true});
+    }
+    if(skill==='guard'){p.guardUntil=now+1600;if(this.talented(p,'defiantGuard'))this.heal(p,10,p.id);}
     if(skill==='holyNova')for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)this.heal(a,25,p.id);
-    if(skill==='arcBolt'||skill==='arcSpear'){this.damageTarget(target.id,damage,p.id)}
+    if(skill==='arcBolt'||skill==='arcSpear'){
+      this.damageTarget(target.id,damage,p.id);
+      const second=this.targets().filter(t=>t.id!==target.id&&distance(target.pos,t.pos)<=5&&this.visible(target.pos,t.pos))
+        .sort((a,b)=>distance(target.pos,a.pos)-distance(target.pos,b.pos))[0];
+      if(second){
+        if(p.offhand==='splitConductor')this.damageTarget(second.id,25,p.id);
+        if(this.talented(p,'forkedArc')){
+          this.damageTarget(second.id,damage*.4,p.id);
+          this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
+          if(this.talented(p,'arcOverload')){
+            const third=this.targets().filter(t=>t.id!==target.id&&t.id!==second.id&&distance(second.pos,t.pos)<=5&&this.visible(second.pos,t.pos))
+              .sort((a,b)=>distance(second.pos,a.pos)-distance(second.pos,b.pos))[0];
+            if(third){this.damageTarget(third.id,damage*.2,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});}
+          }
+        }else if(p.offhand==='splitConductor')this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
+      }
+    }
     else this.damageTarget('boss',damage,p.id);
-    for(const a of this.adds)if(a.hp>0&&((skill==='lazor'&&this.beamHits(from,p.facing,a.pos))||(skill==='pulseNova'&&this.visible(from,a.pos)&&distance(from,a.pos)<=4.2)))this.damageTarget(a.id,skill==='lazor'?90:45,p.id);
-    if(skill==='lazor'&&p.offhand==='pointyOrb')for(const t of [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds])if(t.hp>0&&this.beamHits(from,p.facing,t.pos))this.burns.set(p.id+':'+t.id,{target:t.id,next:now+1000,remaining:4});
+    for(const a of this.adds)if(a.hp>0&&skill==='pulseNova'&&this.visible(from,a.pos)&&distance(from,a.pos)<=(this.talented(p,'widerNova')?5.2:4.2))this.damageTarget(a.id,45,p.id);
     this.emit({type:'abilityFx',skill,playerId:p.id,from,to:skill==='dash'?{...p.pos}:['lazor','swordSwing','chargingStab'].includes(skill)?this.clip(from,to):to});
   }
   beamHits=(from:Vec2,dir:Vec2,target:Vec2,length=14,radius=1.6)=>{
@@ -245,6 +288,10 @@ export class Game {
   hurt(p:PlayerState,now:number,amount=this.boss.id==='hardWarden'?64:48,bossDamage=true) {
     let damage=talentMitigation(amount,this.liveTalents&&hasTalent(p.talents,p.classId,'unyieldingForce')?1:0)*(p.guardUntil>now?.25:1)*(p.bulwarkUntil>now?(p.offhand==='bulwarkCrest'?CLASS_ITEM_BONUS.defenderDamageMultiplier:.5):1)*(bossDamage&&p.armour==='redtubeArmour'?.95:1);
     if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
+    if(amount>0&&p.bulwarkUntil>now&&this.talented(p,'retaliatoryShell')&&now>=(p.retaliationAt??-Infinity)+1000){
+      p.retaliationAt=now;
+      if(this.phase==='fight')this.area(p.pos,3,12,p.id);
+    }
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }
   schedule(now:number) {
@@ -323,7 +370,7 @@ export class Game {
       for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss')){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
-        p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?.5:1)*(p.boots==='fleetfootBoots'?1.15:1),z:v.z*.22*(p.bulwarkUntil>now?.5:1)*(p.boots==='fleetfootBoots'?1.15:1)});
+        p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1),z:v.z*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1)});
         if((this.boss.id==='fracturer'||this.boss.id==='duoTruffleFracturer')&&this.arenaCuts.some(c=>now>=c.collapseAt&&fractureQuadrant(p.pos)===c.quadrant))p.pos=old;
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }

@@ -19,7 +19,11 @@ export const RECIPES={
  nightshadeHood:{conicalTaper:2,hardTruffleSpore:1},
  shadowHat:{largeSphere:1,conicalTaper:1},
  emberWand:{cylinderTube:1,hardTruffleSpore:1},
- cinderweaveArmour:{largeCylinder:2,sphericalBall:1}
+ cinderweaveArmour:{largeCylinder:2,sphericalBall:1},
+ twinTotemCapacitor:{duoCore:1,cylinderTube:1},fractureAegis:{duoSpore:1,largeCylinder:1},
+ sporeglassBlade:{duoSpore:1,conicalTaper:1},twinrushBoots:{duoCore:1,largeSphere:1},
+ haloOfRenewal:{duoSpore:1,largeSphere:1},splitConductor:{duoCore:1,sphericalBall:1},
+ rottingFletching:{duoSpore:1,hardTruffleSpore:1},prismLens:{duoCore:1,conicalTaper:1}
 } as const;
 export type Gear=keyof typeof RECIPES;
 export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
@@ -40,7 +44,15 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  nightshadeHood:'Rogue head: doubles Poison Enchant tick count (stacks with Venom Fang)',
  shadowHat:'Priest head: Targeted Heal damages bosses instead of healing allies',
  emberWand:'Fire Mage weapon: Fireball deals half damage with half cast time',
- cinderweaveArmour:'Fire Mage armour: Fireball launches three projectiles instead of one'
+ cinderweaveArmour:'Fire Mage armour: Fireball launches three projectiles instead of one',
+ twinTotemCapacitor:'Shaman offhand: Earth Shock orders your active Fire Totem to strike its target for 20 extra damage',
+ fractureAegis:'Defender offhand: Heroic Shield shares 20 absorb with a nearby third ally (stacks with Guardian Network)',
+ sporeglassBlade:'Rogue weapon: Backstab plants a delayed 24-damage spore blast around the target',
+ twinrushBoots:'Warrior boots: Charging Stab travels 7 units instead of 5',
+ haloOfRenewal:'Priest head: Holy Nova leaves a three-tick healing field (5 HP to allies each second)',
+ splitConductor:'Lightning Mage offhand: Arc Blast or Arc Spear forks a 25-damage bolt to a second nearby enemy',
+ rottingFletching:'Ranger offhand: Arrow Rain leaves a three-tick poisonous spore field (6 damage each second)',
+ prismLens:'Fire Mage offhand: LAZOR becomes two angled 60-damage beams instead of a single central beam'
 };
 
 export type EquipmentSlot='weapon'|'head'|'offhand'|'armour'|'boots';
@@ -50,14 +62,18 @@ export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  sporefangQuiver:'offhand',sporestormQuiver:'offhand',splitthornQuiver:'offhand',
  fleetfootBoots:'boots',mirewalkerBoots:'boots',
  sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand',
- nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour'
+ nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour',
+ twinTotemCapacitor:'offhand',fractureAegis:'offhand',sporeglassBlade:'weapon',twinrushBoots:'boots',
+ haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand'
 };
 export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
  redtubeArmour:'warrior',primitiveWand:'lightningMage',pointyHat:'all',pointyOrb:'fireMage',
  sporeboundTotem:'shaman',verdantMenderTotem:'shaman',
  sporefangQuiver:'ranger',sporestormQuiver:'ranger',splitthornQuiver:'ranger',
  fleetfootBoots:'all',mirewalkerBoots:'all',sunlitReliquary:'priest',
- venomFang:'rogue',bulwarkCrest:'defender',nightshadeHood:'rogue',shadowHat:'priest',emberWand:'fireMage',cinderweaveArmour:'fireMage'
+ venomFang:'rogue',bulwarkCrest:'defender',nightshadeHood:'rogue',shadowHat:'priest',emberWand:'fireMage',cinderweaveArmour:'fireMage',
+ twinTotemCapacitor:'shaman',fractureAegis:'defender',sporeglassBlade:'rogue',twinrushBoots:'warrior',
+ haloOfRenewal:'priest',splitConductor:'lightningMage',rottingFletching:'ranger',prismLens:'fireMage'
 };
 const COUNTERS={
  redtubeArmour:'armours',primitiveWand:'crafted',pointyHat:'hats',pointyOrb:'orbs',
@@ -65,7 +81,10 @@ const COUNTERS={
  sporefangQuiver:'sporeQuivers',sporestormQuiver:'stormQuivers',splitthornQuiver:'thornQuivers',
  fleetfootBoots:'fleetfootPairs',mirewalkerBoots:'mirewalkerPairs',
  sunlitReliquary:'reliquaries',venomFang:'venomFangs',bulwarkCrest:'bulwarkCrests',
- nightshadeHood:'nightshadeHoods',shadowHat:'shadowHats',emberWand:'emberWands',cinderweaveArmour:'cinderweaveArmours'
+ nightshadeHood:'nightshadeHoods',shadowHat:'shadowHats',emberWand:'emberWands',cinderweaveArmour:'cinderweaveArmours',
+ twinTotemCapacitor:'twinCapacitors',fractureAegis:'fractureAegises',sporeglassBlade:'sporeglassBlades',
+ twinrushBoots:'twinrushPairs',haloOfRenewal:'renewalHalos',splitConductor:'splitConductors',
+ rottingFletching:'rottingFletchings',prismLens:'prismLenses'
 } as const;
 export type Inventory={
  rewards:Record<string,Material>;
@@ -73,14 +92,18 @@ export type Inventory={
  fleetfootPairs:number;mirewalkerPairs:number;menderTotems:number;stormQuivers:number;thornQuivers:number;
  reliquaries:number;venomFangs:number;bulwarkCrests:number;
  nightshadeHoods:number;shadowHats:number;emberWands:number;cinderweaveArmours:number;
- armour:'redtubeArmour'|'cinderweaveArmour'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
- boots:'fleetfootBoots'|'mirewalkerBoots'|null;
+ twinCapacitors:number;fractureAegises:number;sporeglassBlades:number;twinrushPairs:number;
+ renewalHalos:number;splitConductors:number;rottingFletchings:number;prismLenses:number;
+ armour:'redtubeArmour'|'cinderweaveArmour'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
+ boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|null;
 };
 export const emptyInventory=():Inventory=>({
  rewards:{},crafted:0,hats:0,orbs:0,armours:0,sporeTotems:0,sporeQuivers:0,
  fleetfootPairs:0,mirewalkerPairs:0,menderTotems:0,stormQuivers:0,thornQuivers:0,
  reliquaries:0,venomFangs:0,bulwarkCrests:0,
  nightshadeHoods:0,shadowHats:0,emberWands:0,cinderweaveArmours:0,
+ twinCapacitors:0,fractureAegises:0,sporeglassBlades:0,twinrushPairs:0,
+ renewalHalos:0,splitConductors:0,rottingFletchings:0,prismLenses:0,
  armour:null,weapon:null,head:null,offhand:null,boots:null
 });
 export function countInventory(v:Inventory):Record<Material|Gear,number>{

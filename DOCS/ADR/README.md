@@ -25,6 +25,7 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0011](0011-yellow-ball-splits.md) | Accepted | Yellow Ball split encounters and Large Sphere |
 
 | [0012](0012-connected-development-labs.md) | Accepted | Connected development Labs and consolidation |
+| [0013](0013-branching-talents-and-duo-gear.md) | Accepted for prototype | Class talent branches and dual-encounter skill mutation gear |
 
 ## Workflow
 

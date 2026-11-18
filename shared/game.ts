@@ -102,9 +102,9 @@ export class Game {
       p.armour=inventory.armour&&gearEligible(p.classId,inventory.armour)?inventory.armour:null;p.weapon=inventory.weapon&&gearEligible(p.classId,inventory.weapon)?inventory.weapon:null;p.head=inventory.head&&gearEligible(p.classId,inventory.head)?inventory.head:null;p.offhand=inventory.offhand&&gearEligible(p.classId,inventory.offhand)?inventory.offhand:null;p.boots=inventory.boots&&gearEligible(p.classId,inventory.boots)?inventory.boots:null;p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;
       p.loadout=resolveClassLoadout(p.classId,v.loadout,p.weapon);
       // Progress is validated on rejoin. Room victories remain authoritative during a session.
-      const restored=readTalents(v.talents);const existing=p.talents??emptyTalents();
-      for(const bossId of existing.wins)awardTalentWin(restored,bossId);
-      p.talents=readTalents(restored);
+      // Apply the browser save on first join only. Later loadout/gear syncs must
+      // never overwrite talent purchases or first-clear rewards earned in this room.
+      if(first)p.talents=readTalents(v.talents);
       // First entrant owns the selection. All later entrants use the room's boss.
       if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
     }

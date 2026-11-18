@@ -81,7 +81,7 @@ let draft:Loadout=[...loadout];
 let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
-let crafterCategory:'all'|ClassId=selectedClass;
+let crafterCategory:'all'|ClassId='all';
 const inventoryKey='jacworks-inventory-v1';
 const inventoryPanel=document.createElement('section');inventoryPanel.id='inventory-panel';inventoryPanel.className='hidden';document.body.append(inventoryPanel);
 

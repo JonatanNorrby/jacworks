@@ -16,7 +16,7 @@ try{
  for(let i=0;i<25;i++){send(a,{type:'input',seq:seq++,move:{x:1,z:0}});await delay(50);}send(a,{type:'input',seq:seq++,move:{x:0,z:0}});
  const late=await connect();assert.deepEqual(late.state.poisonMark,mark);
  await waitFor(()=>a.state.poisonClouds?.length,'cloud');const cloud=a.state.poisonClouds[0],player=a.state.players.find(p=>p.id===a.id);assert.deepEqual(cloud.pos,player.pos);assert.ok(cloud.pos.x>initial.x+3);assert.equal(cloud.activeAt-cloud.spawnedAt,1500);assert.equal(cloud.expiresAt-cloud.spawnedAt,10000);assert.ok(cloud.spawnedAt>=mark.detonatesAt&&cloud.spawnedAt-mark.detonatesAt<250);
- const hp=player.hp;await waitFor(()=>a.state.now>=cloud.activeAt&&a.state.players.find(p=>p.id===a.id).hp<hp,'first damage');assert.ok(Math.abs(a.state.players.find(p=>p.id===a.id).hp-(hp-8*.97))<.01);
+ const hp=player.hp;await waitFor(()=>a.state.now>=cloud.activeAt&&a.state.players.find(p=>p.id===a.id).hp<hp,'first damage');assert.ok(a.state.players.find(p=>p.id===a.id).hp===hp-8);
  for(let i=0;i<16;i++){send(a,{type:'input',seq:seq++,move:{x:0,z:-1}});await delay(50);}send(a,{type:'input',seq:seq++,move:{x:0,z:0}});
  await waitFor(()=>a.state.now>=cloud.expiresAt,'expiry');assert.equal(a.state.poisonClouds.length,0);assert.ok(matched>100);
  send(a,{type:'hub'});await waitFor(()=>clients.every(c=>c.state.phase==='lobby'&&!c.state.poisonMark&&!c.state.poisonClouds.length),'hub cleanup');

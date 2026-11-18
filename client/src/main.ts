@@ -7,8 +7,10 @@ import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../sh
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
 import {createTruffle} from './truffle';
+import {buildAntCave} from './antCave';
 import {createCreditsDialog} from './credits';
 import {clipPillars} from '../../shared/cover';
+import {southFacingBarYaw} from '../../shared/healthBars';
 import { HARD_PILLARS } from '../../shared/protocol';
 import { loadCamera, saveCamera, readCamera, cameraTarget } from '../../shared/camera';
 import type { ClassId } from '../../shared/classes';
@@ -27,6 +29,7 @@ import {
   StandardMaterial,
   Vector3,
   VertexData,
+  TransformNode,
 } from "@babylonjs/core";
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
@@ -144,7 +147,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
  for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}if(!atPedestal){const group=document.createElement('optgroup');group.label='Double boss';for(const [id,name] of DOUBLE_ENCOUNTERS){const o=document.createElement('option');o.value=id;o.textContent='Double · '+name;group.append(o)}select.append(group)}inventoryPanel.append(select);
- const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if(!snapshot?.supportedBosses?.includes(selectedBoss)&&(['hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'] as BossId[]).includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
+ const button=document.createElement('button');button.textContent='Propose encounter';button.onclick=()=>{selectedBoss=select.value as typeof selectedBoss;if(!snapshot?.supportedBosses?.includes(selectedBoss)&&(['hardGreenCone','fracturer','antQueen','duoYellowWarden','duoTruffleFracturer'] as BossId[]).includes(selectedBoss)){message.textContent='This game server does not support '+(bossNames[selectedBoss]??selectedBoss)+'. The deployment may be outdated.';return;}closeHubPanel();enterEncounter()};inventoryPanel.append(button);
  }else if(kind==='wardrobe'){
  const doll=document.createElement('div');doll.className='paperdoll';
  const body=document.createElement('div');body.className='paperdoll-body';body.setAttribute('aria-hidden','true');
@@ -259,6 +262,7 @@ refreshInputHints();
 const playerMeshes = new Map<string, Mesh>();
 const addMeshes=new Map<string,Mesh>();
 const telegraphMeshes = new Map<string, Mesh>();
+const fallingRockMeshes=new Map<string,Mesh>();
 const hubMeshes: Mesh[] = [];
 const arenaMeshes: Mesh[] = [];
 
@@ -319,12 +323,16 @@ function playerMaterial(id:string){
 }
 function ensurePlayerHealthBar(mesh:Mesh){
  if(mesh.getChildMeshes().some(child=>child.name==='party-hp-fill'))return;
+ const anchor=new TransformNode('party-hp-south-anchor',scene);
+ anchor.parent=mesh;anchor.position.set(0,1.63,0);
  const bg=MeshBuilder.CreateBox('party-hp-bg',{width:1.2,height:.12,depth:.055},scene);
- bg.parent=mesh;bg.position.set(0,1.63,0);bg.material=deadMat;
+ bg.parent=anchor;bg.position.set(0,0,0);bg.material=deadMat;
  const fill=MeshBuilder.CreateBox('party-hp-fill',{width:1.2,height:.12,depth:.065},scene);
- fill.parent=mesh;fill.position.set(0,1.63,-.035);fill.material=holyMat;
+ fill.parent=anchor;fill.position.set(0,0,-.045);fill.material=holyMat;
 }
-function updatePlayerHealthBar(mesh:Mesh,hp:number,maxHp:number){
+function updatePlayerHealthBar(mesh:Mesh,hp:number,maxHp:number,facing?:{x:number;z:number}){
+ const anchor=mesh.getChildTransformNodes().find(n=>n.name==='party-hp-south-anchor');
+ if(anchor)anchor.rotation.y=facing?southFacingBarYaw(facing):-mesh.rotation.y;
  const ratio=maxHp>0?Math.max(0,Math.min(1,hp/maxHp)):0;
  const fill=mesh.getChildMeshes().find(child=>child.name==='party-hp-fill');
  if(fill){fill.scaling.x=Math.max(.0001,ratio);fill.position.x=-.6*(1-ratio);fill.setEnabled(ratio>0)}
@@ -374,9 +382,9 @@ function hubLabel(name:string,text:string,x:number,z:number,width:number){
  const mesh=pushHub(MeshBuilder.CreatePlane(name,{width,height:width*192/1024},scene));mesh.rotation.x=Math.PI/2;mesh.position.set(x,.16,z);mesh.material=mat;
 }
 for(const circle of BOSS_CIRCLES){
- const mat=circle.difficulty==='Normal'?hubAccentMat:circle.difficulty==='Double'?novaMat:bossMat;
- const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:circle.difficulty==='Double'?4.7:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
- hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+(circle.difficulty==='Double'?2.5:3.3),3.5);
+ const mat=circle.difficulty==='Normal'?hubAccentMat:circle.difficulty==='Nest'?material('nest-pedestal',new Color3(.52,.25,.10)):circle.difficulty==='Double'?novaMat:bossMat;
+ const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:circle.difficulty==='Nest'?3.5:circle.difficulty==='Double'?4.7:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
+ hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+(circle.difficulty==='Nest'?1.8:circle.difficulty==='Double'?2.5:3.3),3.5);
  for(const pedestal of BOSS_PEDESTALS.filter(p=>p.difficulty===circle.difficulty)){
   const disc=pushHub(MeshBuilder.CreateCylinder('boss-pedestal-'+pedestal.id,{diameter:1.3,height:.08,tessellation:40},scene));disc.position.set(pedestal.pos.x,.05,pedestal.pos.z);disc.material=mat;
   hubLabel('boss-label-'+pedestal.id,pedestal.name,pedestal.pos.x,pedestal.pos.z,2.5);
@@ -424,6 +432,8 @@ for(const x of [4.95,6.05]){
 }
 const arenaGround = pushArena(MeshBuilder.CreateGround("arena", { width: 26, height: 26 }, scene));
 arenaGround.material = arenaGroundMat;
+const antCave=buildAntCave(scene);const antCaveMeshes=[...antCave.props,antCave.queen];
+for(const p of antCaveMeshes)arenaMeshes.push(p);
 const fractureWarningMat=material('fracture-warning',new Color3(.5,.25,.02),new Color3(.65,.23,.02),.9);
 const fractureVoidMat=material('fracture-void',new Color3(.005,.004,.013),new Color3(.01,.002,.015));
 const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
@@ -460,6 +470,7 @@ const arenaRing = pushArena(MeshBuilder.CreateTorus("arena-ring", { diameter: 24
 arenaRing.position.y = 0.06;
 arenaRing.material = arenaStoneMat;
 
+const ordinaryArenaPillars:Mesh[]=[];
 for (const [x, z] of [
   [-7.5, -7.5],
   [7.5, -7.5],
@@ -469,9 +480,22 @@ for (const [x, z] of [
   const pillar = pushArena(MeshBuilder.CreateBox(`arena-pillar-${x}-${z}`, { width: 2.2, height: 2.6, depth: 2.2 }, scene));
   pillar.position.set(x, 1.3, z);
   pillar.rotation.y = Math.PI / 4;
-  pillar.material = arenaStoneMat;
+  pillar.material = arenaStoneMat;ordinaryArenaPillars.push(pillar);
 }
 
+const hardWardenOuter=pushArena(new Mesh('warden-close-danger',scene));
+{
+ const positions:number[]=[],normals:number[]=[],indices:number[]=[];
+ for(let i=0;i<=72;i++){
+  const a=i/72*Math.PI*2;
+  for(const radius of [4.3,18]){positions.push(Math.cos(a)*radius,.075,Math.sin(a)*radius);normals.push(0,1,0);}
+  if(i<72){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
+ }
+ const v=new VertexData();v.positions=positions;v.indices=indices;v.normals=normals;v.applyToMesh(hardWardenOuter);
+}
+hardWardenOuter.material=fractureDangerMat;hardWardenOuter.isPickable=false;hardWardenOuter.setEnabled(false);
+const hardWardenSafeRing=pushArena(MeshBuilder.CreateTorus('warden-close-safe',{diameter:8.6,thickness:.22,tessellation:64},scene));
+hardWardenSafeRing.position.y=.12;hardWardenSafeRing.material=fractureSafeMat;hardWardenSafeRing.isPickable=false;hardWardenSafeRing.setEnabled(false);
 const hardPillars=HARD_PILLARS.map((p,i)=>{const mesh=pushArena(MeshBuilder.CreateCylinder('hard-pillar-'+i,{diameter:2,height:3},scene));mesh.position.set(p.x,1.5,p.z);mesh.material=arenaStoneMat;return mesh});
 const bossMesh = pushArena(MeshBuilder.CreateCylinder("boss", { diameter: 2.5, height: 2.9, tessellation: 12 }, scene));
 bossMesh.position.y = 1.45;
@@ -533,6 +557,7 @@ function clearEncounterMeshes() {
   playerMeshes.clear();
   for(const mesh of addMeshes.values())mesh.dispose();addMeshes.clear();
   for (const mesh of telegraphMeshes.values()) mesh.dispose();
+  for(const rock of fallingRockMeshes.values())rock.dispose();fallingRockMeshes.clear();
   telegraphMeshes.clear();
 }
 
@@ -612,9 +637,9 @@ function syncHub(state:Snapshot){
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
  for(const [id,mesh] of playerMeshes)if(!state.players.some(p=>p.id===id)){mesh.dispose();playerMeshes.delete(id)}
- for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp);syncGear(mesh,p)}
+ for(const p of state.players){let mesh=playerMeshes.get(p.id);if(!mesh){mesh=MeshBuilder.CreateCapsule('player-'+p.id,{height:1.6,radius:.45},scene);addNose(mesh);ensurePlayerHealthBar(mesh);playerMeshes.set(p.id,mesh)}mesh.setEnabled(true);mesh.position.set(p.pos.x,.8,p.pos.z);mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);mesh.material=playerMaterial(p.id);updatePlayerHealthBar(mesh,p.hp,p.maxHp,p.facing);syncGear(mesh,p)}
 }
-const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer',duoYellowWarden:'Yellow Ball + Warden',duoTruffleFracturer:'Truffle Man + Fracturer'};
+const bossNames:Record<BossId,string>={warden:'Warden',hardWarden:'Hard Warden',hardYellowBall:'Hard Yellow Ball',yellowBall:'Yellow Ball',greenCone:'Truffle Man',hardGreenCone:'Hard Truffle Man',fracturer:'The Fracturer',antQueen:'Ant Queen',duoYellowWarden:'Yellow Ball + Warden',duoTruffleFracturer:'Truffle Man + Fracturer'};
 const votePanel=document.createElement('section');votePanel.id='encounter-vote';votePanel.className='hidden';votePanel.setAttribute('aria-live','polite');document.body.append(votePanel);
 let renderedVote='';
 function syncVote(state:Snapshot){
@@ -747,26 +772,62 @@ function syncEncounter(state: Snapshot) {
  if(!mine){mine=MeshBuilder.CreateTorus('persistent-fire-mine-'+e.id,{diameter:1.6,thickness:.18,tessellation:24},scene);mine.material=dangerMat;fireMineMeshes.set(e.id,mine);}
  mine.position.set(e.pos.x,.12,e.pos.z);
  }
+ const ants=state.boss.id==='antQueen';
+ arenaGround.material=ants?antCave.floor:arenaGroundMat;
+ for(const p of antCaveMeshes)p.setEnabled(ants&&state.phase==='fight');
+ for(const p of ordinaryArenaPillars)p.setEnabled(!ants);
+ antCave.queen.position.set(state.boss.pos.x,1.52,state.boss.pos.z);
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
+ const call=state.phase==='fight'&&state.hardWardenCall&&!state.hardWardenCall.resolved&&state.now<state.hardWardenCall.resolvesAt?state.hardWardenCall:undefined;
+ hardWardenOuter.setEnabled(!!call);hardWardenSafeRing.setEnabled(!!call);
+ if(call){hardWardenOuter.position.set(state.boss.pos.x,0,state.boss.pos.z);hardWardenSafeRing.position.set(state.boss.pos.x,.12,state.boss.pos.z);}
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone'||state.boss.id==='duoTruffleFracturer');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
- for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;else if(a.kind==='duoBoss')mesh.material=fracturerMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:a.kind==='duoBoss'?2.2:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
- bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
+for(const a of state.adds){
+  let mesh=addMeshes.get(a.id);
+  const isWorker=a.kind==='antWorker',isRoyal=a.kind==='royalGuard';
+  if(!mesh){
+    mesh=isWorker?antCave.createWorker():isRoyal?antCave.createRoyal():
+      a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):
+      a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);
+    if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;
+    else if(a.kind==='duoBoss')mesh.material=fracturerMat;
+    addMeshes.set(a.id,mesh);
+    const bar=MeshBuilder.CreateBox('add-health',{width:isRoyal?1.5:1,height:.08,depth:.08},scene);
+    bar.parent=mesh;bar.position.y=isWorker?1.55:isRoyal?1.85:a.kind==='ball'?.85:a.kind==='duoBoss'?2.2:2.4;
+    bar.material=holyMat;
+  }
+  if(isWorker||isRoyal){
+    const dx=a.pos.x-mesh.position.x,dz=a.pos.z-mesh.position.z;
+    if(Math.hypot(dx,dz)>.06)mesh.rotation.y=Math.atan2(dx,dz)+Math.PI;
+  }
+  mesh.position.set(a.pos.x,isWorker?.6:isRoyal?.9:a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);
+  const health=mesh.getChildMeshes().find(child=>child.name==='add-health');
+  if(health){health.scaling.x=a.hp/a.maxHp;health.rotation.y=-mesh.rotation.y;}
+}
+ bossMesh.setEnabled(!ants&&!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  const warden=state.boss.id==='warden'||state.boss.id==='hardWarden'||state.boss.id==='duoYellowWarden';
  bossMesh.rotation.y=warden?state.boss.heading??0:0;
  wardenNose.setEnabled(warden&&state.phase==='fight'&&state.boss.hp>0);
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=(state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN')+
- (surge?' · SAFE '+surge.safeDirection.toUpperCase()+' ('+Math.ceil((surge.resolvesAt-state.now)/1000)+'s)':'');
- dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
+ document.querySelector('#boss-label')!.textContent=(state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='antQueen'?'ANT QUEEN · IMMUNE · '+(state.royalsDefeated??0)+'/4 GUARDS · WAVE '+(state.queenWave??0):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN')+
+ (surge?' · SAFE '+surge.safeDirection.toUpperCase()+' ('+Math.ceil((surge.resolvesAt-state.now)/1000)+'s)':'')+
+ (call?' · GET CLOSE! '+Math.ceil((call.resolvesAt-state.now)/1000)+'s':'');
+ dropTube.setEnabled(state.phase==='won'&&!yellow&&!green&&!ants);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
  dropTube.position.set(state.boss.pos.x,.35,state.boss.pos.z);dropBall.position.set(state.boss.pos.x,.3,state.boss.pos.z);
   const combatTelegraphs:Telegraph[]=state.effects.filter(e=>!e.afterglow&&['fireMine','arrowRain','lightningShield','fireball','aimedShot'].includes(e.skill)).map(e=>({id:'effect-'+e.id,kind:'circle',pos:e.pos,radius:e.skill==='fireMine'?2:e.skill==='arrowRain'?3.5:e.skill==='lightningShield'?3:e.skill==='fireball'?2:1,resolvesAt:e.expires}));
   for(const p of state.players)if(p.cast)combatTelegraphs.push({id:'cast-'+p.id,kind:'circle',pos:p.cast.skill==='lightningStorm'?p.cast.target:p.pos,radius:p.cast.skill==='lightningStorm'?3:1,resolvesAt:p.cast.endsAt});
   const allTelegraphs=[...state.telegraphs,...combatTelegraphs];
+ for(const [id,rock] of fallingRockMeshes)if(!state.telegraphs.some(t=>t.id===id&&t.style==='rockfall')){rock.dispose();fallingRockMeshes.delete(id);}
+ for(const t of state.telegraphs.filter(t=>t.style==='rockfall')){
+  let rock=fallingRockMeshes.get(t.id);
+  if(!rock){rock=MeshBuilder.CreateSphere('falling-rock-'+t.id,{diameter:1.3,segments:10},scene);rock.material=antCave.earth;rock.isPickable=false;fallingRockMeshes.set(t.id,rock);}
+  rock.position.set(t.pos.x,1.4+Math.max(0,(t.resolvesAt-state.now)/1750)*5,t.pos.z);
+ }
   const playerIds = new Set(state.players.map((p) => p.id));
 
   for (const [id, mesh] of playerMeshes) {
@@ -791,7 +852,7 @@ function syncEncounter(state: Snapshot) {
     mesh.rotation.y=Math.atan2(p.facing.x,p.facing.z);
     syncGear(mesh,p);
     mesh.material = p.alive ? playerMaterial(p.id) : deadMat;
-    updatePlayerHealthBar(mesh,p.hp,p.maxHp);
+    updatePlayerHealthBar(mesh,p.hp,p.maxHp,p.facing);
     mesh.scaling.y = p.guardUntil > state.now || p.bulwarkUntil>state.now ? 1.25 : 1;
     mesh.visibility=p.invisibleUntil>state.now?.35:1;
     for(const child of mesh.getChildMeshes())child.visibility=mesh.visibility;

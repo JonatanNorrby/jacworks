@@ -4,7 +4,7 @@ Draft design inspiration: [unified skill & evolution idea library](DOCS/ABILITY_
 
 ## Prototype 01
 
-**Current release: 0.1.8.** Fire Mine afterglow damage, per-arrow Split Shot, Warden facing, slot-filtered Wardrobe, and the Fracturer's cardinal-safe-sector attack are implemented. See [v0.1.8 release notes](DOCS/RELEASE_0_1_8.md) and [ADR-0015](DOCS/ADR/0015-fracturer-cardinal-eruption.md). Options now includes twelve configurable keyboard shortcuts with conflict warnings and restore defaults. See [release 0.1.7](DOCS/RELEASE_0_1_7.md) and [ADR-0014](DOCS/ADR/0014-browser-local-rebindable-controls.md). Eight class talent trees now have real prerequisite arrows and two branches each; eight class-specific recipes use Twin Core and Fractured Spore to change existing abilities. See [0.1.6 release notes](DOCS/RELEASE_0_1_6.md) and [ADR-0013](DOCS/ADR/0013-branching-talents-and-duo-gear.md). Progression and inventory remain browser-local in this prototype.
+**Current release: 0.1.9.** A new northern Nest pedestal opens the Ant Queen cave encounter: kill four Royal Guards to damage the otherwise invulnerable queen, while worker waves and rockfall increase pressure. Hard Warden gains a close-range safe-circle attack, player HP bars always face south, all eight talent trees gain two more nodes, and Royal Ant Chitin crafts eight class-specific skill-mutating items. See [v0.1.9 design and balance notes](DOCS/RELEASE_0_1_9.md) and [ADR-0016](DOCS/ADR/0016-ant-queen-objective-and-extended-builds.md). Fire Mine afterglow damage, per-arrow Split Shot, Warden facing, slot-filtered Wardrobe, and the Fracturer's cardinal-safe-sector attack are implemented. See [v0.1.8 release notes](DOCS/RELEASE_0_1_8.md) and [ADR-0015](DOCS/ADR/0015-fracturer-cardinal-eruption.md). Options now includes twelve configurable keyboard shortcuts with conflict warnings and restore defaults. See [release 0.1.7](DOCS/RELEASE_0_1_7.md) and [ADR-0014](DOCS/ADR/0014-browser-local-rebindable-controls.md). Eight class talent trees now have real prerequisite arrows and two branches each; eight class-specific recipes use Twin Core and Fractured Spore to change existing abilities. See [0.1.6 release notes](DOCS/RELEASE_0_1_6.md) and [ADR-0013](DOCS/ADR/0013-branching-talents-and-duo-gear.md). Progression and inventory remain browser-local in this prototype.
 
 
 Version **0.1.1** improves Truffle Man's skeletal slam and adds his marked poison cloud. See [0.1.1 release notes](DOCS/RELEASE_0_1_1.md) for rules, tuning and validation. Version **0.1.0** consolidated the prototype branches. Gameplay baseline: hub `e36adfa`; Labs v2 is integrated with the retained v1 controls.
@@ -43,6 +43,7 @@ All listed keys are defaults. Open **Options → Keybindings** to rebind movemen
 
 Hub:
 - WASD — move
+- Find Ant Queen north of the hub in the Nest circle; defeating four Royal Guards removes her invulnerability
 - E — open the named boss pedestal in the blue Normal (west) or red Hard (east) circle, then propose its encounter
 - E at the gold Skill Trainer — choose a class and rearrange its four skills
 - E at the purple Crafter — craft Primitive Wand from boss materials

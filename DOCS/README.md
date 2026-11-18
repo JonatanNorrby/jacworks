@@ -26,6 +26,7 @@ See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI c
 ## Consolidation and releases
 
 - [Connected Labs decision](ADR/0012-connected-development-labs.md)
+- [0.1.9 Ant Queen, Royal Chitin gear, HP-bar readability and deeper talents](RELEASE_0_1_9.md)
 - [0.1.8 combat fixes, Wardrobe tabs and Fracturer cardinal safe-sector attack](RELEASE_0_1_8.md)
 - [0.1.7 configurable keyboard controls](RELEASE_0_1_7.md)
 - [0.1.6 talent trees, new gear and source-library provenance](RELEASE_0_1_6.md)

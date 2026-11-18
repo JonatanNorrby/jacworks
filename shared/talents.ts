@@ -36,25 +36,41 @@ export const TALENT_NODES={
  prismBeam:{id:'prismBeam',name:'Prism Beam',ranks:1,requires:'unyieldingForce',description:'LAZOR adds two 20-damage side beams angled outward'},
  searingBeam:{id:'searingBeam',name:'Searing Beam',ranks:1,requires:'prismBeam',description:'LAZOR hits apply two 8-damage burn ticks (or preserve a longer existing burn)'},
  volatileMines:{id:'volatileMines',name:'Volatile Mines',ranks:1,requires:'unyieldingForce',description:'Fire Mine triggers at 2.7 units and explodes over 4 units'},
- emberAfterglow:{id:'emberAfterglow',name:'Ember Afterglow',ranks:1,requires:'volatileMines',description:'Detonated Fire Mines leave three 8-damage area pulses at their location'}
+ emberAfterglow:{id:'emberAfterglow',name:'Ember Afterglow',ranks:1,requires:'volatileMines',description:'Detonated Fire Mines leave three 8-damage area pulses at their location'},
+ funeralBloom:{id:'funeralBloom',name:'Funeral Bloom',ranks:1,requires:'violentFarewell',description:'Totem death explosions also heal nearby living allies for 10'},
+ stormRebound:{id:'stormRebound',name:'Storm Rebound',ranks:1,requires:'livingCurrent',description:'Earth Shock chain jumps to a third enemy within 5 units for 10 damage'},
+ shieldReprieve:{id:'shieldReprieve',name:'Shield Reprieve',ranks:1,requires:'shelteredHearts',description:'Heroic Shield on another ally also heals the Defender for 10'},
+ thunderShell:{id:'thunderShell',name:'Thunder Shell',ranks:1,requires:'retaliatoryShell',description:'Bulwark retaliation grows to 20 damage over a 4-unit area'},
+ rippleStab:{id:'rippleStab',name:'Ripple Stab',ranks:1,requires:'shadowstep',description:'Rear Backstab also strikes one second nearby enemy for 18'},
+ venomCatalyst:{id:'venomCatalyst',name:'Venom Catalyst',ranks:1,requires:'leechingVenom',description:'Poison Enchant ticks each deal 4 additional damage'},
+ meteorWake:{id:'meteorWake',name:'Meteor Wake',ranks:1,requires:'impactWave',description:'Charging Stab impact wave becomes 22 damage across 3 units'},
+ battleWard:{id:'battleWard',name:'Battle Ward',ranks:1,requires:'defiantGuard',description:'Guard grants the nearest other ally within 4 units a 20-HP shield for 2 seconds'},
+ aegisMend:{id:'aegisMend',name:'Aegis Mend',ranks:1,requires:'sacredEcho',description:'Targeted Heal also grants 15 shield to its target for 5 seconds'},
+ dawnFlare:{id:'dawnFlare',name:'Dawn Flare',ranks:1,requires:'avengingLight',description:'Holy Light triggers an additional 15-damage pulse within 2 units of its enemy target'},
+ arcSurge:{id:'arcSurge',name:'Arc Surge',ranks:1,requires:'arcOverload',description:'Arc Overload third jump deals 15 bonus damage'},
+ stormShelter:{id:'stormShelter',name:'Storm Shelter',ranks:1,requires:'stormAftershock',description:'A completed Lightning Storm gives nearby living allies 15 shield for 4 seconds'},
+ thirdRicochet:{id:'thirdRicochet',name:'Third Ricochet',ranks:1,requires:'ricochetArrows',description:'Aimed Shot ricochets a third time for 12 damage'},
+ rainOfMercy:{id:'rainOfMercy',name:'Rain of Mercy',ranks:1,requires:'lastDownpour',description:'Each Arrow Rain wave also heals allies inside its area for 5'},
+ solarFlare:{id:'solarFlare',name:'Solar Flare',ranks:1,requires:'searingBeam',description:'LAZOR ends with an additional 18-damage, 2-unit blast'},
+ blazingHorizon:{id:'blazingHorizon',name:'Blazing Horizon',ranks:1,requires:'emberAfterglow',description:'Ember Afterglow radius increases from 3 to 4 without increasing damage'}
 } as const;
 export type TalentId=keyof typeof TALENT_NODES;
 export type TalentProgress={wins:BossId[];picks:Partial<Record<ClassId,TalentId[]>>};
 export const emptyTalents=():TalentProgress=>({wins:[],picks:{}});
 const BRANCHES={
- shaman:[['partingGift','violentFarewell'],['stormConduit','livingCurrent']],
- defender:[['guardianNetwork','shelteredHearts'],['ironMarch','retaliatoryShell']],
- rogue:[['shadowAmbush','shadowstep'],['venomSpread','leechingVenom']],
- warrior:[['piercingCharge','impactWave'],['cleavingArc','defiantGuard']],
- priest:[['healingCascade','sacredEcho'],['widerNova','avengingLight']],
- lightningMage:[['forkedArc','arcOverload'],['stormWell','stormAftershock']],
- ranger:[['splitVolley','ricochetArrows'],['rainSurge','lastDownpour']],
- fireMage:[['prismBeam','searingBeam'],['volatileMines','emberAfterglow']]
+ shaman:[['partingGift','violentFarewell','funeralBloom'],['stormConduit','livingCurrent','stormRebound']],
+ defender:[['guardianNetwork','shelteredHearts','shieldReprieve'],['ironMarch','retaliatoryShell','thunderShell']],
+ rogue:[['shadowAmbush','shadowstep','rippleStab'],['venomSpread','leechingVenom','venomCatalyst']],
+ warrior:[['piercingCharge','impactWave','meteorWake'],['cleavingArc','defiantGuard','battleWard']],
+ priest:[['healingCascade','sacredEcho','aegisMend'],['widerNova','avengingLight','dawnFlare']],
+ lightningMage:[['forkedArc','arcOverload','arcSurge'],['stormWell','stormAftershock','stormShelter']],
+ ranger:[['splitVolley','ricochetArrows','thirdRicochet'],['rainSurge','lastDownpour','rainOfMercy']],
+ fireMage:[['prismBeam','searingBeam','solarFlare'],['volatileMines','emberAfterglow','blazingHorizon']]
 } as const satisfies Record<ClassId,readonly (readonly TalentId[])[]>;
 export const TALENT_TREE=Object.fromEntries((Object.keys(CLASS_DEFINITIONS) as ClassId[]).map(classId=>[
  classId,{classId,branches:BRANCHES[classId],nodes:[TALENT_NODES.unyieldingForce,...BRANCHES[classId].flat().map(id=>TALENT_NODES[id])]}
 ])) as unknown as Record<ClassId,{classId:ClassId;branches:readonly (readonly TalentId[])[];nodes:readonly (typeof TALENT_NODES[TalentId])[]}>;
-export const TALENT_POINT_BOSSES=['warden','yellowBall','greenCone','fracturer','hardWarden','hardYellowBall','hardGreenCone','duoYellowWarden','duoTruffleFracturer'] as const satisfies readonly BossId[];
+export const TALENT_POINT_BOSSES=['warden','yellowBall','greenCone','fracturer','hardWarden','hardYellowBall','hardGreenCone','duoYellowWarden','duoTruffleFracturer','antQueen'] as const satisfies readonly BossId[];
 export const talentSpent=(p:TalentProgress)=>Object.values(p.picks).reduce((total,items)=>total+(items?.length??0),0);
 export const talentAvailable=(p:TalentProgress)=>Math.max(0,p.wins.length-talentSpent(p));
 export const hasTalent=(p:TalentProgress|undefined,cls:ClassId,node:TalentId)=>!!p?.picks[cls]?.includes(node);

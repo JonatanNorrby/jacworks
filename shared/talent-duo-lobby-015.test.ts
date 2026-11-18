@@ -64,7 +64,7 @@ test('Live servers apply +3% dealt/-3% received only after starter node unlocked
 });
 test('Shaman totems burst for 30 on natural expiry, and require second node for early destruction',()=>{
  for(const [broken,extra,expected] of [[false,false,30],[true,false,0],[true,true,30]] as const){
-  const g=make(1,false),p=g.add('a');p.classId='shaman';p.loadout=[...CLASS_DEFINITIONS.shaman.skills];
+  const g=make(1,false),p=g.add('a');p.classId='shaman';p.loadout=[...CLASS_DEFINITIONS.shaman.skills] as import('./protocol').Loadout;
   p.talents={wins:['warden','greenCone','yellowBall'],picks:{shaman:extra?['unyieldingForce','partingGift','violentFarewell']:['unyieldingForce','partingGift']}};
   start(g);p.pos={x:0,z:2};
   g.message('a',{type:'ability',slot:3,target:{x:0,z:0}},200);

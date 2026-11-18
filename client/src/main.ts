@@ -465,6 +465,7 @@ const antCave=buildAntCave(scene);const antCaveMeshes=[...antCave.props,antCave.
 for(const p of antCaveMeshes)arenaMeshes.push(p);
 const fractureWarningMat=material('fracture-warning',new Color3(.5,.25,.02),new Color3(.65,.23,.02),.9);
 const fractureVoidMat=material('fracture-void',new Color3(.005,.004,.013),new Color3(.01,.002,.015));
+const chaosFloorMat=material('chaos-arena-floor',new Color3(.105,.087,.145),new Color3(.018,.011,.036));
 const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
  const tile=pushArena(MeshBuilder.CreateGround('fracture-tile-'+i,{width:10,height:10},scene));
  tile.position.set(x,.035,z);tile.setEnabled(false);return tile;
@@ -784,7 +785,13 @@ function syncEncounter(state: Snapshot) {
    if(surge)wedge.material=direction===surge.safeDirection?fractureSafeMat:fractureDangerMat;
  }
  for(const [i,tile] of fractureFloorTiles.entries()){
- const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ const chaos=state.boss.id==='chaosArena';
+ const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer'||chaos)?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
+ // Chaos uses larger corner collapse tiles to match the server's wider axial
+ // safe pathways. The fixed Warden and Fracturer stand on those pathways.
+ tile.scaling.x=tile.scaling.z=chaos?1.6:1;
+ tile.position.x=(i===0||i===3?1:-1)*(chaos?13.5:8);
+ tile.position.z=(i<2?1:-1)*(chaos?13.5:8);
  tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
  }
  for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine'&&!e.afterglow)){mesh.dispose();fireMineMeshes.delete(id)}
@@ -802,7 +809,7 @@ function syncEncounter(state: Snapshot) {
  mine.position.set(e.pos.x,.12,e.pos.z);
  }
  const ants=state.boss.id==='antQueen',chaos=state.boss.id==='chaosArena';
- arenaGround.material=ants?antCave.floor:chaos?fractureVoidMat:arenaGroundMat;
+ arenaGround.material=ants?antCave.floor:chaos?chaosFloorMat:arenaGroundMat;
  arenaGround.scaling.x=arenaGround.scaling.z=chaos?50/26:ants?32/26:1;
  arenaRing.scaling.x=arenaRing.scaling.z=chaos?46/24.4:1;
  for(const {wedge} of fractureCardinalSectors){wedge.scaling.x=wedge.scaling.z=chaos?23/18:1;}
@@ -844,7 +851,10 @@ for(const a of state.adds){
     const dx=a.pos.x-mesh.position.x,dz=a.pos.z-mesh.position.z;
     if(Math.hypot(dx,dz)>.06)mesh.rotation.y=Math.atan2(dx,dz)+Math.PI;
   }
-  mesh.position.set(a.pos.x,isWorker?.6:isRoyal?.9:a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='chaosBoss'?(a.bossId==='yellowBall'?1.25:a.bossId==='antQueen'?1.52:1.45):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);
+  if(a.kind==='chaosBoss'&&(a.bossId==='warden'||a.bossId==='greenCone'))mesh.rotation.y=a.heading??0;
+  const slam=a.smash&&state.now>=a.smash.startedAt&&state.now<a.smash.recoverAt?
+   Math.sin(Math.min(1,(state.now-a.smash.startedAt)/(a.smash.impactAt-a.smash.startedAt))*Math.PI)*.35:0;
+  mesh.position.set(a.pos.x,isWorker?.6:isRoyal?.9:a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='chaosBoss'?(a.bossId==='yellowBall'?1.25:a.bossId==='antQueen'?1.52:1.45+slam):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);
   const health=mesh.getChildMeshes().find(child=>child.name==='add-health');
   if(health){health.scaling.x=a.hp/a.maxHp;health.rotation.y=-mesh.rotation.y;}
 }

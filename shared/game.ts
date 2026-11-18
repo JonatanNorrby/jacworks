@@ -8,10 +8,10 @@ import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from '
 import { readInventory,CLASS_ITEM_BONUS } from './inventory';
 import {talentDamage,talentMitigation,emptyTalents,readTalents,unlockTalent,respecTalents,awardTalentWin,hasTalent,TALENT_NODES} from './talents';
 import type {TalentId} from './talents';
-import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, NETWORK_VERSION } from './protocol';
+import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, WARRIOR_DAMAGE, NETWORK_VERSION } from './protocol';
 import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState, CardinalDirection } from './protocol';
 
-export function fractureQuadrant(pos:Vec2):number {if(Math.abs(pos.x)<=3||Math.abs(pos.z)<=3)return -1;return pos.x>=0?(pos.z>=0?0:3):(pos.z>=0?1:2)}
+export function fractureQuadrant(pos:Vec2,centralCorridor=3):number {if(Math.abs(pos.x)<=centralCorridor||Math.abs(pos.z)<=centralCorridor)return -1;return pos.x>=0?(pos.z>=0?0:3):(pos.z>=0?1:2)}
 export const CARDINAL_DIRECTIONS=['north','east','south','west'] as const satisfies readonly CardinalDirection[];
 /** The Fracturer's new pattern leaves exactly one 90-degree compass sector safe.
  * Its center-to-edge axial corridors never overlap the collapsing corner tiles. */
@@ -198,7 +198,7 @@ export class Game {
       else if(skill==='guard')p.guardUntil=now+1600;
       else if(skill==='vanish')p.invisibleUntil=now+4000;
       else if(skill==='poisonEnchant')p.poisonUntil=now+6000;
-      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:32,backstab:42,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:140,fireMine:95,swordSwing:38,chargingStab:60,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
+      const damage:Partial<Record<import('./protocol').SkillId,number>>={earthShock:36,stab:32,quickStab:32,backstab:42,holyLight:32,aimedShot:58,arrowRain:84,splitShot:66,fireball:140,fireMine:95,swordSwing:WARRIOR_DAMAGE.swordSwing,chargingStab:WARRIOR_DAMAGE.chargingStab,lazor:90,arcBolt:18,arcSpear:72,pulseNova:45,lightningStorm:132,lightningShield:84,fireTotem:24};
       let amount=damage[skill]??0;
       if(p.weapon==='sporefangQuiver'&&skill==='aimedShot')amount=100;
       if(p.armour==='sporestormQuiver'&&skill==='arrowRain')amount=105;
@@ -252,8 +252,8 @@ export class Game {
     if(skill==='swordSwing'||skill==='chargingStab') {
       const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour==='redtubeArmour'?4:this.talented(p,'cleavingArc')?3.7:3,angle=skill==='chargingStab'?.85:p.armour==='redtubeArmour'?0:this.talented(p,'cleavingArc')?.15:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
-      if(this.visible(origin,this.boss.pos)&&meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?38:60;
-      for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))this.damageTarget(a.id,skill==='swordSwing'?38:60,p.id);
+      if(this.visible(origin,this.boss.pos)&&meleeHits(origin,p.facing,this.boss.pos,reach,angle))damage=skill==='swordSwing'?WARRIOR_DAMAGE.swordSwing:WARRIOR_DAMAGE.chargingStab;
+      for(const a of this.adds)if(a.hp>0&&this.visible(origin,a.pos)&&meleeHits(origin,p.facing,a.pos,reach,angle))this.damageTarget(a.id,skill==='swordSwing'?WARRIOR_DAMAGE.swordSwing:WARRIOR_DAMAGE.chargingStab,p.id);
       if(skill==='swordSwing'&&this.talented(p,'frontlineLeader')&&p.guardUntil>now&&
           this.targets().some(t=>this.visible(origin,t.pos)&&meleeHits(origin,p.facing,t.pos,reach,angle))){
         const ally=[...this.players.values()].filter(a=>a.alive&&a.hp<a.maxHp&&distance(a.pos,p.pos)<=4)
@@ -400,7 +400,7 @@ export class Game {
     let p={...pos};const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
     for(let i=0;i<steps;i++){
       p=moveSolid(p,{x:delta.x/steps,z:delta.z/steps},this.solidBoss(),this.pillars(),1.73,this.arenaLimit());
-      for(const a of this.adds)if((a.kind==='ball'||a.kind==='duoBoss')&&a.hp>0)p=moveSolid(p,{x:0,z:0},a.pos,[],(a.radius??.9)+.48,this.arenaLimit());
+      for(const a of this.adds)if((a.kind==='ball'||a.kind==='duoBoss'||a.kind==='chaosBoss')&&a.hp>0)p=moveSolid(p,{x:0,z:0},a.pos,[],(a.radius??.9)+.48,this.arenaLimit());
     }return p;
   }
   solidBoss(){return this.boss.hp>0&&this.boss.id!=='chaosArena'?this.boss.pos:{x:1000,z:1000}}
@@ -474,7 +474,11 @@ export class Game {
         }
         if(!b.remaining)this.burns.delete(key);
       }
-      if(this.boss.id==='fracturer'||(this.boss.id==='duoTruffleFracturer'&&this.adds.some(a=>a.kind==='duoBoss'&&a.hp>0))){
+      const fracturerCorners=(this.boss.id==='fracturer'&&this.boss.hp>0)||
+        (this.boss.id==='chaosArena'&&!!chaosBoss(this,'fracturer'))||
+        (this.boss.id==='duoTruffleFracturer'&&this.adds.some(a=>a.kind==='duoBoss'&&a.bossId==='fracturer'&&a.hp>0));
+      const collapseCorridor=this.boss.id==='chaosArena'?5.5:3;
+      if(fracturerCorners){
         if(this.arenaCuts.length<4&&now>=this.nextCollapseAt){
           const quadrant=this.arenaCuts.length;
           this.arenaCuts.push({quadrant,warnAt:now,collapseAt:now+2200});
@@ -482,12 +486,15 @@ export class Game {
           this.system('The Fracturer: a corner is collapsing! Move to the central pathways.');
         }
         for(const cut of this.arenaCuts)if(now>=cut.collapseAt){
-          for(const p of this.players.values())if(p.alive&&fractureQuadrant(p.pos)===cut.quadrant){
-            p.pos={x:Math.sign(p.pos.x)*2.8,z:Math.sign(p.pos.z)*2.8};
+          for(const p of this.players.values())if(p.alive&&fractureQuadrant(p.pos,collapseCorridor)===cut.quadrant){
+            p.pos={x:Math.sign(p.pos.x)*(collapseCorridor-.2),z:Math.sign(p.pos.z)*(collapseCorridor-.2)};
             this.hurt(p,now,25);
           }
         }
       }
+      // When Fracturer falls in Chaos, previously collapsed floor tiles
+      // reopen; no invisible collision or lingering phantom eruption.
+      if(this.boss.id==='chaosArena'&&!chaosBoss(this,'fracturer'))this.arenaCuts=[];
       const activeFracturer=(this.boss.id==='fracturer'&&this.boss.hp>0)||(this.boss.id==='chaosArena'&&!!chaosBoss(this,'fracturer'))||
         (this.boss.id==='duoTruffleFracturer'&&this.adds.some(a=>a.kind==='duoBoss'&&a.bossId==='fracturer'&&a.hp>0));
       if(!activeFracturer)this.fracturerSurge=undefined;
@@ -508,7 +515,10 @@ export class Game {
         if(travelled>0)this.boss.heading=Math.atan2(this.boss.pos.x-before.x,this.boss.pos.z-before.z);
       }
       this.adds=this.adds.filter(a=>a.hp>0);
-      for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss')){
+      // The five Chaos champions have independent behavior: three anchored,
+      // Yellow Ball animated by BallEncounter, and Truffle by tickChaos.
+      // Only actual minions may chase and deal contact damage.
+      for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss'&&a.kind!=='chaosBoss')){
         const ant=a.kind==='antWorker'||a.kind==='royalGuard';
         const speed=a.kind==='antWorker'?2.5:a.kind==='royalGuard'?1.6:1.7;
         const target=chase(a.pos,speed,a.kind==='royalGuard'?1.2:.85);
@@ -521,7 +531,7 @@ export class Game {
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
         p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1),z:v.z*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1)});
-        if((this.boss.id==='fracturer'||this.boss.id==='duoTruffleFracturer')&&this.arenaCuts.some(c=>now>=c.collapseAt&&fractureQuadrant(p.pos)===c.quadrant))p.pos=old;
+        if(fracturerCorners&&this.arenaCuts.some(c=>now>=c.collapseAt&&fractureQuadrant(p.pos,collapseCorridor)===c.quadrant))p.pos=old;
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
       if(this.boss.id==='warden'||this.boss.id==='hardWarden'||this.boss.id==='duoYellowWarden'){
@@ -566,6 +576,9 @@ export class Game {
         if(target)this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:2.6,resolvesAt:now+1500});
       }
 
+      // A defeated Chaos champion cannot leave phantom queued attacks behind.
+      if(this.boss.id==='chaosArena')
+        this.telegraphs=this.telegraphs.filter(t=>!t.sourceBossId||!!chaosBoss(this,t.sourceBossId));
       for(const t of this.telegraphs.filter(t=>!t.ownerId&&t.resolvesAt<=now)) {
         // Publish the actual damage tick; a stalled server must not show an early slam.
         if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')&&this.boss.smash&&!this.boss.smash.impacted){this.boss.smash.impactAt=now;this.boss.smash.recoverAt=now+650;this.boss.smash.impacted=true;}

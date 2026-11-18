@@ -56,7 +56,7 @@ export function tickAntQueen(this:Game,now:number){
     const limit=this.arenaLimit();
     const pos=length>limit?{x:proposed.x*limit/length,z:proposed.z*limit/length}:proposed;
     this.telegraphs.push({id:'ant-rock-'+this.uuid(),kind:'circle',style:'rockfall',pos,radius:2,
-     damage:26,resolvesAt:now+1750});
+     damage:26,resolvesAt:now+1750,sourceBossId:this.boss.id==='chaosArena'?'antQueen':undefined});
    }
    this.system('Ant Queen: rocks fall from the cave roof! Move out of the marked circles.');
   }

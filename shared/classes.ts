@@ -1,5 +1,6 @@
 import { baseLoadout, encounterLoadout } from './protocol';
 import type { Loadout, SkillId, Weapon } from './protocol';
+import {GEAR_CLASS} from './inventory';
 export type ClassDefinition={id:string;name:string;skills:readonly SkillId[]};
 export const CLASS_DEFINITIONS={
  shaman:{id:'shaman',name:'Shaman',skills:['earthShock','fireTotem','healingTotem','dash']},
@@ -21,7 +22,13 @@ export function eligibleLoadout(definition:ClassDefinition,value:unknown):Loadou
  if(selected.length!==4)throw new Error('A playable class must allow four base skills');
  return selected as Loadout;
 }
-export function gearEligible(id:ClassId,item:string){return (item==='redtubeArmour'&&['warrior','defender','rogue'].includes(id))||item==='pointyHat'||(item==='primitiveWand'&&['priest','lightningMage','fireMage'].includes(id))||(item==='pointyOrb'&&['lightningMage','fireMage'].includes(id))||(item==='sporeboundTotem'&&id==='shaman')||(item==='sporefangQuiver'&&id==='ranger')||item==='fleetfootBoots'||item==='mirewalkerBoots'}
+export function gearEligible(id:ClassId,item:string){
+ if(item==='redtubeArmour')return ['warrior','defender','rogue'].includes(id);
+ if(item==='primitiveWand')return ['priest','lightningMage','fireMage'].includes(id);
+ if(item==='pointyOrb')return ['lightningMage','fireMage'].includes(id);
+ if(item==='pointyHat'||item==='fleetfootBoots'||item==='mirewalkerBoots')return true;
+ return Object.prototype.hasOwnProperty.call(GEAR_CLASS,item)&&GEAR_CLASS[item as keyof typeof GEAR_CLASS]===id;
+}
 export function resolveClassLoadout(id:ClassId,value:unknown,weapon:Weapon):Loadout {return encounterLoadout(eligibleLoadout(CLASS_DEFINITIONS[id],value),id==='lightningMage'?weapon:null)}
 
 export const CLASS_STORAGE_KEY='jacworks-class-v1';

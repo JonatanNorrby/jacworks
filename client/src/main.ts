@@ -26,7 +26,7 @@ import {
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
-import { readInventory, countInventory, grantReward, craft, equip, RECIPES, GEAR_CLASS, inventoryView } from './inventory';
+import { readInventory, countInventory, grantReward, craft, equip, RECIPES, GEAR_CLASS, GEAR_EFFECTS, inventoryView } from './inventory';
 import type {Gear} from '../../shared/inventory';
 import { installGameDevLabs } from './gameDevLabs';
 declare const __GAME_VERSION__:string;
@@ -92,7 +92,7 @@ function closeHubPanel(){hubPanelOpen=false;inventoryPanel.classList.add('hidden
 function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  hubPanelOpen=true;keys.clear();inventoryPanel.replaceChildren();inventoryPanel.classList.remove('hidden');
  const heading=document.createElement('h2');heading.textContent=kind==='gate'?'Expedition Gate':kind==='wardrobe'?'Wardrobe':'Crafter';inventoryPanel.append(heading);
- const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Wand: Arc Spear. Hat: 3 Dash charges, sequential recharge. Orb: LAZOR burn and +2s cooldown. Armour: 5% less boss damage; wider Sword Swing. Sporebound Totem (Shaman): Fire Totem 30 damage, Healing Totem 10 healing/tick. Sporefang Quiver (Ranger): stronger arrow skills. Fleetfoot Boots: +15% movement. Mirewalker Boots: 25% less poison damage.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
+ const copy=document.createElement('p');copy.textContent=kind==='gate'?'Propose a boss to everyone connected to this room. Everyone must accept before combat starts.':kind==='wardrobe'?'Each item improves a specific ability. Use the Crafter class menus to see recipes and bonuses. You can equip only one offhand item at a time.':'Craft reusable equipment from boss materials.';inventoryPanel.append(copy);
  if(kind==='gate'){
  const select=document.createElement('select');select.setAttribute('aria-label','Boss encounter');
  for(const circle of BOSS_CIRCLES){const group=document.createElement('optgroup');group.label=circle.difficulty;for(const [id,name] of circle.bosses){if(atPedestal&&id!==selectedBoss)continue;const o=document.createElement('option');o.value=id;o.textContent=circle.difficulty+' · '+name;o.selected=id===selectedBoss;group.append(o)}if(group.children.length)select.append(group)}if(!atPedestal){const group=document.createElement('optgroup');group.label='Double boss';for(const [id,name] of DOUBLE_ENCOUNTERS){const o=document.createElement('option');o.value=id;o.textContent='Double · '+name;group.append(o)}select.append(group)}inventoryPanel.append(select);
@@ -108,7 +108,7 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
  const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
  const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
  if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
- for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available');const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
+ for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available')+' · '+GEAR_EFFECTS[item.id];const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const materialTitle=document.createElement('h3');materialTitle.textContent='Material inventory';materials.append(materialTitle);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
@@ -123,11 +123,11 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
   for(const gear of gears){
    const card=document.createElement('div');card.className='crafter-recipe';
    const title=document.createElement('strong');title.textContent=ITEMS[gear];
-   const recipe=document.createElement('p');recipe.textContent=Object.entries(RECIPES[gear]).map(([material,cost])=>cost+' '+ITEMS[material as keyof typeof ITEMS]).join(' + ');
+   const recipe=document.createElement('p');recipe.textContent=Object.entries(RECIPES[gear]).map(([material,cost])=>cost+' '+ITEMS[material as keyof typeof ITEMS]).join(' + ');const effect=document.createElement('small');effect.textContent=GEAR_EFFECTS[gear];
    const button=document.createElement('button');button.textContent='Craft '+ITEMS[gear];
    const counts=countInventory(inventory);button.disabled=Object.entries(RECIPES[gear]).some(([material,cost])=>counts[material as keyof typeof counts]<cost);
    button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(craft(inventory,gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();openHubPanel('crafter')}};
-   card.append(title,recipe,button);grid.append(card);
+   card.append(title,recipe,effect,button);grid.append(card);
   }
  }
  showCategory(crafterCategory);
@@ -316,7 +316,7 @@ function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
  if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
- if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+ if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=gear.offhand==='sporestormQuiver'?arcMat:gear.offhand==='splitthornQuiver'?spearMat:greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=gear.offhand==='verdantMenderTotem'?holyMat:dangerMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-offhand',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=gear.offhand==='sunlitReliquary'?holyMat:gear.offhand==='venomFang'?greenMat:gear.offhand==='bulwarkCrest'?guardMat:novaMat;}
 }
 
 

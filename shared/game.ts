@@ -1,6 +1,7 @@
 import {TrufflePoison} from './trufflePoison';
 import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffle';
 import {BallEncounter,isBall} from './balls';
+import {startAntQueen,tickAntQueen,royalGuardKilled,ANT_QUEEN_HP} from './antQueen';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory,CLASS_ITEM_BONUS } from './inventory';
@@ -51,6 +52,8 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
+  queenWave=0;royalsDefeated=0;nextAntWaveAt=0;nextAntRockfallAt=0;
+  hardWardenCall:import('./protocol').Snapshot['hardWardenCall'];nextHardWardenCallAt=0;
   arenaCuts:import('./protocol').ArenaCut[]=[];fracturerSurge:import('./protocol').FracturerSurge|undefined;nextFracturerSurgeAt=0;fracturerSurgeIndex=0;nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];talentAward:Snapshot['talentAward'];
   trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-11,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-11,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-11,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
@@ -67,6 +70,8 @@ export class Game {
       dummy.hp=Math.max(0,dummy.hp-30);
       if(dummy.hp===0)dummy.respawnAt=now+5000;
     }
+    if(this.talented(owner,'funeralBloom'))for(const ally of this.players.values())
+      if(ally.alive&&distance(ally.pos,t.pos)<=3)this.heal(ally,10,t.owner);
     this.emit({type:'abilityFx',skill:'pulseNova',playerId:t.owner,from:{...t.pos},to:{...t.pos}});
   }
   hubNpc=new TrufflePatrol();
@@ -95,14 +100,16 @@ export class Game {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0,talents:emptyTalents()};
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
+    else if(this.boss.id==='antQueen'){p.pos={x:(this.players.size%4-1.5)*1.3,z:-8};p.facing={x:0,z:1};}
     this.players.set(id,p);return p;
   }
   remove(id:string) {const p=this.players.get(id);if(p&&this.initialized.has(id))this.system(`${p.name} left the room.`);this.chatSent.delete(id);this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
+    this.queenWave=0;this.royalsDefeated=0;this.nextAntWaveAt=0;this.nextAntRockfallAt=0;this.hardWardenCall=undefined;this.nextHardWardenCallAt=0;
     this.arenaCuts=[];this.fracturerSurge=undefined;this.nextFracturerSurgeAt=0;this.fracturerSurgeIndex=0;this.nextCollapseAt=0;this.nextDuoAt=0;this.bonusRewards=[];this.talentAward=undefined;
     this.poison.clear();this.meterStartedAt=0;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
-    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;this.boss.heading=0;
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='antQueen'?ANT_QUEEN_HP:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;this.boss.heading=0;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
     for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;p.retaliationAt=undefined;}
   }
@@ -126,7 +133,7 @@ export class Game {
       // never overwrite talent purchases or first-clear rewards earned in this room.
       if(first)p.talents=readTalents(v.talents);
       // First entrant owns the selection. All later entrants use the room's boss.
-      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
+      if(this.phase==='lobby'&&!this.selectionLocked&&(v.boss==='warden'||v.boss==='hardWarden'||v.boss==='hardYellowBall'||v.boss==='yellowBall'||v.boss==='greenCone'||v.boss==='hardGreenCone'||v.boss==='fracturer'||v.boss==='antQueen'||v.boss==='duoYellowWarden'||v.boss==='duoTruffleFracturer')) {this.boss.id=v.boss;this.boss.hp=this.boss.maxHp=v.boss==='hardWarden'?3000:v.boss==='hardYellowBall'?2400:v.boss==='hardGreenCone'?3000:v.boss==='antQueen'?ANT_QUEEN_HP:v.boss==='fracturer'?2500:1800;this.selectionLocked=true;}
     }
     if(v.type==='talent'&&this.phase==='lobby'&&typeof v.classId==='string'&&typeof v.action==='string'){
       const cls=v.classId as import('./classes').ClassId;
@@ -171,13 +178,13 @@ export class Game {
       }
     }
     if(v.type==='hub'){this.cancelVote();if(this.phase!=='lobby'){this.reset();this.system('Returned to the hub.');}return;}
-    if(v.type==='propose'){if(typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'].includes(v.boss)){if(this.phase==='fight')this.system('Cannot propose a new boss during an encounter.');else if(this.vote)this.system('A boss vote is already active; accept or decline it first.');else this.propose(v.boss as Snapshot['boss']['id'],now);}else this.system('Unknown boss selection. Reload the game and check the deployed version.');}
+    if(v.type==='propose'){if(typeof v.boss==='string'&&['warden','hardWarden','hardYellowBall','yellowBall','greenCone','hardGreenCone','fracturer','antQueen','duoYellowWarden','duoTruffleFracturer'].includes(v.boss)){if(this.phase==='fight')this.system('Cannot propose a new boss during an encounter.');else if(this.vote)this.system('A boss vote is already active; accept or decline it first.');else this.propose(v.boss as Snapshot['boss']['id'],now);}else this.system('Unknown boss selection. Reload the game and check the deployed version.');}
     // Legacy ready may propose, but cannot cast an acceptance without the current proposal ID.
     if(v.type==='ready'&&!this.vote&&this.phase!=='fight')this.propose(this.boss.id,now);
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.fracturerSurge=undefined;this.fracturerSurgeIndex=0;this.nextFracturerSurgeAt=now+11000;this.bonusRewards=[];this.talentAward=undefined;this.nextDuoAt=now+4500;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='antQueen'?ANT_QUEEN_HP:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.fracturerSurge=undefined;this.fracturerSurgeIndex=0;this.nextFracturerSurgeAt=now+11000;this.bonusRewards=[];this.talentAward=undefined;this.nextDuoAt=now+4500;this.nextHardWardenCallAt=boss==='hardWarden'?now+14000:0;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}if(boss==='antQueen')startAntQueen.call(this,now);for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -193,7 +200,7 @@ export class Game {
     const skill=p.loadout[slot-1];if(p.cast&&skill!=='dash')return;if(skill==='dash')p.cast=undefined;
     if(this.classAbility(p,slot,now,point,targetId))return;this.recharge(p,now);if(skill==='dash'?p.dashCharges===0:now<p.cooldowns[slot-1])return;
     const d=distance(p.pos,this.boss.pos);
-    const target=[{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0).sort((a,b)=>distance(p.pos,a.pos)-distance(p.pos,b.pos))[0];
+    const target=this.targets().sort((a,b)=>distance(p.pos,a.pos)-distance(p.pos,b.pos))[0];
     if((skill==='arcBolt'||skill==='arcSpear')&&(!target||distance(p.pos,target.pos)>11))return;
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand==='pointyOrb'?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
@@ -209,22 +216,26 @@ export class Game {
       const travel=distance(from,p.pos);
       if(this.talented(p,'piercingCharge'))for(const t of this.targets())
         if(this.visible(from,t.pos)&&beamHits(from,p.facing,t.pos,travel,1.1))this.damageTarget(t.id,22,p.id);
-      if(this.talented(p,'impactWave'))this.area(p.pos,2.5,18,p.id);
+      if(this.talented(p,'impactWave'))this.area(p.pos,this.talented(p,'meteorWake')?3:2.5,this.talented(p,'meteorWake')?22:18,p.id);
+      if(p.boots==='antLegGreaves')this.area(p.pos,2.5,20,p.id);
     }
     // Prism Lens replaces LAZOR's central beam; Prism Beam adds weaker flanking rays.
     if(skill==='lazor'){
       const prism=p.offhand==='prismLens';
       const rays=prism?[[-.23,60],[.23,60]]:[[0,90]];
       if(this.talented(p,'prismBeam'))rays.push([-.36,20],[.36,20]);
+      let flareTarget:Vec2|undefined;
       for(const [angle,power] of rays){
         const dir={x:p.facing.x*Math.cos(angle)-p.facing.z*Math.sin(angle),z:p.facing.x*Math.sin(angle)+p.facing.z*Math.cos(angle)};
         for(const t of this.targets())if(this.beamHits(from,dir,t.pos,14,prism?1.05:1.6)){
           this.damageTarget(t.id,power,p.id);
+          if(!flareTarget)flareTarget={...t.pos};
           const ticks=p.offhand==='pointyOrb'?4:this.talented(p,'searingBeam')?2:0;
           if(ticks){const key=p.id+':'+t.id,old=this.burns.get(key);this.burns.set(key,{target:t.id,next:now+1000,remaining:Math.max(old?.remaining??0,ticks)});}
         }
         this.emit({type:'abilityFx',skill,playerId:p.id,from,to:this.clip(from,{x:from.x+dir.x*14,z:from.z+dir.z*14})});
       }
+      if(this.talented(p,'solarFlare')&&flareTarget)this.area(flareTarget,2,18,p.id);
       return;
     }
     if(skill==='arcBolt'||skill==='arcSpear') {damage=this.visible(from,target.pos)?(skill==='arcBolt'?18:72):0;to=this.clip(from,target.pos);}
@@ -234,7 +245,15 @@ export class Game {
       if(d<=radius-.3&&this.visible(from,this.boss.pos))damage=45;
       if(p.head==='haloOfRenewal')this.effects.push({id:this.uuid(),owner:p.id,skill:'pulseNova',pos:{...p.pos},next:now+1000,remaining:3,expires:now+3500,healingField:true});
     }
-    if(skill==='guard'){p.guardUntil=now+1600;if(this.talented(p,'defiantGuard'))this.heal(p,10,p.id);}
+    if(skill==='guard'){
+      p.guardUntil=now+1600;
+      if(this.talented(p,'defiantGuard'))this.heal(p,10,p.id);
+      if(this.talented(p,'battleWard')){
+        const ally=[...this.players.values()].filter(a=>a.id!==p.id&&a.alive&&distance(a.pos,p.pos)<=4)
+          .sort((a,b)=>distance(a.pos,p.pos)-distance(b.pos,p.pos))[0];
+        if(ally){ally.shield=Math.max(ally.shield,20);ally.shieldUntil=now+2000;}
+      }
+    }
     if(skill==='holyNova')for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)this.heal(a,25,p.id);
     if(skill==='arcBolt'||skill==='arcSpear'){
       this.damageTarget(target.id,damage,p.id);
@@ -242,15 +261,19 @@ export class Game {
         .sort((a,b)=>distance(target.pos,a.pos)-distance(target.pos,b.pos))[0];
       if(second){
         if(p.offhand==='splitConductor')this.damageTarget(second.id,25,p.id);
+        if(p.offhand==='antennaSpindle')this.damageTarget(second.id,16,p.id);
         if(this.talented(p,'forkedArc')){
           this.damageTarget(second.id,damage*.4,p.id);
           this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
           if(this.talented(p,'arcOverload')){
             const third=this.targets().filter(t=>t.id!==target.id&&t.id!==second.id&&distance(second.pos,t.pos)<=5&&this.visible(second.pos,t.pos))
               .sort((a,b)=>distance(second.pos,a.pos)-distance(second.pos,b.pos))[0];
-            if(third){this.damageTarget(third.id,damage*.2,p.id);this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});}
+            if(third){
+              this.damageTarget(third.id,damage*.2+(this.talented(p,'arcSurge')?15:0),p.id);
+              this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});
+            }
           }
-        }else if(p.offhand==='splitConductor')this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
+        }else if(p.offhand==='splitConductor'||p.offhand==='antennaSpindle')this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
       }
     }
     else this.damageTarget('boss',damage,p.id);
@@ -262,12 +285,15 @@ export class Game {
     // A wide beam cannot damage an exposed target beyond its blocked centre ray.
     return this.visible(from,target)&&(reach>=length-1e-8||(target.x-from.x)*dir.x+(target.z-from.z)*dir.z<=reach)&&beamHits(from,dir,target,reach,radius);
   };
-  targets(){return [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0)}
-  damageTarget(id:string,amount:number,source?:string){const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
+  targets(){return [{id:'boss',pos:this.boss.pos,hp:this.boss.hp},...this.adds].filter(t=>t.hp>0&&(this.boss.id!=='antQueen'||t.id!=='boss'))}
+  damageTarget(id:string,amount:number,source?:string){
+    if(id==='boss'&&this.boss.id==='antQueen')return;
+    const t=id==='boss'?this.boss:this.adds.find(a=>a.id===id);if(!t||t.hp<=0)return;
     const generation=id==='boss'?0:this.adds.find(a=>a.id===id)?.generation??0;
     const splitBall=isBall(this)||(this.boss.id==='duoYellowWarden'&&id!=='boss'&&((t as AddState).kind==='ball'||(t as AddState).bossId==='yellowBall'));
     const floor=splitBall&&generation<(this.boss.id==='hardYellowBall'?3:1)?t.maxHp/2:0;
     const previous=t.hp;t.hp=Math.max(floor,t.hp-talentDamage(amount,this.liveTalents&&source&&hasTalent(this.players.get(source)?.talents,this.players.get(source)!.classId,'unyieldingForce')?1:0));this.recordDamage(source,previous-t.hp);
+    if(this.boss.id==='antQueen'&&id!=='boss'&&previous>0&&t.hp<=0&&(t as AddState).kind==='royalGuard')royalGuardKilled.call(this,source);
   }
   area(pos:Vec2,radius:number,damage:number,source?:string){for(const t of this.targets())if(distance(pos,t.pos)<=radius&&this.visible(pos,t.pos))this.damageTarget(t.id,damage,source)}
   classAbility(p:PlayerState,slot:number,now:number,point:unknown,targetId:unknown){return classAbility.call(this,p,slot,now,point,targetId)}
@@ -297,7 +323,7 @@ export class Game {
     if(p.shieldUntil<=now)p.shield=0;const absorbed=Math.min(p.shield,damage);p.shield-=absorbed;damage-=absorbed;
     if(amount>0&&p.bulwarkUntil>now&&this.talented(p,'retaliatoryShell')&&now>=(p.retaliationAt??-Infinity)+1000){
       p.retaliationAt=now;
-      if(this.phase==='fight')this.area(p.pos,3,12,p.id);
+      if(this.phase==='fight')this.area(p.pos,this.talented(p,'thunderShell')?4:3,this.talented(p,'thunderShell')?20:12,p.id);
     }
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }
@@ -343,6 +369,7 @@ export class Game {
       const dt=Math.max(0,Math.min(.25,(now-this.lastTick)/1000));this.lastTick=now;
       for(const p of this.players.values()){this.recharge(p,now);if(p.invisibleUntil<=now){const i=p.loadout.indexOf('backstab');if(i>=0)p.loadout[i]='vanish';}if(p.shieldUntil<=now)p.shield=0;}
       this.tickClassEffects(now);
+      if(this.boss.id==='antQueen')tickAntQueen.call(this,now);
       // Each caster refreshes only their own four-tick burn on a target.
       for(const [key,b] of this.burns) {
         while(b.remaining>0&&now>=b.next) {
@@ -383,7 +410,16 @@ export class Game {
         if(travelled>0)this.boss.heading=Math.atan2(this.boss.pos.x-before.x,this.boss.pos.z-before.z);
       }
       this.adds=this.adds.filter(a=>a.hp>0);
-      for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss')){const target=chase(a.pos,1.7,.85);if(target&&distance(a.pos,target.pos)<=1.1&&now>=a.attackAt){if('alive' in target)this.hurt(target,now,12,false);else target.hp=0;a.attackAt=now+1200;}}
+      for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss')){
+        const ant=a.kind==='antWorker'||a.kind==='royalGuard';
+        const speed=a.kind==='antWorker'?2.5:a.kind==='royalGuard'?1.6:1.7;
+        const target=chase(a.pos,speed,a.kind==='royalGuard'?1.2:.85);
+        if(target&&distance(a.pos,target.pos)<=(a.kind==='royalGuard'?1.5:1.1)&&now>=a.attackAt){
+          if('alive' in target)this.hurt(target,now,a.kind==='royalGuard'?20:a.kind==='antWorker'?7:12,false);
+          else target.hp=0;
+          a.attackAt=now+(ant?1500:1200);
+        }
+      }
       for(const p of this.players.values()) {
         if(!p.alive)continue;const input=this.moves.get(p.id),v=input&&now-input.at<300?input.v:{x:0,z:0},old={...p.pos};
         p.pos=this.movePlayer(p.pos,{x:v.x*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1),z:v.z*.22*(p.bulwarkUntil>now?(this.talented(p,'ironMarch')?.75:.5):1)*(p.boots==='fleetfootBoots'?1.15:1)});
@@ -403,8 +439,22 @@ export class Game {
         this.emit({type:'event',text:'The Fracturer: the unsafe quarters erupt!'});
       }
       if(this.fracturerSurge&&now>=this.fracturerSurge.resolvesAt+750)this.fracturerSurge=undefined;
+      if(this.boss.id==='hardWarden'&&this.boss.hp>0){
+        if(!this.hardWardenCall&&now>=this.nextHardWardenCallAt&&!this.telegraphs.some(t=>t.resolvesAt>now)){
+          this.hardWardenCall={warnAt:now,resolvesAt:now+2700,resolved:false,safeRadius:4.3};
+          this.nextHardWardenCallAt=now+16000;
+          this.next=Math.max(this.next,now+4100); // avoid contradictory simultaneous sweep warnings
+          this.system('Hard Warden: COLLAPSE IN! Stay close to the Warden or take damage!');
+        }
+        if(this.hardWardenCall&&!this.hardWardenCall.resolved&&now>=this.hardWardenCall.resolvesAt){
+          this.hardWardenCall.resolved=true;
+          for(const p of this.players.values())if(p.alive&&distance(p.pos,this.boss.pos)>this.hardWardenCall.safeRadius)this.hurt(p,now,46);
+          this.emit({type:'event',text:'Hard Warden: Collapse In explodes!'});
+        }
+        if(this.hardWardenCall&&now>=this.hardWardenCall.resolvesAt+650)this.hardWardenCall=undefined;
+      }
       if(isBall(this)||this.boss.id==='duoYellowWarden')this.balls.tick(now);
-      if(!isBall(this)&&this.boss.hp>0&&now>=this.next)this.schedule(now);
+      if(!isBall(this)&&this.boss.id!=='antQueen'&&this.boss.hp>0&&now>=this.next)this.schedule(now);
       const partner=this.adds.find(a=>a.kind==='duoBoss'&&a.hp>0);
       if(partner&&partner.bossId!=='yellowBall'&&now>=this.nextDuoAt){const live=[...this.players.values()].filter(p=>p.alive);if(live.length){const target=live[this.mechanic%live.length];this.telegraphs.push({id:this.uuid(),kind:'circle',pos:{...target.pos},radius:2.8,resolvesAt:now+1500});this.system('Fracturer prepares a blast!');}this.nextDuoAt=now+4700;}
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')&&this.boss.hp>0)this.poison.tick(now,[...this.players.values()],this.uuid,(p,at,amount)=>this.hurt(p,at,p.boots==='mirewalkerBoots'?amount*.75:amount));
@@ -421,19 +471,19 @@ export class Game {
       for(const t of this.telegraphs.filter(t=>!t.ownerId&&t.resolvesAt<=now)) {
         // Publish the actual damage tick; a stalled server must not show an early slam.
         if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')&&this.boss.smash&&!this.boss.smash.impacted){this.boss.smash.impactAt=now;this.boss.smash.recoverAt=now+650;this.boss.smash.impacted=true;}
-        for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now,this.boss.id==='hardGreenCone'?64:undefined);
+        for(const ttm of this.totems)if(ttm.hp>0&&(!t.sweep||!pillarOccludes(t.pos,ttm.pos))&&(t.kind==='circle'?distance(ttm.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,ttm.pos,t.length!,t.width!/2)))ttm.hp=0;for(const p of this.players.values())if(p.alive&&(!t.sweep||!pillarOccludes(t.pos,p.pos))&&(t.kind==='circle'?distance(p.pos,t.pos)<=t.radius!:beamHits(t.pos,t.direction!,p.pos,t.length!,t.width!/2)))this.hurt(p,now,t.damage??(this.boss.id==='hardGreenCone'?64:undefined));
       }
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.phase==='fight')this.meterElapsedMs=Math.max(0,now-this.meterStartedAt);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))&&!this.adds.some(a=>(a.kind==='duoBoss'||a.kind==='ball')&&a.hp>0)) {
-        this.phase='won';this.fracturerSurge=undefined;this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.phase='won';this.fracturerSurge=undefined;this.hardWardenCall=undefined;this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
         this.bonusRewards=[];
         const newlyEarned=[...this.players.values()].filter(p=>awardTalentWin(p.talents??=emptyTalents(),this.boss.id)).map(p=>p.id);
         this.talentAward={boss:this.boss.id,players:newlyEarned};
-        this.reward={id:this.fightId,material:this.boss.id==='duoYellowWarden'?'duoCore':this.boss.id==='duoTruffleFracturer'?'duoSpore':this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':this.boss.id==='hardGreenCone'?'hardTruffleSpore':'conicalTaper',players:[...this.players.keys()]};
+        this.reward={id:this.fightId,material:this.boss.id==='antQueen'?'antChitin':this.boss.id==='duoYellowWarden'?'duoCore':this.boss.id==='duoTruffleFracturer'?'duoSpore':this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':this.boss.id==='hardGreenCone'?'hardTruffleSpore':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
-      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.fracturerSurge=undefined;this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
+      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.fracturerSurge=undefined;this.hardWardenCall=undefined;this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,talentAward:this.talentAward,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),fracturerSurge:this.fracturerSurge?{...this.fracturerSurge}:undefined,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
+    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,talentAward:this.talentAward,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),queenWave:this.boss.id==='antQueen'?this.queenWave:undefined,royalsDefeated:this.boss.id==='antQueen'?this.royalsDefeated:undefined,hardWardenCall:this.hardWardenCall?{...this.hardWardenCall}:undefined,fracturerSurge:this.fracturerSurge?{...this.fracturerSurge}:undefined,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','antQueen','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
   }
 }

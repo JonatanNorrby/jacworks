@@ -4,7 +4,7 @@ import type {ClassId} from './classes';
 export const SPOREBOUND_BONUS={poisonCloudDamage:8,poisonCloudRadius:1.5,poisonCloudTicks:3,range:7,healPerTick:16,healRange:2} as const;
 export const SPOREFANG_BONUS={aimedShotDamage:100,aimedShotCastMs:2000,arrowRainDamage:35,arrowRainRadius:1.75,splitShotDamage:16,splitShotArrows:5} as const;
 export const CLASS_ITEM_BONUS={priestHeal:55,roguePoisonTick:15,roguePoisonTicks:2,rogueHoodTickMultiplier:2,defenderBulwarkMs:8000,defenderDamageMultiplier:.35,fireWandCastMultiplier:.5,fireWandDamageMultiplier:.5,fireArmourProjectiles:3} as const;
-export type Material='largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
+export type Material='antChitin'|'largeSphere'|'largeCylinder'|'cylinderTube'|'sphericalBall'|'conicalTaper'|'hardTruffleSpore'|'duoCore'|'duoSpore';
 export const RECIPES={
  redtubeArmour:{largeCylinder:3},primitiveWand:{cylinderTube:1,sphericalBall:1},
  pointyHat:{conicalTaper:3},pointyOrb:{conicalTaper:1,sphericalBall:1},
@@ -23,7 +23,11 @@ export const RECIPES={
  twinTotemCapacitor:{duoCore:1,cylinderTube:1},fractureAegis:{duoSpore:1,largeCylinder:1},
  sporeglassBlade:{duoSpore:1,conicalTaper:1},twinrushBoots:{duoCore:1,largeSphere:1},
  haloOfRenewal:{duoSpore:1,largeSphere:1},splitConductor:{duoCore:1,sphericalBall:1},
- rottingFletching:{duoSpore:1,hardTruffleSpore:1},prismLens:{duoCore:1,conicalTaper:1}
+ rottingFletching:{duoSpore:1,hardTruffleSpore:1},prismLens:{duoCore:1,conicalTaper:1},
+ broodTotem:{antChitin:1,hardTruffleSpore:1},carapaceShield:{antChitin:1,largeCylinder:1},
+ mandibleDagger:{antChitin:1,conicalTaper:1},antLegGreaves:{antChitin:1,largeSphere:1},
+ pheromoneChalice:{antChitin:1,sphericalBall:1},antennaSpindle:{antChitin:1,cylinderTube:1},
+ broodQuiver:{antChitin:1,hardTruffleSpore:1},moltenChitin:{antChitin:1,largeCylinder:1}
 } as const;
 export type Gear=keyof typeof RECIPES;
 export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
@@ -52,7 +56,15 @@ export const GEAR_EFFECTS:Record<keyof typeof RECIPES,string>={
  haloOfRenewal:'Priest head: Holy Nova leaves a three-tick healing field (5 HP to allies each second)',
  splitConductor:'Lightning Mage offhand: Arc Blast or Arc Spear forks a 25-damage bolt to a second nearby enemy',
  rottingFletching:'Ranger offhand: Arrow Rain leaves a three-tick poisonous spore field (6 damage each second)',
- prismLens:'Fire Mage offhand: LAZOR becomes two angled 60-damage beams instead of a single central beam'
+ prismLens:'Fire Mage offhand: LAZOR becomes two angled 60-damage beams instead of a single central beam',
+ broodTotem:'Shaman offhand: Fire Totem attacks another enemy within 5 units for 10 damage',
+ carapaceShield:'Defender offhand: Heroic Shield grants 20 extra self absorb and 10 additional absorb on another ally',
+ mandibleDagger:'Rogue weapon: Backstab inflicts two 8-damage delayed mandible wounds',
+ antLegGreaves:'Warrior boots: Charging Stab lands with 20 damage in a 2.5-unit area',
+ pheromoneChalice:'Priest offhand: Holy Light also heals the most injured ally within 5 units of the enemy for 10',
+ antennaSpindle:'Lightning Mage offhand: Arc Blast and Arc Spear jump to a second enemy for 16 damage',
+ broodQuiver:'Ranger offhand: Split Shot inflicts two 5-damage venom ticks per struck target, once per volley',
+ moltenChitin:'Fire Mage offhand: Fire Mines leave two independent 6-damage ember pulses'
 };
 
 export type EquipmentSlot='weapon'|'head'|'offhand'|'armour'|'boots';
@@ -64,7 +76,7 @@ export const GEAR_SLOTS:Record<Gear,EquipmentSlot>={
  sunlitReliquary:'offhand',venomFang:'offhand',bulwarkCrest:'offhand',
  nightshadeHood:'head',shadowHat:'head',emberWand:'weapon',cinderweaveArmour:'armour',
  twinTotemCapacitor:'offhand',fractureAegis:'offhand',sporeglassBlade:'weapon',twinrushBoots:'boots',
- haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand'
+ haloOfRenewal:'head',splitConductor:'offhand',rottingFletching:'offhand',prismLens:'offhand',broodTotem:'offhand',carapaceShield:'offhand',mandibleDagger:'weapon',antLegGreaves:'boots',pheromoneChalice:'offhand',antennaSpindle:'offhand',broodQuiver:'offhand',moltenChitin:'offhand'
 };
 export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
  redtubeArmour:'warrior',primitiveWand:'lightningMage',pointyHat:'all',pointyOrb:'fireMage',
@@ -73,7 +85,7 @@ export const GEAR_CLASS:Record<Gear,ClassId|'all'>={
  fleetfootBoots:'all',mirewalkerBoots:'all',sunlitReliquary:'priest',
  venomFang:'rogue',bulwarkCrest:'defender',nightshadeHood:'rogue',shadowHat:'priest',emberWand:'fireMage',cinderweaveArmour:'fireMage',
  twinTotemCapacitor:'shaman',fractureAegis:'defender',sporeglassBlade:'rogue',twinrushBoots:'warrior',
- haloOfRenewal:'priest',splitConductor:'lightningMage',rottingFletching:'ranger',prismLens:'fireMage'
+ haloOfRenewal:'priest',splitConductor:'lightningMage',rottingFletching:'ranger',prismLens:'fireMage',broodTotem:'shaman',carapaceShield:'defender',mandibleDagger:'rogue',antLegGreaves:'warrior',pheromoneChalice:'priest',antennaSpindle:'lightningMage',broodQuiver:'ranger',moltenChitin:'fireMage'
 };
 const COUNTERS={
  redtubeArmour:'armours',primitiveWand:'crafted',pointyHat:'hats',pointyOrb:'orbs',
@@ -84,7 +96,7 @@ const COUNTERS={
  nightshadeHood:'nightshadeHoods',shadowHat:'shadowHats',emberWand:'emberWands',cinderweaveArmour:'cinderweaveArmours',
  twinTotemCapacitor:'twinCapacitors',fractureAegis:'fractureAegises',sporeglassBlade:'sporeglassBlades',
  twinrushBoots:'twinrushPairs',haloOfRenewal:'renewalHalos',splitConductor:'splitConductors',
- rottingFletching:'rottingFletchings',prismLens:'prismLenses'
+ rottingFletching:'rottingFletchings',prismLens:'prismLenses',broodTotem:'broodTotems',carapaceShield:'carapaceShields',mandibleDagger:'mandibleDaggers',antLegGreaves:'antLegPairs',pheromoneChalice:'pheromoneChalices',antennaSpindle:'antennaSpindles',broodQuiver:'broodQuivers',moltenChitin:'moltenChitins'
 } as const;
 export type Inventory={
  rewards:Record<string,Material>;
@@ -94,8 +106,10 @@ export type Inventory={
  nightshadeHoods:number;shadowHats:number;emberWands:number;cinderweaveArmours:number;
  twinCapacitors:number;fractureAegises:number;sporeglassBlades:number;twinrushPairs:number;
  renewalHalos:number;splitConductors:number;rottingFletchings:number;prismLenses:number;
+ broodTotems:number;carapaceShields:number;mandibleDaggers:number;antLegPairs:number;
+ pheromoneChalices:number;antennaSpindles:number;broodQuivers:number;moltenChitins:number;
  armour:'redtubeArmour'|'cinderweaveArmour'|null;weapon:Weapon;head:'pointyHat'|'nightshadeHood'|'shadowHat'|'haloOfRenewal'|null;offhand:Exclude<Gear,'redtubeArmour'|'primitiveWand'|'pointyHat'|'fleetfootBoots'|'mirewalkerBoots'>|null;
- boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|null;
+ boots:'fleetfootBoots'|'mirewalkerBoots'|'twinrushBoots'|'antLegGreaves'|null;
 };
 export const emptyInventory=():Inventory=>({
  rewards:{},crafted:0,hats:0,orbs:0,armours:0,sporeTotems:0,sporeQuivers:0,
@@ -104,11 +118,12 @@ export const emptyInventory=():Inventory=>({
  nightshadeHoods:0,shadowHats:0,emberWands:0,cinderweaveArmours:0,
  twinCapacitors:0,fractureAegises:0,sporeglassBlades:0,twinrushPairs:0,
  renewalHalos:0,splitConductors:0,rottingFletchings:0,prismLenses:0,
+ broodTotems:0,carapaceShields:0,mandibleDaggers:0,antLegPairs:0,pheromoneChalices:0,antennaSpindles:0,broodQuivers:0,moltenChitins:0,
  armour:null,weapon:null,head:null,offhand:null,boots:null
 });
 export function countInventory(v:Inventory):Record<Material|Gear,number>{
  const totals={} as Record<Material|Gear,number>;
- for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'] as Material[])
+ for(const material of ['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'] as Material[])
   totals[material]=Object.values(v.rewards).filter(m=>m===material).length;
  for(const gear of Object.keys(RECIPES) as Gear[]){
   const n=v[COUNTERS[gear]]??0;
@@ -123,7 +138,7 @@ export function readInventory(raw:string|null):Inventory {
   if(!saved||typeof saved!=='object'||!saved.rewards||typeof saved.rewards!=='object'||Array.isArray(saved.rewards))return emptyInventory();
   const result=emptyInventory();
   for(const [receipt,material] of Object.entries(saved.rewards))
-   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore'].includes(String(material)))
+   if(['largeSphere','largeCylinder','cylinderTube','sphericalBall','conicalTaper','hardTruffleSpore','duoCore','duoSpore','antChitin'].includes(String(material)))
     Object.defineProperty(result.rewards,receipt,{value:material,enumerable:true,writable:true,configurable:true});
   // Allocation order keeps existing crafted items before new recipes, avoiding negative material balances.
   for(const gear of Object.keys(RECIPES) as Gear[]){

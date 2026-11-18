@@ -82,7 +82,7 @@ try{
  defender.ws.send(JSON.stringify({type:'ability',slot:2}));
  rogue.ws.send(JSON.stringify({type:'ability',slot:3}));
  rogue.ws.send(JSON.stringify({type:'ability',slot:2,invisibleUntil:9999999999999}));
- await waitFor(()=>duo.every(c=>{const d=c.snapshot.players.find(p=>p.id===defender.id),r=c.snapshot.players.find(p=>p.id===rogue.id);return d.shield===80&&r.shield===40&&d.bulwarkUntil>c.snapshot.now&&r.loadout[1]==='backstab'&&r.invisibleUntil-c.snapshot.now<=4000&&r.armour==='redtubeArmour'}),'shared shields, buffs, armour and skill swap');
+ await waitFor(()=>duo.every(c=>{const d=c.snapshot.players.find(p=>p.id===defender.id),r=c.snapshot.players.find(p=>p.id===rogue.id);return d.shield===80&&r.shield===40&&d.bulwarkUntil>c.snapshot.now&&r.loadout[1]==='backstab'&&r.invisibleUntil-c.snapshot.now<=4000&&r.armour===null&&d.armour===null}),'shared shields, buffs, class-locked armour and skill swap');
  for(const c of duo)c.ws.send(JSON.stringify({type:'ability',slot:1,damage:999999}));
  rogue.ws.send(JSON.stringify({type:'ability',slot:2}));
  await waitFor(()=>duo.every(c=>c.snapshot.boss.hp<3000&&c.snapshot.boss.hp>2500&&c.snapshot.players.find(p=>p.id===rogue.id).loadout[1]==='vanish'),'authoritative stabs and restoration');

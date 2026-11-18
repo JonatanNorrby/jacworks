@@ -316,7 +316,7 @@ function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;
  if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=greenMat;}
  if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
- if(gear.offhand==='sporefangQuiver'){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(gear.offhand==='sporeboundTotem'){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
+ if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=greenMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-orb',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=novaMat;}
 }
 
 
@@ -493,6 +493,7 @@ function syncTrainingDummies(state:Snapshot){
 }
 function syncHub(state:Snapshot){
  syncTrainingDummies(state);
+ const local=state.players.find(p=>p.id===myId);if(local)renderAbilityBar(local.loadout);
  const me=state.players.find(p=>p.id===myId);
  hubPlayer.setEnabled(false);hubPlayerRing.setEnabled(!!me);
  if(me){hubPlayer.position.set(me.pos.x,.85,me.pos.z);hubPlayerRing.position.set(me.pos.x,.08,me.pos.z)}
@@ -577,7 +578,7 @@ function connectEncounter() {
       if(packet.phase==='fight'&&mode==='hub'&&!gameDevLabs.isOpen())setMode('encounter');
       if(packet.phase==='lobby'&&mode==='encounter'&&!gameDevLabs.isOpen()){clearEncounterMeshes();setMode('hub');}
       if(mode==='hub'){syncHub(packet);return;}
-      bossFill.style.width = `${((packet.boss.hp+packet.adds.filter(a=>a.kind==='ball').reduce((n,a)=>n+a.hp,0)) / packet.boss.maxHp) * 100}%`;
+      bossFill.style.width = `${Math.max(0,Math.min(100,(packet.boss.hp+packet.adds.filter(a=>a.kind==='ball'||a.kind==='duoBoss').reduce((n,a)=>n+a.hp,0))/(packet.boss.maxHp+(packet.boss.id==='duoYellowWarden'?1800:packet.boss.id==='duoTruffleFracturer'?2500:0))*100))}%`;
       status.textContent = `${packet.phase.toUpperCase()} · ${packet.players.length} player(s) · ready ${packet.readyCount}/${packet.players.length}`;
       syncEncounter(packet);
       const me = packet.players.find((p) => p.id === myId);
@@ -606,14 +607,14 @@ function syncEncounter(state: Snapshot) {
  mine.position.set(e.pos.x,.12,e.pos.z);
  }
  for(const mesh of hardPillars)mesh.setEnabled(state.boss.id==='hardWarden');
- const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone');
+ const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone'||state.boss.id==='duoTruffleFracturer');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
- for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball')mesh.material=yellowMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
+ for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;else if(a.kind==='duoBoss')mesh.material=fracturerMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:a.kind==='duoBoss'?2.2:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+` - ${Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length} active`:green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
@@ -829,7 +830,7 @@ addEventListener("keydown", (event) => {
    if(!event.repeat&&['1','2','3','4'].includes(key)){
     const me=snapshot?.players.find(p=>p.id===myId);
     const dummy=snapshot?.trainingDummies?.filter(d=>d.hp>0&&me&&Math.hypot(d.pos.x-me.pos.x,d.pos.z-me.pos.z)<=8).sort((a,b)=>Math.hypot(a.pos.x-me!.pos.x,a.pos.z-me!.pos.z)-Math.hypot(b.pos.x-me!.pos.x,b.pos.z-me!.pos.z))[0];
-    if(dummy)send({type:'practice',slot:Number(key),dummyId:dummy.id});
+    send({type:'practice',slot:Number(key),dummyId:dummy?.id??''});
    }
    return;
   }

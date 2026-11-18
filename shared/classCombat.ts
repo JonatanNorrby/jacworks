@@ -3,7 +3,6 @@ import {SPOREBOUND_BONUS,SPOREFANG_BONUS,CLASS_ITEM_BONUS} from './inventory';
 import type { Game } from './game';
 import type { PlayerState,Vec2 } from './protocol';
 import { SKILLS, BACKSTAB } from './protocol';
-import {hasTalent} from './talents';
 const distance=(a:Vec2,b:Vec2)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 
@@ -64,16 +63,8 @@ export function classAbility(this:Game,p:PlayerState,slot:number,now:number,poin
     if(!['aimedShot','fireball','splitShot'].includes(skill))this.emit({type:'abilityFx',skill,playerId:p.id,from:{...p.pos},to:pos});return true;
   }
 export function tickClassEffects(this:Game,now:number){
-    // Expiry and destruction are distinct triggers. Replacing a totem never explodes.
-    for(const t of this.totems){
-      const owner=this.players.get(t.owner);
-      if(!owner||!owner.alive)continue;
-      const expired=now>=t.expires,broken=t.hp<=0;
-      if((expired||broken)&&hasTalent(owner.talents,'shaman','partingGift')&&(!broken||hasTalent(owner.talents,'shaman','violentFarewell'))){
-        this.area(t.pos,3,30,t.owner);
-        this.emit({type:'abilityFx',skill:'pulseNova',playerId:t.owner,from:{...t.pos},to:{...t.pos}});
-      }
-    }
+    // Both combat and hub practice resolve the same earned-talent burst rules.
+    for(const t of this.totems)this.burstTotem(t,now);
     this.totems=this.totems.filter(t=>t.hp>0&&now<t.expires&&!!this.players.get(t.owner)?.alive);
     for(const t of this.totems)while(now>=t.next&&t.next<t.expires){
       if(t.kind==='healingTotem'){

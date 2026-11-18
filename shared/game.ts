@@ -1,7 +1,7 @@
 import {TrufflePoison} from './trufflePoison';
 import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffle';
 import {BallEncounter,isBall} from './balls';
-import {startAntQueen,tickAntQueen,royalGuardKilled,ANT_QUEEN_HP} from './antQueen';
+import {startAntQueen,tickAntQueen,royalGuardKilled,ANT_QUEEN_HP,ANT_ARENA_LIMIT} from './antQueen';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory,CLASS_ITEM_BONUS } from './inventory';
@@ -19,7 +19,7 @@ export function fractureCardinal(pos:Vec2):CardinalDirection {
  return pos.z>0?'north':'south';
 }
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
-const clamp = (n: number) => Math.max(-12, Math.min(12,n));
+const clamp = (n: number,limit=12) => Math.max(-limit, Math.min(limit,n));
 const unit = (v: Vec2): Vec2 => { const l=Math.hypot(v.x,v.z); return l ? {x:v.x/l,z:v.z/l} : {x:0,z:0}; };
 export function beamHits(from:Vec2, dir:Vec2, target:Vec2, length=14, radius=1.6) {
   const x=target.x-from.x,z=target.z-from.z,t=Math.max(0,Math.min(length,x*dir.x+z*dir.z));
@@ -30,12 +30,13 @@ export { HARD_PILLARS } from './protocol';
 import {clipPillars,pillarOccludes} from './cover';
 export {pillarOccludes} from './cover';
 // Sweep in small steps to prevent tunnelling, then project onto the collision boundary for sliding.
-export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2,pillars:Vec2[]=[],bossRadius=1.73):Vec2 {
+export function moveSolid(pos:Vec2, delta:Vec2, boss:Vec2,pillars:Vec2[]=[],bossRadius=1.73,arenaLimit=12):Vec2 {
   let p={...pos}; const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
   for(let i=0;i<steps;i++) {
-    p={x:clamp(p.x+delta.x/steps),z:clamp(p.z+delta.z/steps)};
+    p={x:clamp(p.x+delta.x/steps,arenaLimit),z:clamp(p.z+delta.z/steps,arenaLimit)};
+    if(arenaLimit>12){const radius=Math.hypot(p.x,p.z);if(radius>arenaLimit)p={x:p.x*arenaLimit/radius,z:p.z*arenaLimit/radius};}
     for(const body of [boss,...pillars]){const radius=body===boss?bossRadius:1.48;const dx=p.x-body.x,dz=p.z-body.z,l=Math.hypot(dx,dz);
-    if(l<radius)p={x:clamp(body.x+(l?dx/l:1)*radius),z:clamp(body.z+(l?dz/l:0)*radius)};}
+    if(l<radius)p={x:clamp(body.x+(l?dx/l:1)*radius,arenaLimit),z:clamp(body.z+(l?dz/l:0)*radius,arenaLimit)};}
   } return p;
 }
 // Center-based 120-degree cleave; a stab uses a narrower forward reach.
@@ -43,10 +44,10 @@ export function meleeHits(from:Vec2,dir:Vec2,target:Vec2,reach=3,cosine=.5){
  const d=distance(from,target);return d>0&&d<=reach&&((target.x-from.x)*dir.x+(target.z-from.z)*dir.z)/d>=cosine;
 }
 // Charge stops at the first solid body rather than sliding or tunnelling through it.
-export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,pillars:Vec2[]=[]):Vec2 {
+export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,pillars:Vec2[]=[],arenaLimit=12):Vec2 {
  let p={...from};for(let travelled=0;travelled<length;travelled+=.05){
   const step=Math.min(.05,length-travelled),next={x:p.x+dir.x*step,z:p.z+dir.z*step};
-  if(Math.abs(next.x)>12||Math.abs(next.z)>12||distance(next,boss)<1.73||pillars.some(c=>distance(next,c)<1.48)||adds.some(a=>a.hp>0&&distance(next,a.pos)<(a.radius??.42)+.48))break;
+  if(Math.abs(next.x)>arenaLimit||Math.abs(next.z)>arenaLimit||(arenaLimit>12&&Math.hypot(next.x,next.z)>arenaLimit)||distance(next,boss)<1.73||pillars.some(c=>distance(next,c)<1.48)||adds.some(a=>a.hp>0&&distance(next,a.pos)<(a.radius??.42)+.48))break;
   p=next;
  }return p;
 }
@@ -72,6 +73,8 @@ export class Game {
     }
     if(this.talented(owner,'funeralBloom'))for(const ally of this.players.values())
       if(ally.alive&&distance(ally.pos,t.pos)<=3)this.heal(ally,10,t.owner);
+    if(this.talented(owner,'ancestralShelter'))for(const ally of this.players.values())
+      if(ally.alive&&distance(ally.pos,t.pos)<=3){ally.shield=Math.max(ally.shield,10);ally.shieldUntil=now+4000;}
     this.emit({type:'abilityFx',skill:'pulseNova',playerId:t.owner,from:{...t.pos},to:{...t.pos}});
   }
   hubNpc=new TrufflePatrol();
@@ -100,7 +103,7 @@ export class Game {
     this.cancelVote();
     const p:PlayerState={id,name:'Player',classId:DEFAULT_CLASS_ID,pos:{x:0,z:8},facing:{x:0,z:-1},hp:100,maxHp:100,alive:true,guardUntil:0,bulwarkUntil:0,invisibleUntil:0,poisonUntil:0,shield:0,shieldUntil:0,armour:null,cooldowns:[0,0,0,0],loadout:resolveClassLoadout(DEFAULT_CLASS_ID,DEFAULT_LOADOUT,null),weapon:null,head:null,offhand:null,boots:null,dashCharges:1,dashRechargeAt:0,talents:emptyTalents()};
     if(this.phase==='lobby')p.pos={x:this.players.size%5*1.2,z:8};
-    else if(this.boss.id==='antQueen'){p.pos={x:(this.players.size%4-1.5)*1.3,z:-8};p.facing={x:0,z:1};}
+    else if(this.boss.id==='antQueen'){p.pos={x:(this.players.size%4-1.5)*1.3,z:-10.5};p.facing={x:0,z:1};}
     this.players.set(id,p);return p;
   }
   remove(id:string) {const p=this.players.get(id);if(p&&this.initialized.has(id))this.system(`${p.name} left the room.`);this.chatSent.delete(id);this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
@@ -205,7 +208,7 @@ export class Game {
     p.cooldowns[slot-1]=now+SKILLS[skill].cooldown+(skill==='lazor'&&p.offhand==='pointyOrb'?2000:0);const from={...p.pos};let to={...p.pos},damage=0;
     if(skill==='dash'){p.dashCharges--;if(!p.dashRechargeAt)p.dashRechargeAt=now+SKILLS.dash.cooldown;p.cooldowns[slot-1]=p.dashCharges?0:p.dashRechargeAt;}
     if(skill==='dash')p.pos=this.movePlayer(p.pos,{x:p.facing.x*3.5,z:p.facing.z*3.5});
-    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,p.boots==='twinrushBoots'?7:5,this.pillars());
+    if(skill==='chargingStab')p.pos=chargeEnd(from,p.facing,this.solidBoss(),this.adds,p.boots==='twinrushBoots'?7:5,this.pillars(),this.arenaLimit());
     if(skill==='swordSwing'||skill==='chargingStab') {
       const origin=skill==='chargingStab'?p.pos:from,reach=skill==='chargingStab'?2.2:p.armour==='redtubeArmour'?4:this.talented(p,'cleavingArc')?3.7:3,angle=skill==='chargingStab'?.85:p.armour==='redtubeArmour'?0:this.talented(p,'cleavingArc')?.15:.5;
       to={x:origin.x+p.facing.x*reach,z:origin.z+p.facing.z*reach};
@@ -216,6 +219,11 @@ export class Game {
       const travel=distance(from,p.pos);
       if(this.talented(p,'piercingCharge'))for(const t of this.targets())
         if(this.visible(from,t.pos)&&beamHits(from,p.facing,t.pos,travel,1.1))this.damageTarget(t.id,22,p.id);
+      if(this.talented(p,'seismicRenewal')){
+        const radius=3;
+        const hits=this.targets().filter(t=>t.hp>0&&distance(p.pos,t.pos)<=radius&&this.visible(p.pos,t.pos)).length;
+        if(hits)this.heal(p,Math.min(20,hits*5),p.id);
+      }
       if(this.talented(p,'impactWave'))this.area(p.pos,this.talented(p,'meteorWake')?3:2.5,this.talented(p,'meteorWake')?22:18,p.id);
       if(p.boots==='antLegGreaves')this.area(p.pos,2.5,20,p.id);
     }
@@ -236,6 +244,7 @@ export class Game {
         this.emit({type:'abilityFx',skill,playerId:p.id,from,to:this.clip(from,{x:from.x+dir.x*14,z:from.z+dir.z*14})});
       }
       if(this.talented(p,'solarFlare')&&flareTarget)this.area(flareTarget,2,18,p.id);
+      if(this.talented(p,'solarAegis')&&flareTarget){p.shield=Math.max(p.shield,15);p.shieldUntil=now+3000;}
       return;
     }
     if(skill==='arcBolt'||skill==='arcSpear') {damage=this.visible(from,target.pos)?(skill==='arcBolt'?18:72):0;to=this.clip(from,target.pos);}
@@ -252,6 +261,11 @@ export class Game {
         const ally=[...this.players.values()].filter(a=>a.id!==p.id&&a.alive&&distance(a.pos,p.pos)<=4)
           .sort((a,b)=>distance(a.pos,p.pos)-distance(b.pos,p.pos))[0];
         if(ally){ally.shield=Math.max(ally.shield,20);ally.shieldUntil=now+2000;}
+      }
+      if(this.talented(p,'guardianRiposte')){
+        const enemy=this.targets().filter(t=>distance(t.pos,p.pos)<=2.5&&this.visible(p.pos,t.pos))
+          .sort((a,b)=>distance(a.pos,p.pos)-distance(b.pos,p.pos))[0];
+        if(enemy)this.damageTarget(enemy.id,12,p.id);
       }
     }
     if(skill==='holyNova')for(const a of this.players.values())if(a.alive&&this.visible(p.pos,a.pos)&&distance(a.pos,p.pos)<=4.5)this.heal(a,25,p.id);
@@ -271,6 +285,7 @@ export class Game {
             if(third){
               this.damageTarget(third.id,damage*.2+(this.talented(p,'arcSurge')?15:0),p.id);
               this.emit({type:'abilityFx',skill,playerId:p.id,from:second.pos,to:third.pos});
+              if(this.talented(p,'arcWard')){p.shield=Math.max(p.shield,12);p.shieldUntil=now+4000;}
             }
           }
         }else if(p.offhand==='splitConductor'||p.offhand==='antennaSpindle')this.emit({type:'abilityFx',skill,playerId:p.id,from:target.pos,to:second.pos});
@@ -308,11 +323,12 @@ export class Game {
     const slot=p.loadout.indexOf('dash');
     if(slot>=0)p.cooldowns[slot]=p.dashCharges?0:p.dashRechargeAt;
   }
+  arenaLimit(){return this.phase==='fight'&&this.boss.id==='antQueen'?ANT_ARENA_LIMIT:12;}
   movePlayer(pos:Vec2,delta:Vec2){
     let p={...pos};const steps=Math.max(1,Math.ceil(Math.hypot(delta.x,delta.z)/.08));
     for(let i=0;i<steps;i++){
-      p=moveSolid(p,{x:delta.x/steps,z:delta.z/steps},this.solidBoss(),this.pillars());
-      for(const a of this.adds)if((a.kind==='ball'||a.kind==='duoBoss')&&a.hp>0)p=moveSolid(p,{x:0,z:0},a.pos,[],(a.radius??.9)+.48);
+      p=moveSolid(p,{x:delta.x/steps,z:delta.z/steps},this.solidBoss(),this.pillars(),1.73,this.arenaLimit());
+      for(const a of this.adds)if((a.kind==='ball'||a.kind==='duoBoss')&&a.hp>0)p=moveSolid(p,{x:0,z:0},a.pos,[],(a.radius??.9)+.48,this.arenaLimit());
     }return p;
   }
   solidBoss(){return this.boss.hp>0?this.boss.pos:{x:1000,z:1000}}
@@ -324,6 +340,11 @@ export class Game {
     if(amount>0&&p.bulwarkUntil>now&&this.talented(p,'retaliatoryShell')&&now>=(p.retaliationAt??-Infinity)+1000){
       p.retaliationAt=now;
       if(this.phase==='fight')this.area(p.pos,this.talented(p,'thunderShell')?4:3,this.talented(p,'thunderShell')?20:12,p.id);
+      if(this.talented(p,'bulwarkResonance')){
+        const ally=[...this.players.values()].filter(a=>a.alive&&distance(a.pos,p.pos)<=4)
+          .sort((a,b)=>distance(a.pos,p.pos)-distance(b.pos,p.pos))[0];
+        if(ally){ally.shield=Math.max(ally.shield,10);ally.shieldUntil=now+2500;}
+      }
     }
     p.hp=Math.max(0,p.hp-damage);p.alive=p.hp>0;if(!p.alive){p.cast=undefined;this.clearBuffs(p);}
   }
@@ -402,7 +423,8 @@ export class Game {
         this.system('The Fracturer: three quarters of the arena are about to erupt! SAFE '+safeDirection.toUpperCase()+'!');
       }
       const alive=[...this.players.values()].filter(p=>p.alive);
-      const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
+      const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step,this.arenaLimit());pos.z=clamp(pos.z+dir.z*step,this.arenaLimit());
+      if(this.arenaLimit()>12){const radial=distance(pos,{x:0,z:0});if(radial>this.arenaLimit()){pos.x*=this.arenaLimit()/radial;pos.z*=this.arenaLimit()/radial;}}}return target;};
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')){
         const before={...this.boss.pos};this.boss.walking=false;
         if(!this.telegraphs.length&&this.boss.hp>0&&(!this.boss.smash||now>=this.boss.smash.recoverAt))chase(this.boss.pos,.9,1.73);

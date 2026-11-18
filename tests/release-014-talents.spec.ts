@@ -13,7 +13,7 @@ test('v0.1.5 exposes all starter class talent trees and the new equipment build'
  const tree=page.locator('#talent-tree-panel');
  await expect(tree).toBeVisible();
  await expect(tree.locator('.talent-class-tabs button')).toHaveCount(8);
- await expect(tree.locator('.talent-node')).toHaveCount(7);
+ await expect(tree.locator('.talent-node')).toHaveCount(9);
  await expect(tree).toContainText('Rank 0 / 1');
  await expect(tree).toContainText('+3% damage dealt and 3% less damage taken');
  await tree.locator('.talent-class-tabs').getByRole('button',{name:'Fire Mage'}).click();

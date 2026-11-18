@@ -24,13 +24,13 @@ function fight(cls:ClassId,item?:Gear,nodes:TalentId[]=[]){
 test('all eight class talent trees have a root, two visual branches and true dependency chains',()=>{
  assert.equal(Object.keys(TALENT_TREE).length,8);
  for(const [cls,tree] of Object.entries(TALENT_TREE)){
-  assert.equal(tree.nodes.length,7,cls);assert.equal(tree.nodes[0].id,'unyieldingForce');
+  assert.equal(tree.nodes.length,9,cls);assert.equal(tree.nodes[0].id,'unyieldingForce');
   assert.equal(tree.branches.length,2);
   const visited=new Set(['unyieldingForce']);
-  for(const chain of tree.branches){assert.equal(chain.length,3);
+  for(const chain of tree.branches){assert.equal(chain.length,4);
    for(const id of chain){assert.ok(visited.has(TALENT_NODES[id].requires!),id+' needs parent');visited.add(id);}
   }
-  assert.equal(visited.size,7);
+  assert.equal(visited.size,9);
  }
 });
 test('talent points cannot be fabricated, branch prerequisites apply, class respec preserves first clears',()=>{

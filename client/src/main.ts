@@ -383,7 +383,7 @@ function hubLabel(name:string,text:string,x:number,z:number,width:number){
 }
 for(const circle of BOSS_CIRCLES){
  const mat=circle.difficulty==='Normal'?hubAccentMat:circle.difficulty==='Nest'?material('nest-pedestal',new Color3(.52,.25,.10)):circle.difficulty==='Double'?novaMat:bossMat;
- const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:circle.difficulty==='Nest'?3.5:circle.difficulty==='Double'?4.7:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
+ const ring=pushHub(MeshBuilder.CreateTorus('boss-circle-'+circle.difficulty,{diameter:circle.difficulty==='Nest'?3.1:circle.difficulty==='Double'?4.7:6,thickness:.12,tessellation:64},scene));ring.position.set(circle.center.x,.08,circle.center.z);ring.material=mat;
  hubLabel('difficulty-'+circle.difficulty,circle.difficulty.toUpperCase(),circle.center.x,circle.center.z+(circle.difficulty==='Nest'?1.8:circle.difficulty==='Double'?2.5:3.3),3.5);
  for(const pedestal of BOSS_PEDESTALS.filter(p=>p.difficulty===circle.difficulty)){
   const disc=pushHub(MeshBuilder.CreateCylinder('boss-pedestal-'+pedestal.id,{diameter:1.3,height:.08,tessellation:40},scene));disc.position.set(pedestal.pos.x,.05,pedestal.pos.z);disc.material=mat;
@@ -400,8 +400,8 @@ function syncGear(parent:Mesh,gear:{weapon:unknown;head:unknown;offhand:unknown;
  if(parent===hubPlayer)gear={weapon:gear.weapon&&gearEligible(selectedClass,String(gear.weapon))?gear.weapon:null,head:gear.head&&gearEligible(selectedClass,String(gear.head))?gear.head:null,armour:gear.armour&&gearEligible(selectedClass,String(gear.armour))?gear.armour:null,offhand:gear.offhand&&gearEligible(selectedClass,String(gear.offhand))?gear.offhand:null,boots:gear.boots};
  const signature=JSON.stringify([gear.weapon,gear.head,gear.offhand,gear.armour,gear.boots]);if(parent.metadata?.gear===signature)return;
  for(const child of parent.getChildMeshes())if(child.name.startsWith('gear-'))child.dispose();parent.metadata={gear:signature};
- if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=gear.armour==='cinderweaveArmour'?dangerMat:bossMat;}
- if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=gear.weapon==='emberWand'?dangerMat:arcMat;}
+ if(gear.armour){const chest=MeshBuilder.CreateCylinder('gear-armour',{height:.7,diameter:1.05},scene);chest.parent=parent;chest.material=gear.armour==='cinderweaveArmour'?dangerMat:gear.armour==='carapaceShield'?greenMat:bossMat;}
+ if(gear.weapon){const wand=MeshBuilder.CreateCylinder('gear-wand',{height:1.25,diameter:.12},scene);wand.parent=parent;wand.position.set(.65,0,.25);wand.rotation.x=.3;wand.material=gear.weapon==='emberWand'?dangerMat:gear.weapon==='broodTotem'?greenMat:arcMat;}
  if(gear.head){const hat=MeshBuilder.CreateCylinder('gear-hat',{height:1,diameterTop:0,diameterBottom:1.1,tessellation:16},scene);hat.parent=parent;hat.position.y=1.15;hat.material=gear.head==='shadowHat'?novaMat:gear.head==='nightshadeHood'?novaMat:greenMat;}
  if(gear.boots){for(const x of [-.26,.26]){const boot=MeshBuilder.CreateBox('gear-boots',{width:.32,height:.28,depth:.55},scene);boot.parent=parent;boot.position.set(x,-.63,.2);boot.material=gear.boots==='mirewalkerBoots'?greenMat:arcMat;}}
  if(['sporefangQuiver','sporestormQuiver','splitthornQuiver'].includes(String(gear.offhand))){const quiver=MeshBuilder.CreateCylinder('gear-quiver',{height:.8,diameter:.28,tessellation:8},scene);quiver.parent=parent;quiver.position.set(-.7,.1,-.25);quiver.rotation.z=.25;quiver.material=gear.offhand==='sporestormQuiver'?arcMat:gear.offhand==='splitthornQuiver'?spearMat:greenMat;}else if(['sporeboundTotem','verdantMenderTotem'].includes(String(gear.offhand))){const totem=MeshBuilder.CreateCylinder('gear-sporebound-totem',{height:.65,diameter:.34,tessellation:8},scene);totem.parent=parent;totem.position.set(-.8,.15,.2);totem.material=gear.offhand==='verdantMenderTotem'?holyMat:dangerMat;}else if(gear.offhand){const orb=MeshBuilder.CreateSphere('gear-offhand',{diameter:.45},scene);orb.parent=parent;orb.position.set(-.8,.2,.2);orb.material=gear.offhand==='sunlitReliquary'?holyMat:gear.offhand==='venomFang'?greenMat:gear.offhand==='bulwarkCrest'?guardMat:novaMat;}
@@ -774,6 +774,7 @@ function syncEncounter(state: Snapshot) {
  }
  const ants=state.boss.id==='antQueen';
  arenaGround.material=ants?antCave.floor:arenaGroundMat;
+ arenaGround.scaling.x=arenaGround.scaling.z=ants?32/26:1;
  for(const p of antCaveMeshes)p.setEnabled(ants&&state.phase==='fight');
  for(const p of ordinaryArenaPillars)p.setEnabled(!ants);
  antCave.queen.position.set(state.boss.pos.x,1.52,state.boss.pos.z);
@@ -1100,7 +1101,7 @@ engine.runRenderLoop(() => {
   if(!gameDevLabs.isOpen()){
     const tracked=mode==='hub'?hubPlayer.position:snapshot?.players.find(p=>p.id===myId)?.pos;
     const target=cameraTarget(camera.target,tracked,preferences.followPlayer,deltaSeconds);camera.target.set(target.x,0,target.z);
-    camera.radius+=(preferences.zoom-camera.radius)*(1-Math.exp(-deltaSeconds*4));
+    camera.radius+=(preferences.zoom*(mode==='encounter'&&snapshot?.boss.id==='antQueen'?1.17:1)-camera.radius)*(1-Math.exp(-deltaSeconds*4));
   }
   poisonVisuals.sync(snapshot,!gameDevLabs.isOpen()&&mode==='encounter',myId,snapshot?snapshot.now+Math.min(100,performance.now()-bossReceived):0);
   truffle.update(snapshot?.hubNpc,!gameDevLabs.isOpen()&&mode==='hub');

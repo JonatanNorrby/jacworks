@@ -44,7 +44,7 @@ Game Dev Labs v2 is a separate in-game presentation/testing area. It retains roo
 
 Fracturer Cardinal Eruption (ADR-0015) extends the playable encounter with one safe cardinal sector against three dangerous sectors. It retains the old corner collapse and explicitly preserves traversable central pathways, supporting the learnable-telegraph requirement.
 
-Ant Queen objective-only damage, her separate cave arena and normal/hard encounter extensions (ADR-0016) widen the playable mechanic set. The new Royal Ant Chitin items and rank-three talent leaves remain prototype balance experiments. Health bars now face south independently of player movement, serving the readability success criterion.
+Ant Queen objective-only damage and expanded southern-row Nest cave, her separate arena and normal/hard encounter extensions (ADR-0016 and ADR-0017) widen the playable mechanic set. The new Royal Ant Chitin items and rank-three talent leaves remain prototype balance experiments. Health bars now face south independently of player movement, serving the readability success criterion.
 
 ## Remaining scope boundaries
 Do not delay Prototype 01 for loot, crafting, long-term progression, talent/build progression, Codex, story/lore, housing/base, a large hub/world, matchmaking, AI companions, PvP, cosmetics/transmog, final account systems, or broad content production.

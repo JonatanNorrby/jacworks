@@ -438,32 +438,41 @@ nameInput.onchange=()=>{playerName=nameInput.value.trim()||playerName;localStora
 const share=document.createElement('button');share.textContent='Copy room link';share.onclick=()=>{navigator.clipboard.writeText(location.href).then(()=>{share.textContent='Link copied'},()=>{share.textContent='Copy the address bar link'})};
 const roster=document.createElement('div');roster.id='room-roster';
 roomPanel.append(connectionLabel,roomLabel,nameInput,share,roster);document.body.append(roomPanel);
-const dpsPanel=document.createElement('section');dpsPanel.id='dps-meter';dpsPanel.setAttribute('aria-label','Damage meter');
-const dpsTitle=document.createElement('h3');dpsTitle.textContent='Damage meter';
-const dpsToggle=document.createElement('button');dpsToggle.type='button';dpsToggle.textContent='Hide';
+const dpsPanel=document.createElement('section');dpsPanel.id='dps-meter';dpsPanel.setAttribute('aria-label','Combat meter');
+const dpsTitle=document.createElement('h3');dpsTitle.textContent='Combat meter';
+const meterTabs=document.createElement('div');meterTabs.className='meter-tabs';meterTabs.setAttribute('role','group');meterTabs.setAttribute('aria-label','Combat meter view');
 const dpsRows=document.createElement('div');dpsRows.id='dps-rows';
+const dpsToggle=document.createElement('button');dpsToggle.type='button';dpsToggle.textContent='Hide';
+let dpsMode:'damage'|'healing'=localStorage.getItem('jacworks-meter-mode')==='healing'?'healing':'damage';
 let dpsHidden=localStorage.getItem('jacworks-dps-hidden')==='true';
 function setDpsHidden(hidden:boolean){dpsHidden=hidden;dpsRows.hidden=hidden;dpsToggle.textContent=hidden?'Show':'Hide';localStorage.setItem('jacworks-dps-hidden',String(hidden))}
+function setMeterMode(mode:'damage'|'healing'){
+ dpsMode=mode;localStorage.setItem('jacworks-meter-mode',mode);
+ meterTabs.replaceChildren();
+ for(const value of ['damage','healing'] as const){const button=document.createElement('button');button.type='button';button.textContent=value==='damage'?'Damage':'Healing';button.setAttribute('aria-pressed',String(value===mode));button.onclick=()=>{setMeterMode(value);if(snapshot)renderDps(snapshot)};meterTabs.append(button)}
+ if(snapshot)renderDps(snapshot);
+}
 dpsToggle.onclick=()=>setDpsHidden(!dpsHidden);
-const dpsHeader=document.createElement('div');dpsHeader.className='dps-header';dpsHeader.append(dpsTitle,dpsToggle);dpsPanel.append(dpsHeader,dpsRows);document.body.append(dpsPanel);setDpsHidden(dpsHidden);
+const dpsHeader=document.createElement('div');dpsHeader.className='dps-header';dpsHeader.append(dpsTitle,dpsToggle);
+dpsPanel.append(dpsHeader,meterTabs,dpsRows);document.body.append(dpsPanel);setDpsHidden(dpsHidden);setMeterMode(dpsMode);
 function renderDps(state:Snapshot){
- const meter=state.damageMeter;
  dpsPanel.classList.toggle('hidden',state.phase==='lobby');
- if(!meter||state.phase==='lobby')return;
- const elapsed=Math.max(1,meter.elapsedMs)/1000;
- const rows=[...meter.entries].sort((a,b)=>b.damage-a.damage);
- const top=Math.max(1,...rows.map(r=>r.damage));
+ if(state.phase==='lobby')return;
+ const meter=dpsMode==='damage'?state.damageMeter:state.healingMeter;
+ const elapsed=Math.max(1,meter?.elapsedMs??0)/1000;
+ const rows=(meter?.entries??[]).map(entry=>({playerId:entry.playerId,total:'damage' in entry?entry.damage:entry.healing})).sort((a,b)=>b.total-a.total);
+ const top=Math.max(1,...rows.map(row=>row.total));
  dpsRows.replaceChildren();
- if(!rows.length){const empty=document.createElement('p');empty.textContent='Waiting for damage…';dpsRows.append(empty);return}
+ if(!rows.length){const empty=document.createElement('p');empty.textContent='Waiting for '+(dpsMode==='damage'?'damage':'healing')+'…';dpsRows.append(empty);return;}
  for(const entry of rows){
   const player=state.players.find(p=>p.id===entry.playerId);
   const row=document.createElement('div');row.className='dps-row';
   const label=document.createElement('div');label.className='dps-label';
   const name=document.createElement('span');name.textContent=(player?.name??'Disconnected player')+(entry.playerId===myId?' (you)':'');
-  const amount=document.createElement('span');amount.textContent=(entry.damage/elapsed).toFixed(1)+' DPS · '+Math.round(entry.damage)+' dmg';
+  const amount=document.createElement('span');amount.textContent=(entry.total/elapsed).toFixed(1)+(dpsMode==='damage'?' DPS · ':' HPS · ')+Math.round(entry.total)+(dpsMode==='damage'?' dmg':' healing');
   label.append(name,amount);
   const track=document.createElement('div');track.className='dps-track';
-  const fill=document.createElement('div');fill.className='dps-fill';fill.style.width=(entry.damage/top*100).toFixed(1)+'%';track.append(fill);
+  const fill=document.createElement('div');fill.className='dps-fill';fill.style.width=(entry.total/top*100).toFixed(1)+'%';if(dpsMode==='healing')fill.classList.add('healing');track.append(fill);
   row.append(label,track);dpsRows.append(row);
  }
 }

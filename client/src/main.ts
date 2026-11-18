@@ -349,7 +349,7 @@ hubPlayerRing.position.set(0, 0.08, 6.2);
 hubPlayerRing.material = hubPlayerMat;
 
 const talentTrunk=pushHub(MeshBuilder.CreateCylinder('talent-tree-trunk',{height:4,diameterTop:.65,diameterBottom:1.05,tessellation:12},scene));talentTrunk.position.set(9,2,3);talentTrunk.material=hubStoneMat;
-const talentCrown=pushHub(MeshBuilder.CreateSphere('talent-tree-crown',{diameter:4.4,segments:16},scene));talentCrown.position.set(9,5,3);talentCrown.material=greenMat;
+const talentCrown=pushHub(MeshBuilder.CreateSphere('talent-tree-crown',{diameter:4.4,segments:16},scene));talentCrown.position.set(9,5,3);talentCrown.material=material('talent-leaves',new Color3(.12,.62,.27),new Color3(.02,.25,.08));
 hubLabel('talent-tree-label','TALENT TREE · E',9,3,3.4);
 const trainer=pushHub(MeshBuilder.CreateCapsule("skill-trainer",{height:2,radius:0.65},scene));
 trainer.position.set(-4.3,1,3.5);trainer.material=holyMat;

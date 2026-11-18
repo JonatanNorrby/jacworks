@@ -874,7 +874,7 @@ addEventListener("keydown", (event) => {
       const pick=scene.pick(scene.pointerX,scene.pointerY,m=>m===arenaGround);
       const target=pick?.pickedPoint?{x:pick.pickedPoint.x,z:pick.pickedPoint.z}:undefined;
       const me=snapshot?.players.find(p=>p.id===myId),skill=me?.loadout[Number(event.key)-1];
-      const friendly=skill==='targetedHeal'||skill==='lightningShield'||skill==='heroicShield';
+      const friendly=(skill==='targetedHeal'&&me?.head!=='shadowHat')||skill==='lightningShield'||skill==='heroicShield';
       const ally=target?snapshot?.players.filter(p=>p.alive&&Math.hypot(p.pos.x-target.x,p.pos.z-target.z)<1.5).sort((a,b)=>Math.hypot(a.pos.x-target.x,a.pos.z-target.z)-Math.hypot(b.pos.x-target.x,b.pos.z-target.z))[0]:undefined;
       send({type:'ability',slot:Number(event.key),target:friendly?undefined:target,targetId:friendly?(event.shiftKey?myId:ally?.id??myId):undefined});
     }

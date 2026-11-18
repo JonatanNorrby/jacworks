@@ -32,15 +32,15 @@ test('new gear persists in its correct equipment slot',()=>{
   assert.equal(restored[slot],id);
  }
 });
-test('all eight classes have a starter rank 1/1 talent and live server applies both buffs',()=>{
+test('starter rank 1/1 starts inactive until the player spends a point',()=>{
  for(const tree of Object.values(TALENT_TREE)){
-  assert.equal(tree.nodes.length,1);assert.equal(tree.nodes[0].ranks,1);
+  assert.ok(tree.nodes.length>=1);assert.equal(tree.nodes[0].ranks,1);
  }
- assert.equal(talentDamage(100),103);assert.equal(talentMitigation(100),97);
+ assert.equal(talentDamage(100),100);assert.equal(talentMitigation(100),100);
  const g=new Game(()=>{},()=> 'id',true);const p=g.add('p');
  g.message('p',{type:'propose',boss:'warden'},100);g.message('p',{type:'vote',proposalId:g.vote!.id,accept:true},100);
- g.damageTarget('boss',100,'p');assert.equal(g.boss.hp,1697);
- g.hurt(p,200,50);assert.equal(p.hp,51.5);
+ g.damageTarget('boss',100,'p');assert.equal(g.boss.hp,1700);
+ g.hurt(p,200,50);assert.equal(p.hp,50);
 });
 test('Shaman fire replacement uses a green poison cloud instead of fire projectiles',()=>{
  const {g,p}=started('shaman',equipped('sporeboundTotem','offhand'));

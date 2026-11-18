@@ -1,0 +1,22 @@
+import {test,expect} from '@playwright/test';
+test('v0.1.5: lobby hotbar stays visible and counts down, Double boss circle and talent prerequisites exist',async({page,baseURL})=>{
+ test.setTimeout(120000);
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(baseURL+'/?room=lobby015'+crypto.randomUUID().replaceAll('-','').slice(0,16));
+ await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
+ await expect(page.locator('#abilities')).toBeVisible();
+ await page.keyboard.press('2');
+ await expect(page.locator('.ability-slot[data-slot="2"] .cooldown-text')).toContainText(/[0-9]/,{timeout:5000});
+ await page.getByRole('button',{name:'Talent Tree'}).click();
+ const tree=page.locator('#talent-tree-panel');await expect(tree).toBeVisible();
+ await expect(tree.locator('.talent-node')).toHaveCount(3);
+ await expect(tree.locator('.talent-node').first()).toContainText('Rank 0 / 1');
+ await expect(tree.getByRole('button',{name:'Spend 1 point'}).first()).toBeDisabled();
+ await expect(tree.getByRole('button',{name:'Respec this class · Free'})).toBeDisabled();
+ await tree.getByRole('button',{name:'Close talent tree'}).click();
+ await page.getByRole('button',{name:'Propose boss'}).click();
+ await expect(page.getByRole('combobox',{name:'Boss encounter'})).toContainText('Double');
+ await page.getByRole('combobox',{name:'Boss encounter'}).selectOption('duoYellowWarden');
+ await page.locator('#inventory-panel').getByRole('button',{name:'Close'}).click();
+ expect(errors).toEqual([]);
+});

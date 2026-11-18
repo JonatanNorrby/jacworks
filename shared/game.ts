@@ -7,9 +7,16 @@ import { readInventory,CLASS_ITEM_BONUS } from './inventory';
 import {talentDamage,talentMitigation,emptyTalents,readTalents,unlockTalent,respecTalents,awardTalentWin,hasTalent,TALENT_NODES} from './talents';
 import type {TalentId} from './talents';
 import { CHAT_INTERVAL_MS, cleanChat, DEFAULT_LOADOUT, SKILLS, NETWORK_VERSION } from './protocol';
-import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState } from './protocol';
+import type { PlayerState, ServerMessage, Snapshot, Telegraph, Vec2, AddState, CardinalDirection } from './protocol';
 
 export function fractureQuadrant(pos:Vec2):number {if(Math.abs(pos.x)<=3||Math.abs(pos.z)<=3)return -1;return pos.x>=0?(pos.z>=0?0:3):(pos.z>=0?1:2)}
+export const CARDINAL_DIRECTIONS=['north','east','south','west'] as const satisfies readonly CardinalDirection[];
+/** The Fracturer's new pattern leaves exactly one 90-degree compass sector safe.
+ * Its center-to-edge axial corridors never overlap the collapsing corner tiles. */
+export function fractureCardinal(pos:Vec2):CardinalDirection {
+ if(Math.abs(pos.x)>Math.abs(pos.z))return pos.x>0?'east':'west';
+ return pos.z>0?'north':'south';
+}
 export const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x-b.x, a.z-b.z);
 const clamp = (n: number) => Math.max(-12, Math.min(12,n));
 const unit = (v: Vec2): Vec2 => { const l=Math.hypot(v.x,v.z); return l ? {x:v.x/l,z:v.z/l} : {x:0,z:0}; };
@@ -44,7 +51,7 @@ export function chargeEnd(from:Vec2,dir:Vec2,boss:Vec2,adds:AddState[],length=5,
 }
 type Motion={kind:'roll'|'bounce';from:Vec2;to:Vec2;start:number;end:number;hit:Set<string>};
 export class Game {
-  arenaCuts:import('./protocol').ArenaCut[]=[];nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];talentAward:Snapshot['talentAward'];
+  arenaCuts:import('./protocol').ArenaCut[]=[];fracturerSurge:import('./protocol').FracturerSurge|undefined;nextFracturerSurgeAt=0;fracturerSurgeIndex=0;nextCollapseAt=0;nextDuoAt=0;bonusRewards:NonNullable<Snapshot['reward']>[]=[];talentAward:Snapshot['talentAward'];
   trainingDummies:import('./protocol').TrainingDummy[]=[{id:'west-1',pos:{x:-11,z:-2},hp:500,maxHp:500,respawnAt:0},{id:'west-2',pos:{x:-11,z:0},hp:500,maxHp:500,respawnAt:0},{id:'west-3',pos:{x:-11,z:2},hp:500,maxHp:500,respawnAt:0}];
   poison=new TrufflePoison();
   meterStartedAt=0;meterElapsedMs=0;damageTotals=new Map<string,number>();healingTotals=new Map<string,number>();
@@ -92,10 +99,10 @@ export class Game {
   }
   remove(id:string) {const p=this.players.get(id);if(p&&this.initialized.has(id))this.system(`${p.name} left the room.`);this.chatSent.delete(id);this.poison.remove(id);this.cancelVote();this.totems=this.totems.filter(t=>t.owner!==id);this.effects=this.effects.filter(e=>e.owner!==id);this.initialized.delete(id);this.players.delete(id);this.moves.delete(id);this.ready.delete(id);if(!this.players.size){this.boss.id='warden';this.reset();this.selectionLocked=false;}}
   reset() {
-    this.arenaCuts=[];this.nextCollapseAt=0;this.nextDuoAt=0;this.bonusRewards=[];this.talentAward=undefined;
+    this.arenaCuts=[];this.fracturerSurge=undefined;this.nextFracturerSurgeAt=0;this.fracturerSurgeIndex=0;this.nextCollapseAt=0;this.nextDuoAt=0;this.bonusRewards=[];this.talentAward=undefined;
     this.poison.clear();this.meterStartedAt=0;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();
     this.balls=new BallEncounter(this);this.vote=undefined;this.scatter=[];this.totems=[];
-    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;
+    this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.lastTick=0;this.phase='lobby';this.boss.hp=this.boss.maxHp=this.boss.id==='hardWarden'?3000:this.boss.id==='hardYellowBall'?2400:this.boss.id==='hardGreenCone'?3000:this.boss.id==='fracturer'?2500:1800;this.boss.pos={x:0,z:0};this.boss.height=0;this.motion=undefined;this.boss.smash=undefined;this.boss.stride=0;this.boss.walking=false;this.boss.heading=0;
     this.telegraphs=[];this.ready.clear();this.reward=undefined;this.moves.clear();let i=0;
     for(const p of this.players.values()) {const a=i++/this.players.size*Math.PI*2;p.pos={x:Math.cos(a)*7,z:Math.sin(a)*7};if(distance(p.pos,this.hubNpc.state.pos)<TRUFFLE_RADIUS+PLAYER_RADIUS)p.pos={x:0,z:8};p.hp=100;p.alive=true;p.cooldowns=[0,0,0,0];p.guardUntil=0;this.clearBuffs(p);p.dashCharges=p.head==='pointyHat'?3:1;p.dashRechargeAt=0;p.retaliationAt=undefined;}
   }
@@ -170,7 +177,7 @@ export class Game {
     if(v.type==='vote'&&this.vote&&v.proposalId===this.vote.id&&typeof v.accept==='boolean'&&now<this.vote.expires&&this.vote.voters.includes(id)){
       if(!v.accept){this.cancelVote();return;}
       if(!this.vote.accepted.includes(id))this.vote.accepted.push(id);
-      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.bonusRewards=[];this.talentAward=undefined;this.nextDuoAt=now+4500;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}for(const key of this.players.keys())this.initialized.add(key);}
+      if(this.vote.accepted.length===this.vote.voters.length){const boss=this.vote.boss;if(this.phase!=='lobby')this.reset();this.vote=undefined;this.boss.id=boss;this.boss.hp=this.boss.maxHp=boss==='hardWarden'?3000:boss==='hardYellowBall'?2400:boss==='hardGreenCone'?3000:boss==='fracturer'?2500:1800;this.phase='fight';this.arenaCuts=[];this.fracturerSurge=undefined;this.fracturerSurgeIndex=0;this.nextFracturerSurgeAt=now+11000;this.bonusRewards=[];this.talentAward=undefined;this.nextDuoAt=now+4500;this.nextCollapseAt=boss==='fracturer'||boss==='duoTruffleFracturer'?now+7000:0;this.meterStartedAt=now;this.meterElapsedMs=0;this.damageTotals.clear();this.healingTotals.clear();this.system('Encounter started: '+boss);this.poison=new TrufflePoison(boss==='hardGreenCone');if(boss==='greenCone'||boss==='hardGreenCone'||boss==='duoTruffleFracturer')this.poison.start(now);this.lastTick=now;this.fightId=this.uuid();this.next=now+2200;this.mechanic=0;if(boss==='duoYellowWarden'||boss==='duoTruffleFracturer'){this.boss.pos={x:-3,z:0};this.adds=[{id:'duo-partner',kind:'duoBoss',bossId:boss==='duoYellowWarden'?'yellowBall':'fracturer',pos:{x:3,z:0},hp:boss==='duoYellowWarden'?1800:2500,maxHp:boss==='duoYellowWarden'?1800:2500,attackAt:now+4500}];}for(const key of this.players.keys())this.initialized.add(key);}
     }
     if(v.type==='ability'&&this.phase==='fight'&&p.alive&&Number.isInteger(v.slot)&&Number(v.slot)>=1&&Number(v.slot)<=4)this.ability(p,Number(v.slot),now,v.target,v.targetId);
   }
@@ -358,6 +365,15 @@ export class Game {
           }
         }
       }
+      const activeFracturer=(this.boss.id==='fracturer'&&this.boss.hp>0)||
+        (this.boss.id==='duoTruffleFracturer'&&this.adds.some(a=>a.kind==='duoBoss'&&a.bossId==='fracturer'&&a.hp>0));
+      if(!activeFracturer)this.fracturerSurge=undefined;
+      else if(!this.fracturerSurge&&now>=this.nextFracturerSurgeAt){
+        const safeDirection=CARDINAL_DIRECTIONS[this.fracturerSurgeIndex++%CARDINAL_DIRECTIONS.length];
+        this.fracturerSurge={safeDirection,warnAt:now,resolvesAt:now+3200,resolved:false};
+        this.nextFracturerSurgeAt=now+16000;
+        this.system('The Fracturer: three quarters of the arena are about to erupt! SAFE '+safeDirection.toUpperCase()+'!');
+      }
       const alive=[...this.players.values()].filter(p=>p.alive);
       const chase=(pos:Vec2,speed:number,stop:number)=>{const target=[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(pos,b.pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step);pos.z=clamp(pos.z+dir.z*step);}return target;};
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')){
@@ -374,6 +390,19 @@ export class Game {
         if((this.boss.id==='fracturer'||this.boss.id==='duoTruffleFracturer')&&this.arenaCuts.some(c=>now>=c.collapseAt&&fractureQuadrant(p.pos)===c.quadrant))p.pos=old;
         const actual={x:p.pos.x-old.x,z:p.pos.z-old.z};if(Math.hypot(actual.x,actual.z)>.001)p.facing=unit(actual);
       }
+      if(this.boss.id==='warden'||this.boss.id==='hardWarden'||this.boss.id==='duoYellowWarden'){
+        const victim=[...this.players.values()].filter(p=>p.alive&&p.invisibleUntil<=now)
+          .sort((a,b)=>distance(this.boss.pos,a.pos)-distance(this.boss.pos,b.pos))[0];
+        if(victim)this.boss.heading=Math.atan2(victim.pos.x-this.boss.pos.x,victim.pos.z-this.boss.pos.z);
+      }
+      if(this.fracturerSurge&&!this.fracturerSurge.resolved&&now>=this.fracturerSurge.resolvesAt){
+        this.fracturerSurge.resolved=true;
+        const safe=this.fracturerSurge.safeDirection;
+        for(const p of this.players.values())if(p.alive&&fractureCardinal(p.pos)!==safe)this.hurt(p,now,55);
+        for(const t of this.totems)if(t.hp>0&&fractureCardinal(t.pos)!==safe)t.hp=0;
+        this.emit({type:'event',text:'The Fracturer: the unsafe quarters erupt!'});
+      }
+      if(this.fracturerSurge&&now>=this.fracturerSurge.resolvesAt+750)this.fracturerSurge=undefined;
       if(isBall(this)||this.boss.id==='duoYellowWarden')this.balls.tick(now);
       if(!isBall(this)&&this.boss.hp>0&&now>=this.next)this.schedule(now);
       const partner=this.adds.find(a=>a.kind==='duoBoss'&&a.hp>0);
@@ -397,14 +426,14 @@ export class Game {
       this.telegraphs=this.telegraphs.filter(t=>t.resolvesAt>now);
       if(this.phase==='fight')this.meterElapsedMs=Math.max(0,now-this.meterStartedAt);
       if(this.boss.hp<=0&&(!isBall(this)||!this.adds.some(a=>a.hp>0))&&!this.adds.some(a=>(a.kind==='duoBoss'||a.kind==='ball')&&a.hp>0)) {
-        this.phase='won';this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
+        this.phase='won';this.fracturerSurge=undefined;this.system('Victory!');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}this.adds=[];this.burns.clear();this.motion=undefined;this.boss.height=0;this.telegraphs=[];
         this.bonusRewards=[];
         const newlyEarned=[...this.players.values()].filter(p=>awardTalentWin(p.talents??=emptyTalents(),this.boss.id)).map(p=>p.id);
         this.talentAward={boss:this.boss.id,players:newlyEarned};
         this.reward={id:this.fightId,material:this.boss.id==='duoYellowWarden'?'duoCore':this.boss.id==='duoTruffleFracturer'?'duoSpore':this.boss.id==='hardYellowBall'?'largeSphere':this.boss.id==='hardWarden'?'largeCylinder':this.boss.id==='warden'?'cylinderTube':this.boss.id==='yellowBall'?'sphericalBall':this.boss.id==='hardGreenCone'?'hardTruffleSpore':'conicalTaper',players:[...this.players.keys()]};
         this.emit({type:'event',text:'Victory! Material added to inventory. R: retry · H: hub'});
-      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
+      } else if([...this.players.values()].every(p=>!p.alive)){this.phase='wiped';this.fracturerSurge=undefined;this.system('Party wiped. Propose a retry or return to the hub.');this.poison.clear();this.scatter=[];this.totems=[];this.effects=[];for(const p of this.players.values()){p.cast=undefined;this.clearBuffs(p);}}
     }
-    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,talentAward:this.talentAward,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
+    return {type:'snapshot',now,serverVersion:NETWORK_VERSION,talentAward:this.talentAward,trainingDummies:structuredClone(this.trainingDummies),arenaCuts:structuredClone(this.arenaCuts),fracturerSurge:this.fracturerSurge?{...this.fracturerSurge}:undefined,supportedBosses:['warden','hardWarden','yellowBall','hardYellowBall','greenCone','hardGreenCone','fracturer','duoYellowWarden','duoTruffleFracturer'],damageMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.damageTotals].map(([playerId,damage])=>({playerId,damage}))},healingMeter:{startedAt:this.meterStartedAt,elapsedMs:this.meterElapsedMs,entries:[...this.healingTotals].map(([playerId,healing])=>({playerId,healing}))},poisonMark:this.poison.mark?structuredClone(this.poison.mark):undefined,poisonMarks:structuredClone(this.poison.marks),poisonClouds:structuredClone(this.poison.clouds),hubNpc:this.phase==='lobby'?structuredClone(this.hubNpc.state):undefined,phase:this.phase,players:[...this.players.values()],boss:this.boss,adds:this.adds,telegraphs:this.telegraphs,readyCount:this.vote?.accepted.length??0,vote:this.vote,totems:this.totems,reward:this.reward,bonusRewards:this.bonusRewards,effects:this.effects};
   }
 }

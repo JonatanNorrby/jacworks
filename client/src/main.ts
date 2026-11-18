@@ -26,12 +26,13 @@ import {
   Scene,
   StandardMaterial,
   Vector3,
+  VertexData,
 } from "@babylonjs/core";
 import { DEFAULT_LOADOUT, ITEMS, SKILLS, baseLoadout } from "../../shared/protocol";
 import type { Loadout, SkillId, ServerMessage, Snapshot, Telegraph, BossId } from "../../shared/protocol";
 
 import { readInventory, countInventory, grantReward, craft, equip, RECIPES, GEAR_CLASS, GEAR_SLOTS, GEAR_EFFECTS, inventoryView } from './inventory';
-import type {Gear} from '../../shared/inventory';
+import type {Gear,EquipmentSlot} from '../../shared/inventory';
 import { installGameDevLabs } from './gameDevLabs';
 declare const __GAME_VERSION__:string;
 type ClientMode = "hub" | "encounter";
@@ -123,6 +124,7 @@ let trainerOpen=false;
 let hubPanelOpen=false;
 let selectedBoss:BossId='warden';
 let crafterCategory:'all'|ClassId='all';
+let wardrobeSlot:'all'|EquipmentSlot='all';
 const talentKey='jacworks-talent-progress-v1';
 let playerTalents=readTalents(localStorage.getItem(talentKey));
 let savedTalentString=JSON.stringify(playerTalents);
@@ -151,10 +153,33 @@ function openHubPanel(kind:'gate'|'crafter'|'wardrobe',atPedestal=false){
   const button=document.createElement('button');button.className='equipment-slot '+slot;button.textContent=label+': '+(inventory[slot]?ITEMS[inventory[slot]!]+' (Unequip)':'Empty');button.disabled=!inventory[slot];
   button.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,slot,inventory[slot]?null:gear)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};doll.append(button);
  }inventoryPanel.append(doll);
- const title=document.createElement('h3');title.textContent='Owned gear';inventoryPanel.append(title);
- const grid=document.createElement('div');grid.className='gear-grid';const owned=inventoryView(inventory).gear;
- if(!owned.length)grid.textContent='No owned gear yet. Visit the Crafter.';
- for(const item of owned){const card=document.createElement('div');card.className='gear-card';const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' x '+item.count;const slot=document.createElement('small');slot.textContent=item.slot+' - '+(item.equipped?'Equipped':'Available')+' · '+GEAR_EFFECTS[item.id];const action=document.createElement('button');action.textContent=item.equipped?'Unequip':'Equip';action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);if(action.disabled)slot.textContent+=' (class restricted)';action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};card.append(name,slot,action);grid.append(card)}inventoryPanel.append(grid);
+ const title=document.createElement('h3');title.textContent='Owned equipment';inventoryPanel.append(title);
+ const tabs=document.createElement('nav');tabs.className='wardrobe-slot-tabs';tabs.setAttribute('aria-label','Wardrobe equipment slots');inventoryPanel.append(tabs);
+ const grid=document.createElement('div');grid.className='gear-grid';inventoryPanel.append(grid);
+ const owned=inventoryView(inventory).gear;
+ const slotChoices:[typeof wardrobeSlot,string][]=[['all','All'],['weapon','Weapons'],['head','Head'],['offhand','Offhand'],['armour','Armour'],['boots','Boots']];
+ function showWardrobeSlot(slot:typeof wardrobeSlot){
+   wardrobeSlot=slot;tabs.replaceChildren();grid.replaceChildren();
+   for(const [id,name] of slotChoices){
+     const tab=document.createElement('button');tab.type='button';
+     tab.textContent=name+' ('+(id==='all'?owned.length:owned.filter(item=>item.slot===id).length)+')';
+     tab.setAttribute('aria-pressed',String(wardrobeSlot===id));tab.className=id===wardrobeSlot?'active':'';
+     tab.onclick=()=>showWardrobeSlot(id);tabs.append(tab);
+   }
+   const filtered=owned.filter(item=>wardrobeSlot==='all'||item.slot===wardrobeSlot);
+   if(!filtered.length){const empty=document.createElement('p');empty.className='wardrobe-empty';empty.textContent='No '+(wardrobeSlot==='all'?'equipment':wardrobeSlot+' equipment')+' owned yet. Visit the Crafter.';grid.append(empty);}
+   for(const item of filtered){
+     const card=document.createElement('div');card.className='gear-card';
+     const name=document.createElement('strong');name.textContent=ITEMS[item.id]+' × '+item.count;
+     const detail=document.createElement('small');detail.textContent=item.slot+' · '+(item.equipped?'Equipped':'Available')+' · '+GEAR_EFFECTS[item.id];
+     const action=document.createElement('button');action.type='button';action.textContent=item.equipped?'Unequip':'Equip';
+     action.disabled=!item.equipped&&!gearEligible(selectedClass,item.id);
+     if(action.disabled)detail.textContent+=' (class restricted)';
+     action.onclick=()=>{inventory=readInventory(localStorage.getItem(inventoryKey));if(equip(inventory,item.slot,item.equipped?null:item.id)){localStorage.setItem(inventoryKey,JSON.stringify(inventory));syncGear(hubPlayer,inventory);syncJoin();openHubPanel('wardrobe')}};
+     card.append(name,detail,action);grid.append(card);
+   }
+ }
+ showWardrobeSlot(wardrobeSlot);
  }else{
  const materials=document.createElement('div');materials.className='material-inventory';const materialTitle=document.createElement('h3');materialTitle.textContent='Material inventory';materials.append(materialTitle);
  for(const item of inventoryView(inventory).materials){const row=document.createElement('p');row.textContent=ITEMS[item.id]+': '+item.count;materials.append(row)}inventoryPanel.append(materials);
@@ -223,6 +248,7 @@ function renderAbilityBar(active:Loadout=loadout){abilitySlots.forEach((el,i)=>{
 renderAbilityBar();
 const classButton=document.createElement('button');classButton.textContent='Choose class';classButton.onclick=openTrainer;document.querySelector('#hub-card')!.append(classButton);
 const treeButton=document.createElement('button');treeButton.textContent='Talent Tree';treeButton.onclick=()=>{keys.clear();talentTree.open(selectedClass)};document.querySelector('#hub-card')!.append(treeButton);
+const wardrobeButton=document.createElement('button');wardrobeButton.type='button';wardrobeButton.textContent='Wardrobe';wardrobeButton.onclick=()=>openHubPanel('wardrobe');document.querySelector('#hub-card')!.append(wardrobeButton);
 const gateButton=document.createElement('button');gateButton.textContent='Propose boss';gateButton.onclick=()=>openHubPanel('gate');document.querySelector('#hub-card')!.append(gateButton);
 const hubOnly = [...document.querySelectorAll<HTMLElement>(".hub-only")];
 const encounterOnly = [...document.querySelectorAll<HTMLElement>(".encounter-only")];
@@ -404,7 +430,30 @@ const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
  const tile=pushArena(MeshBuilder.CreateGround('fracture-tile-'+i,{width:10,height:10},scene));
  tile.position.set(x,.035,z);tile.setEnabled(false);return tile;
 });
+// Four 90-degree compass sectors, painted from the center to beyond arena edges.
+ // They are warning overlays, never collision geometry or pointer-pick targets.
+ const fractureSafeMat=material('fracturer-cardinal-safe',new Color3(.02,.70,.18),new Color3(.05,.4,.1),.38);
+ const fractureDangerMat=material('fracturer-cardinal-danger',new Color3(.92,.04,.04),new Color3(.55,.03,.05),.47);
+ fractureSafeMat.backFaceCulling=false;fractureDangerMat.backFaceCulling=false;
+ const cardinalAngles:{direction:'north'|'east'|'south'|'west';angle:number}[]=[
+  {direction:'north',angle:0},{direction:'east',angle:Math.PI/2},
+  {direction:'south',angle:Math.PI},{direction:'west',angle:Math.PI*1.5}
+ ];
+ const fractureCardinalSectors=cardinalAngles.map(({direction,angle})=>{
+  const wedge=pushArena(new Mesh('fracturer-danger-sector-'+direction,scene));
+  const positions:number[]=[0,.07,0],normals:number[]=[0,1,0],uvs:number[]=[.5,.5],indices:number[]=[];
+  for(let step=0;step<=20;step++){
+   const t=angle-Math.PI/4+step*(Math.PI/2)/20;
+   positions.push(18*Math.sin(t),.07,18*Math.cos(t));
+   normals.push(0,1,0);uvs.push(.5+.5*Math.sin(t),.5+.5*Math.cos(t));
+   if(step>0)indices.push(0,step,step+1);
+  }
+  const data=new VertexData();data.positions=positions;data.indices=indices;data.normals=normals;data.uvs=uvs;data.applyToMesh(wedge);
+  wedge.isPickable=false;wedge.material=fractureDangerMat;wedge.setEnabled(false);
+  return {direction,wedge};
+ });
 const fireMineMeshes=new Map<string,Mesh>();
+const emberAfterglowMeshes=new Map<string,Mesh>();
 const poisonTotemClouds=new Map<string,Mesh>();
 
 const arenaRing = pushArena(MeshBuilder.CreateTorus("arena-ring", { diameter: 24.4, thickness: 0.22, tessellation: 64 }, scene));
@@ -427,6 +476,9 @@ const hardPillars=HARD_PILLARS.map((p,i)=>{const mesh=pushArena(MeshBuilder.Crea
 const bossMesh = pushArena(MeshBuilder.CreateCylinder("boss", { diameter: 2.5, height: 2.9, tessellation: 12 }, scene));
 bossMesh.position.y = 1.45;
 bossMesh.material = bossMat;
+// A deliberate forward-facing marker, matching the server's Rogue rear-attack rule.
+const wardenNose=MeshBuilder.CreateCylinder('warden-nose',{height:1.05,diameterTop:0,diameterBottom:.44,tessellation:12},scene);
+wardenNose.parent=bossMesh;wardenNose.rotation.x=Math.PI/2;wardenNose.position.set(0,.28,1.43);wardenNose.material=holyMat;wardenNose.setEnabled(false);
 const yellowMat=material('yellow-ball',new Color3(1,.85,.02),new Color3(.5,.32,0));
 const yellowBoss=pushArena(MeshBuilder.CreateSphere('yellow-boss',{diameter:2.5,segments:24},scene));yellowBoss.material=yellowMat;
 const fracturerMat=material('fracturer',new Color3(.5,.17,.8),new Color3(.22,.04,.35));
@@ -452,6 +504,8 @@ function setMode(next: ClientMode) {
   dropTube.setEnabled(false);dropBall.setEnabled(false);dropCone.setEnabled(false);yellowBoss.setEnabled(false);
   for (const mesh of playerMeshes.values()) mesh.setEnabled(!inHub);
   for(const mesh of fireMineMeshes.values())mesh.setEnabled(!inHub);
+  for(const mesh of emberAfterglowMeshes.values())mesh.setEnabled(!inHub);
+  for(const {wedge} of fractureCardinalSectors)wedge.setEnabled(false);
   for (const mesh of telegraphMeshes.values()) mesh.setEnabled(!inHub);
   for (const effect of fx) effect.mesh.setEnabled(true);
 
@@ -670,14 +724,25 @@ function syncEncounter(state: Snapshot) {
  syncTotemModels(state);
 
 
+ const surge=state.phase==='fight'&&state.fracturerSurge&&state.now<state.fracturerSurge.resolvesAt?state.fracturerSurge:undefined;
+ for(const {direction,wedge} of fractureCardinalSectors){
+   wedge.setEnabled(!!surge);
+   if(surge)wedge.material=direction===surge.safeDirection?fractureSafeMat:fractureDangerMat;
+ }
  for(const [i,tile] of fractureFloorTiles.entries()){
  const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer')?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
  tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
  }
- for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine')){mesh.dispose();fireMineMeshes.delete(id)}
+ for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine'&&!e.afterglow)){mesh.dispose();fireMineMeshes.delete(id)}
+ for(const [id,mesh] of emberAfterglowMeshes)if(!state.effects.some(e=>e.id===id&&e.afterglow)){mesh.dispose();emberAfterglowMeshes.delete(id)}
+ for(const e of state.effects.filter(e=>e.afterglow)){
+   let ring=emberAfterglowMeshes.get(e.id);
+   if(!ring){ring=MeshBuilder.CreateTorus('ember-afterglow-'+e.id,{diameter:(e.radius??3)*2,thickness:.19,tessellation:40},scene);ring.material=dangerMat;emberAfterglowMeshes.set(e.id,ring);}
+   ring.position.set(e.pos.x,.11,e.pos.z);ring.setEnabled(true);
+ }
  for(const [id,cloud] of poisonTotemClouds)if(!state.effects.some(e=>e.id===id&&e.poisonCloud)){cloud.dispose();poisonTotemClouds.delete(id)}
  for(const e of state.effects.filter(e=>e.poisonCloud)){let cloud=poisonTotemClouds.get(e.id);if(!cloud){cloud=MeshBuilder.CreateTorus('shaman-poison-cloud-'+e.id,{diameter:(e.radius??1.5)*2,thickness:.22,tessellation:32},scene);cloud.material=greenMat;poisonTotemClouds.set(e.id,cloud)}cloud.position.set(e.pos.x,.12,e.pos.z)}
- for(const e of state.effects.filter(e=>e.skill==='fireMine')){
+ for(const e of state.effects.filter(e=>e.skill==='fireMine'&&!e.afterglow)){
  let mine=fireMineMeshes.get(e.id);
  if(!mine){mine=MeshBuilder.CreateTorus('persistent-fire-mine-'+e.id,{diameter:1.6,thickness:.18,tessellation:24},scene);mine.material=dangerMat;fireMineMeshes.set(e.id,mine);}
  mine.position.set(e.pos.x,.12,e.pos.z);
@@ -688,14 +753,18 @@ function syncEncounter(state: Snapshot) {
  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
  for(const a of state.adds){let mesh=addMeshes.get(a.id);if(!mesh){mesh=a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;else if(a.kind==='duoBoss')mesh.material=fracturerMat;addMeshes.set(a.id,mesh);const bar=MeshBuilder.CreateBox('add-health',{width:1,height:.08,depth:.08},scene);bar.parent=mesh;bar.position.y=a.kind==='ball'?.85:a.kind==='duoBoss'?2.2:2.4;bar.material=holyMat;}mesh.position.set(a.pos.x,a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);mesh.getChildMeshes().find(child=>child.name==='add-health')!.scaling.x=a.hp/a.maxHp;}
  bossMesh.setEnabled(!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
+ const warden=state.boss.id==='warden'||state.boss.id==='hardWarden'||state.boss.id==='duoYellowWarden';
+ bossMesh.rotation.y=warden?state.boss.heading??0:0;
+ wardenNose.setEnabled(warden&&state.phase==='fight'&&state.boss.hp>0);
  bossMesh.position.set(state.boss.pos.x,1.45,state.boss.pos.z);yellowBoss.position.set(state.boss.pos.x,1.25+state.boss.height,state.boss.pos.z);
  yellowBoss.rotation.x+=.12;bossRing.position.set(state.boss.pos.x,.08,state.boss.pos.z);bossRing.material=yellow?yellowMat:green?greenMat:bossMat;
- document.querySelector('#boss-label')!.textContent=state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN';
+ document.querySelector('#boss-label')!.textContent=(state.boss.id==='duoYellowWarden'?'WARDEN + YELLOW BALL':state.boss.id==='duoTruffleFracturer'?'TRUFFLE MAN + FRACTURER':yellow?(state.boss.id==='hardYellowBall'?'HARD YELLOW BALL':'YELLOW BALL')+' - '+(Number(state.boss.hp>0)+state.adds.filter(a=>a.kind==='ball'&&a.hp>0).length)+' active':green?(state.boss.id==='hardGreenCone'?'HARD TRUFFLE MAN':'TRUFFLE MAN'):state.boss.id==='fracturer'?'THE FRACTURER':state.boss.id==='hardWarden'?'HARD WARDEN':'THE WARDEN')+
+ (surge?' · SAFE '+surge.safeDirection.toUpperCase()+' ('+Math.ceil((surge.resolvesAt-state.now)/1000)+'s)':'');
  dropTube.setEnabled(state.phase==='won'&&!yellow&&!green);dropBall.setEnabled(state.phase==='won'&&yellow);
  dropBall.scaling.setAll(state.boss.id==='hardYellowBall'?2:1);bossRing.setEnabled(state.boss.hp>0&&state.phase!=='won');
  dropTube.scaling.setAll(state.boss.id==='hardWarden'?2:1);
  dropTube.position.set(state.boss.pos.x,.35,state.boss.pos.z);dropBall.position.set(state.boss.pos.x,.3,state.boss.pos.z);
-  const combatTelegraphs:Telegraph[]=state.effects.filter(e=>['fireMine','arrowRain','lightningShield','fireball','aimedShot'].includes(e.skill)).map(e=>({id:'effect-'+e.id,kind:'circle',pos:e.pos,radius:e.skill==='fireMine'?2:e.skill==='arrowRain'?3.5:e.skill==='lightningShield'?3:e.skill==='fireball'?2:1,resolvesAt:e.expires}));
+  const combatTelegraphs:Telegraph[]=state.effects.filter(e=>!e.afterglow&&['fireMine','arrowRain','lightningShield','fireball','aimedShot'].includes(e.skill)).map(e=>({id:'effect-'+e.id,kind:'circle',pos:e.pos,radius:e.skill==='fireMine'?2:e.skill==='arrowRain'?3.5:e.skill==='lightningShield'?3:e.skill==='fireball'?2:1,resolvesAt:e.expires}));
   for(const p of state.players)if(p.cast)combatTelegraphs.push({id:'cast-'+p.id,kind:'circle',pos:p.cast.skill==='lightningStorm'?p.cast.target:p.pos,radius:p.cast.skill==='lightningStorm'?3:1,resolvesAt:p.cast.endsAt});
   const allTelegraphs=[...state.telegraphs,...combatTelegraphs];
   const playerIds = new Set(state.players.map((p) => p.id));

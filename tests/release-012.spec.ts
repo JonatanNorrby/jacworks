@@ -5,8 +5,8 @@ test('version handshake and Hard Truffle proposal actually start a boss encounte
  await page.goto(baseURL+'/?room=release'+crypto.randomUUID().replaceAll('-','').slice(0,18));
  await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
  await page.locator('#options-button').click();
- await expect(page.locator('#game-version')).toContainText('Client 0.1.4+');
- await expect(page.locator('#game-version')).toContainText('Server 0.1.4');
+ await expect(page.locator('#game-version')).toContainText('Client 0.1.5+');
+ await expect(page.locator('#game-version')).toContainText('Server 0.1.5');
  await page.locator('#options-panel').getByRole('button',{name:'Close'}).click();
  await page.getByRole('button',{name:'Propose boss'}).click();
  await page.getByRole('combobox',{name:'Boss encounter'}).selectOption('hardGreenCone');

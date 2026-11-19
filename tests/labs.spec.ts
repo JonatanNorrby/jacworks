@@ -32,7 +32,7 @@ test('Labs retains live membership, votes, current scene and late loaded model',
  await p.waitForTimeout(900);expect(await p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(true);
  await p.locator('#dev-vfx-speed').fill('2');await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(false);
  await p.locator('[data-vfx-tab="bosses"]').click();await p.locator('#dev-boss-mechanic').selectOption('green-adds');await p.locator('[data-dev-action="play-vfx"]').click();
- await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.filter((m:any)=>m.name==='dev-mushroom-add-cap').length)).toBe(2);
+ await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.filter((m:any)=>m.name==='dev-mushroom-add').length)).toBe(2);
  await q.getByRole('button',{name:'Propose boss',exact:true}).click();await q.locator('#inventory-panel select').selectOption('greenCone');await q.getByRole('button',{name:'Propose encounter',exact:true}).click();
  await p.getByRole('button',{name:'Accept',exact:true}).click();await expect(q.locator('#encounter-vote')).toContainText('1 / 2 accepted');await q.getByRole('button',{name:'Accept',exact:true}).click();
  await expect(p.locator('#game-dev-labs')).toBeVisible();await expect(q.locator('#boss-label')).toHaveText('TRUFFLE MAN');

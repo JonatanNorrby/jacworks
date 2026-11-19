@@ -7,6 +7,8 @@ import {BOSS_CIRCLES,BOSS_PEDESTALS,DOUBLE_ENCOUNTERS,nearbyBoss} from '../../sh
 import {CHAOS_BASE_BOSSES,CHAOS_BASE_HP} from '../../shared/chaos';
 import {createTrufflePoisonVisuals} from './truffle-poison';
 import {createMushroom} from './mushroom';
+import {createTruffleSummon,createFracturerVisual} from './assetModels';
+import {magicEffect,magicDecal} from './magicEffects';
 import {createTruffle} from './truffle';
 import {buildAntCave} from './antCave';
 import {createCreditsDialog} from './credits';
@@ -290,6 +292,7 @@ const roomChat=createRoomChat(payload=>send(payload),()=>{keys.clear();send({typ
 refreshInputHints();
 const playerMeshes = new Map<string, Mesh>();
 const addMeshes=new Map<string,Mesh>();
+const importedAddVisuals=new Map<string,ReturnType<typeof createTruffleSummon>>();
 const telegraphMeshes = new Map<string, Mesh>();
 const fallingRockMeshes=new Map<string,Mesh>();
 const hubMeshes: Mesh[] = [];
@@ -529,6 +532,11 @@ hardWardenSafeRing.position.y=.12;hardWardenSafeRing.material=fractureSafeMat;ha
 const hardPillars=HARD_PILLARS.map((p,i)=>{const mesh=pushArena(MeshBuilder.CreateCylinder('hard-pillar-'+i,{diameter:2,height:3},scene));mesh.position.set(p.x,1.5,p.z);mesh.material=arenaStoneMat;return mesh});
 const bossMesh = pushArena(MeshBuilder.CreateCylinder("boss", { diameter: 2.5, height: 2.9, tessellation: 12 }, scene));
 bossMesh.position.y = 1.45;
+// Converted from DiceFree's Rune Golem asset; fallback cylinder remains until
+// a valid model actually loads. The visual does not modify authoritative HP.
+const soloFracturer=createFracturerVisual(scene,'fracturer-rune-golem');
+pushArena(soloFracturer.mesh);
+soloFracturer.mesh.setEnabled(false);
 bossMesh.material = bossMat;
 // A deliberate forward-facing marker, matching the server's Rogue rear-attack rule.
 const wardenNose=MeshBuilder.CreateCylinder('warden-nose',{height:1.05,diameterTop:0,diameterBottom:.44,tessellation:12},scene);
@@ -585,7 +593,11 @@ function clearEncounterMeshes() {
   fx.length = 0;
   for (const mesh of playerMeshes.values()) mesh.dispose();
   playerMeshes.clear();
-  for(const mesh of addMeshes.values())mesh.dispose();addMeshes.clear();
+  for(const [id,mesh] of addMeshes){
+    const model=importedAddVisuals.get(id);
+    if(model)model.dispose();else mesh.dispose();
+  }
+  addMeshes.clear();importedAddVisuals.clear();
   for (const mesh of telegraphMeshes.values()) mesh.dispose();
   for(const rock of fallingRockMeshes.values())rock.dispose();fallingRockMeshes.clear();
   telegraphMeshes.clear();
@@ -788,7 +800,7 @@ function syncEncounter(state: Snapshot) {
  const chaos=state.boss.id==='chaosArena';
  const cut=(state.boss.id==='fracturer'||state.boss.id==='duoTruffleFracturer'||chaos)?state.arenaCuts?.find(c=>c.quadrant===i):undefined;
  // Chaos uses larger corner collapse tiles to match the server's wider axial
- // safe pathways. The fixed Warden and Fracturer stand on those pathways.
+ // safe pathways. Warden stays fixed while the crawling Rune Golem remains on these pathways.
  tile.scaling.x=tile.scaling.z=chaos?1.6:1;
  tile.position.x=(i===0||i===3?1:-1)*(chaos?13.5:8);
  tile.position.z=(i<2?1:-1)*(chaos?13.5:8);
@@ -798,14 +810,14 @@ function syncEncounter(state: Snapshot) {
  for(const [id,mesh] of emberAfterglowMeshes)if(!state.effects.some(e=>e.id===id&&e.afterglow)){mesh.dispose();emberAfterglowMeshes.delete(id)}
  for(const e of state.effects.filter(e=>e.afterglow)){
    let ring=emberAfterglowMeshes.get(e.id);
-   if(!ring){ring=MeshBuilder.CreateTorus('ember-afterglow-'+e.id,{diameter:(e.radius??3)*2,thickness:.19,tessellation:40},scene);ring.material=dangerMat;emberAfterglowMeshes.set(e.id,ring);}
+   if(!ring){ring=magicDecal(scene,'ember-afterglow-'+e.id,'Crack','#FF6B33',e.radius??3);emberAfterglowMeshes.set(e.id,ring);}
    ring.position.set(e.pos.x,.11,e.pos.z);ring.setEnabled(true);
  }
  for(const [id,cloud] of poisonTotemClouds)if(!state.effects.some(e=>e.id===id&&e.poisonCloud)){cloud.dispose();poisonTotemClouds.delete(id)}
- for(const e of state.effects.filter(e=>e.poisonCloud)){let cloud=poisonTotemClouds.get(e.id);if(!cloud){cloud=MeshBuilder.CreateTorus('shaman-poison-cloud-'+e.id,{diameter:(e.radius??1.5)*2,thickness:.22,tessellation:32},scene);cloud.material=greenMat;poisonTotemClouds.set(e.id,cloud)}cloud.position.set(e.pos.x,.12,e.pos.z)}
+ for(const e of state.effects.filter(e=>e.poisonCloud)){let cloud=poisonTotemClouds.get(e.id);if(!cloud){cloud=magicDecal(scene,'shaman-poison-cloud-'+e.id,'SmokeFree1','#47E58A',e.radius??1.5);poisonTotemClouds.set(e.id,cloud)}cloud.position.set(e.pos.x,.12,e.pos.z)}
  for(const e of state.effects.filter(e=>e.skill==='fireMine'&&!e.afterglow)){
  let mine=fireMineMeshes.get(e.id);
- if(!mine){mine=MeshBuilder.CreateTorus('persistent-fire-mine-'+e.id,{diameter:1.6,thickness:.18,tessellation:24},scene);mine.material=dangerMat;fireMineMeshes.set(e.id,mine);}
+ if(!mine){mine=magicDecal(scene,'persistent-fire-mine-'+e.id,'TechCircle','#FF7329',.8);fireMineMeshes.set(e.id,mine);}
  mine.position.set(e.pos.x,.12,e.pos.z);
  }
  const ants=state.boss.id==='antQueen',chaos=state.boss.id==='chaosArena';
@@ -822,19 +834,27 @@ function syncEncounter(state: Snapshot) {
  if(call){hardWardenOuter.position.set(state.boss.pos.x,0,state.boss.pos.z);hardWardenSafeRing.position.set(state.boss.pos.x,.12,state.boss.pos.z);}
  const yellow=(state.boss.id==='yellowBall'||state.boss.id==='hardYellowBall'),green=(state.boss.id==='greenCone'||state.boss.id==='hardGreenCone'||state.boss.id==='duoTruffleFracturer');
  dropCone.setEnabled(green&&state.phase==='won');dropCone.position.set(state.boss.pos.x,.35,state.boss.pos.z);
- for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){mesh.dispose();addMeshes.delete(id);}
+  for(const [id,mesh] of addMeshes)if(!state.adds.some(a=>a.id===id)){
+    const model=importedAddVisuals.get(id);
+    if(model){model.dispose();importedAddVisuals.delete(id);}else mesh.dispose();
+    addMeshes.delete(id);
+  }
 for(const a of state.adds){
   let mesh=addMeshes.get(a.id);
   const isWorker=a.kind==='antWorker',isRoyal=a.kind==='royalGuard';
   if(!mesh){
-    mesh=isWorker?antCave.createWorker():isRoyal?antCave.createRoyal():
+    const golem=(a.kind==='chaosBoss'||a.kind==='duoBoss')&&a.bossId==='fracturer'
+      ?createFracturerVisual(scene,'fracturer-golem-'+a.id):undefined;
+    const mushroom=!a.kind?createTruffleSummon(scene,'truffle-summon-'+a.id):undefined;
+    const imported=golem??mushroom;
+    if(imported){mesh=imported.mesh;importedAddVisuals.set(a.id,imported);}
+    else mesh=isWorker?antCave.createWorker():isRoyal?antCave.createRoyal():
       a.kind==='chaosBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('chaos-yellow-'+a.id,{diameter:2.5,segments:22},scene):
         a.bossId==='antQueen'?antCave.createQueen():
         a.bossId==='greenCone'?createMushroom(scene,'chaos-truffle-'+a.id,2):
-        a.bossId==='fracturer'?MeshBuilder.CreateCylinder('chaos-fracturer-'+a.id,{diameter:2.8,height:3.0,tessellation:8},scene):
           MeshBuilder.CreateCylinder('chaos-warden-'+a.id,{diameter:2.5,height:3,tessellation:12},scene)):
-      a.kind==='duoBoss'?(a.bossId==='yellowBall'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):MeshBuilder.CreateCylinder('duo-fracturer-'+a.id,{diameter:2.5,height:2.9,tessellation:12},scene)):
-      a.kind==='ball'?MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene):createMushroom(scene,'mushroom-add-'+a.id,1.1);
+      a.kind==='duoBoss'?MeshBuilder.CreateSphere('duo-yellow-'+a.id,{diameter:2.5,segments:24},scene):
+      MeshBuilder.CreateSphere('ball-add-'+a.id,{diameter:(a.radius??.9)*2,segments:20},scene);
     if(a.kind==='ball'||a.bossId==='yellowBall')mesh.material=yellowMat;
     else if(a.kind==='duoBoss')mesh.material=fracturerMat;
     else if(a.kind==='chaosBoss'&&a.bossId==='warden'){
@@ -844,21 +864,29 @@ for(const a of state.adds){
     }else if(a.kind==='chaosBoss'&&a.bossId==='fracturer')mesh.material=fracturerMat;
     addMeshes.set(a.id,mesh);
     const bar=MeshBuilder.CreateBox('add-health',{width:isRoyal||a.kind==='chaosBoss'?2.2:1,height:.08,depth:.08},scene);
-    bar.parent=mesh;bar.position.y=isWorker?1.55:isRoyal?1.85:a.kind==='ball'?.85:a.kind==='chaosBoss'?(a.bossId==='antQueen'?1.6:2.35):a.kind==='duoBoss'?2.2:2.4;
+    bar.parent=mesh;bar.position.y=isWorker?1.55:isRoyal?1.85:a.kind==='ball'?.85:
+      a.kind==='chaosBoss'?(a.bossId==='antQueen'?1.6:a.bossId==='fracturer'?3.35:2.35):
+      a.kind==='duoBoss'?3.35:1.6;
     bar.material=holyMat;
   }
   if(isWorker||isRoyal){
     const dx=a.pos.x-mesh.position.x,dz=a.pos.z-mesh.position.z;
     if(Math.hypot(dx,dz)>.06)mesh.rotation.y=Math.atan2(dx,dz)+Math.PI;
   }
-  if(a.kind==='chaosBoss'&&(a.bossId==='warden'||a.bossId==='greenCone'))mesh.rotation.y=a.heading??0;
+  if((a.kind==='chaosBoss'&&(a.bossId==='warden'||a.bossId==='greenCone'||a.bossId==='fracturer'))||
+     (a.kind==='duoBoss'&&a.bossId==='fracturer'))mesh.rotation.y=a.heading??0;
   const slam=a.smash&&state.now>=a.smash.startedAt&&state.now<a.smash.recoverAt?
    Math.sin(Math.min(1,(state.now-a.smash.startedAt)/(a.smash.impactAt-a.smash.startedAt))*Math.PI)*.35:0;
-  mesh.position.set(a.pos.x,isWorker?.6:isRoyal?.9:a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='chaosBoss'?(a.bossId==='yellowBall'?1.25:a.bossId==='antQueen'?1.52:1.45+slam):a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:1.45):0,a.pos.z);
+  mesh.position.set(a.pos.x,isWorker?.6:isRoyal?.9:a.kind==='ball'?(a.radius??.9)+(a.height??0):a.kind==='chaosBoss'?(a.bossId==='yellowBall'?1.25:a.bossId==='antQueen'?1.52:a.bossId==='fracturer'?0:1.45+slam):
+    a.kind==='duoBoss'?(a.bossId==='yellowBall'?1.25:0):0,a.pos.z);
+  importedAddVisuals.get(a.id)?.update(a,state.now);
   const health=mesh.getChildMeshes().find(child=>child.name==='add-health');
   if(health){health.scaling.x=a.hp/a.maxHp;health.rotation.y=-mesh.rotation.y;}
 }
- bossMesh.setEnabled(!ants&&!chaos&&!yellow&&!green&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
+ soloFracturer.mesh.setEnabled(state.boss.id==='fracturer'&&state.phase==='fight'&&state.boss.hp>0);
+ soloFracturer.mesh.position.set(state.boss.pos.x,0,state.boss.pos.z);
+ soloFracturer.mesh.rotation.y=state.boss.heading??0;
+ bossMesh.setEnabled(!ants&&!chaos&&!yellow&&!green&&state.boss.id!=='fracturer'&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  const warden=state.boss.id==='warden'||state.boss.id==='hardWarden'||state.boss.id==='duoYellowWarden';
  bossMesh.rotation.y=warden?state.boss.heading??0:0;
  wardenNose.setEnabled(warden&&state.phase==='fight'&&state.boss.hp>0);
@@ -960,6 +988,10 @@ function createTelegraph(t: Telegraph) {
 function spawnAbilityFx(skill:SkillId, from: {x:number;z:number}, to: {x:number;z:number}) {
   const start = new Vector3(from.x, 1, from.z);
   const end = new Vector3(to.x, 1, to.z);
+  // All magical abilities now use Babylon-native sprites extracted from the
+  // Hovl Magic Effects FREE library; physical weapon hitboxes stay geometric.
+  const hovl=magicEffect(scene,skill,start,end);
+  if(hovl){fx.push({...hovl,born:effectNow});return;}
   let mesh: Mesh;
   let duration: number;
   if(skill==='earthShock'){mesh=MeshBuilder.CreateTorus('earth-shock',{diameter:1.4,thickness:.2},scene);mesh.material=spearMat;start.copyFrom(end);duration=200;}else if(['holyLight','targetedHeal','aimedShot','fireball','fireTotem'].includes(skill)){
@@ -1038,12 +1070,14 @@ function updateEffects() {
       effect.mesh.scaling.setAll(1 + t * 1.5);
       effect.mesh.visibility = 1 - t;
     } else if (effect.kind === 3) {
-      effect.mesh.scaling.setAll(1 + t * 8);
+      effect.mesh.scaling.setAll(effect.mesh.metadata?.source==='Magic Effects FREE'?.35+t*.85:1+t*8);
       effect.mesh.visibility = 1 - t;
     } else {
       effect.mesh.scaling.setAll(1 + 0.15 * Math.sin(t * Math.PI));
       effect.mesh.visibility = 1 - t * 0.75;
     }
+    if(effect.mesh.metadata?.source==='Magic Effects FREE')
+      for(const child of effect.mesh.getChildMeshes())child.visibility=1-t*.7;
     if(gameDevLabs.isOpen())effect.mesh.scaling.scaleInPlace(gameDevLabs.vfxScale());
   }
 }

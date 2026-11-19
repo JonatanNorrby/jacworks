@@ -3,6 +3,7 @@ import {TrufflePatrol,moveHubPlayer,TRUFFLE_RADIUS,PLAYER_RADIUS} from './truffl
 import {BallEncounter,isBall} from './balls';
 import {startAntQueen,tickAntQueen,royalGuardKilled,ANT_QUEEN_HP,ANT_ARENA_LIMIT} from './antQueen';
 import {startChaos,tickChaos,chaosHealth,CHAOS_ARENA_LIMIT,CHAOS_BASE_HP,type ChaosState,chaosBoss} from './chaos';
+import {creepFracturer} from './fracturerMotion';
 import { classAbility,tickClassEffects } from './classCombat';
 import { DEFAULT_CLASS_ID, readClass, gearEligible, resolveClassLoadout } from './classes';
 import { readInventory,CLASS_ITEM_BONUS } from './inventory';
@@ -508,6 +509,23 @@ export class Game {
       const chase=(pos:Vec2,speed:number,stop:number)=>{
         const target=this.selectTarget(now,pos)??[...alive.filter(p=>p.alive&&p.invisibleUntil<=now),...this.totems.filter(t=>t.hp>0)].sort((a,b)=>distance(pos,a.pos)-distance(b.pos,pos))[0];if(target){const d=distance(pos,target.pos),step=Math.min(speed*dt,Math.max(0,d-stop)),dir=unit({x:target.pos.x-pos.x,z:target.pos.z-pos.z});pos.x=clamp(pos.x+dir.x*step,this.arenaLimit());pos.z=clamp(pos.z+dir.z*step,this.arenaLimit());
       if(this.arenaLimit()>12){const radial=distance(pos,{x:0,z:0});if(radial>this.arenaLimit()){pos.x*=this.arenaLimit()/radial;pos.z*=this.arenaLimit()/radial;}}}return target;};
+      if(this.boss.id==='fracturer'&&this.boss.hp>0){
+        const target=this.selectTarget(now,this.boss.pos)??alive.find(p=>p.alive&&p.invisibleUntil<=now);
+        if(target){
+          this.boss.heading=Math.atan2(target.pos.x-this.boss.pos.x,target.pos.z-this.boss.pos.z);
+          this.boss.pos=creepFracturer(this.boss.pos,target.pos,dt,3,this.arenaLimit());
+        }
+      }
+      if(this.boss.id==='duoTruffleFracturer'){
+        const body=this.adds.find(a=>a.kind==='duoBoss'&&a.bossId==='fracturer'&&a.hp>0);
+        if(body){
+          const target=this.selectTarget(now,body.pos)??alive.find(p=>p.alive&&p.invisibleUntil<=now);
+          if(target){
+            body.heading=Math.atan2(target.pos.x-body.pos.x,target.pos.z-body.pos.z);
+            body.pos=creepFracturer(body.pos,target.pos,dt,3,this.arenaLimit());
+          }
+        }
+      }
       if((this.boss.id==='greenCone'||this.boss.id==='hardGreenCone'||this.boss.id==='duoTruffleFracturer')){
         const before={...this.boss.pos};this.boss.walking=false;
         if(!this.telegraphs.length&&this.boss.hp>0&&(!this.boss.smash||now>=this.boss.smash.recoverAt))chase(this.boss.pos,.9,1.73);
@@ -515,7 +533,7 @@ export class Game {
         if(travelled>0)this.boss.heading=Math.atan2(this.boss.pos.x-before.x,this.boss.pos.z-before.z);
       }
       this.adds=this.adds.filter(a=>a.hp>0);
-      // The five Chaos champions have independent behavior: three anchored,
+      // The Chaos champions use independent movement: Warden/Queen anchored, Fracturer creeping,
       // Yellow Ball animated by BallEncounter, and Truffle by tickChaos.
       // Only actual minions may chase and deal contact damage.
       for(const a of this.adds.filter(a=>a.kind!=='ball'&&a.kind!=='duoBoss'&&a.kind!=='chaosBoss')){

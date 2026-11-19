@@ -31,7 +31,8 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0016](0016-ant-queen-objective-and-extended-builds.md) | Accepted for prototype | Ant Queen Guard-death objective, new Nest, south-facing bars, Hard Warden proximity and deeper builds |
 | [0017](0017-nest-layout-gear-slots-and-fourth-talents.md) | Partially superseded by 0018 (Ranger slots), otherwise accepted | Royal Chitin gear in distinct slots, southern Nest gate, enlarged cave and fourth-tier class talents |
 | [0018](0018-chaos-threat-class-loadouts-codex.md) | Accepted for prototype, Chaos mechanics clarified by 0019 | Five Ranger slots, class equipment presets, threat, three talent branches, HP scaling, Chaos Arena, Guide |
-| [0019](0019-chaos-boss-mechanic-parity-and-warrior.md) | Accepted for prototype | Complete normal Chaos boss mechanics; fixed Warden/Fracturer/Queen, mobile Yellow/Truffle; Warrior role damage check |
+| [0019](0019-chaos-boss-mechanic-parity-and-warrior.md) | Partially superseded by 0020 (Fracturer immobility), otherwise accepted | Complete normal Chaos boss mechanics and Warrior role damage |
+| [0020](0020-magic-effects-animated-mushrooms-crawling-fracturer.md) | Accepted for prototype | Hovl/Babylon magic VFX, animated mushroom summons, Rune Golem Fracturer crawling slowly |
 
 ## Workflow
 

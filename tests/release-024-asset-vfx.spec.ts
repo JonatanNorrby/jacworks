@@ -1,0 +1,42 @@
+import {test,expect} from '@playwright/test';
+test('v0.1.14: Hovl VFX and both library monsters load as actual Babylon meshes in Game Dev Labs',async({page,baseURL})=>{
+ test.setTimeout(120000);
+ const errors:string[]=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(baseURL+'/?room=magicAssets024'+crypto.randomUUID().slice(0,8));
+ await expect(page.locator('#room-panel')).toContainText('Connected',{timeout:30000});
+ const source=await(await page.request.get('/src/truffle.ts')).text();
+ const core=source.match(/from "([^"]+@babylonjs_core[^"]*)"/)![1];
+ await page.evaluate(async path=>{(window as any).scene=(await import(/* @vite-ignore */path)).EngineStore.LastCreatedScene},core);
+ await page.getByRole('button',{name:'Game Dev',exact:true}).click();
+ await page.locator('[data-dev-view="characters"]').click();
+ await page.locator('#dev-entity').selectOption('enemy:cone-add');
+ await expect.poll(()=>page.evaluate(()=>{
+  const m=(window as any).scene.getMeshByName('dev-entity-mushroom');
+  return m?.metadata?.modelReady===true? 'ready':m?.metadata?.modelError??'loading';
+ }),{timeout:25000}).toBe('ready');
+ const mushroom=await page.evaluate(()=>{const m=(window as any).scene.getMeshByName('dev-entity-mushroom');
+  return {source:m.metadata.modelSource,childCount:m.getChildMeshes().length};
+ });
+ expect(mushroom.source).toContain('/mushroom-monster.glb');
+ expect(mushroom.childCount).toBeGreaterThan(1);
+ await page.locator('#dev-entity').selectOption('boss:fracturer');
+ await expect.poll(()=>page.evaluate(()=>{
+  const m=(window as any).scene.getMeshByName('dev-entity-fracturer');
+  return m?.metadata?.modelReady===true?'ready':m?.metadata?.modelError??'loading';
+ }),{timeout:25000}).toBe('ready');
+ const golem=await page.evaluate(()=>{const m=(window as any).scene.getMeshByName('dev-entity-fracturer');return {source:m.metadata.modelSource,children:m.getChildMeshes().length}});
+ expect(golem.source).toContain('/rune-golem/fracturer.glb');
+ expect(golem.children).toBeGreaterThan(1);
+ await page.locator('.devlab-characters [data-dev-action="menu"]').click();
+ await page.locator('[data-dev-view="vfx"]').click();
+ await page.locator('#dev-player-spell').selectOption('fireball');
+ await page.locator('[data-dev-action="play-vfx"]').click();
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).scene;return s.meshes.some((m:any)=>m.name==='hovl-magic-fireball'&&m.metadata?.prefab==='Explosion')})).toBe(true);
+ const materials=await page.evaluate(()=>{const s=(window as any).scene;return s.materials.filter((m:any)=>m.name.startsWith('hovl-')).map((m:any)=>m.name)});
+ expect(materials.some(name=>name.includes('ProjectileFree1'))).toBe(true);
+ await page.locator('#dev-player-spell').selectOption('pulseNova');
+ await page.locator('[data-dev-action="play-vfx"]').click();
+ await expect.poll(()=>page.evaluate(()=>{const s=(window as any).scene;return s.meshes.some((m:any)=>m.name==='hovl-magic-pulseNova')})).toBe(true);
+ expect(errors).toEqual([]);
+});

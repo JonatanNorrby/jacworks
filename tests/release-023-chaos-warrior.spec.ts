@@ -8,7 +8,7 @@ type Observation={
  champions:Record<string,Position>;
  telegraphSources:string[];
 };
-test('v0.1.13: Chaos bosses retain stationary positions while their real mechanics enter live snapshots',async({page,baseURL})=>{
+test('v0.1.14: Warden and Queen remain stationary while Fracturer creeps while their real mechanics enter live snapshots',async({page,baseURL})=>{
  test.setTimeout(120000);
  const errors:string[]=[];
  page.on('pageerror',err=>errors.push(err.message));

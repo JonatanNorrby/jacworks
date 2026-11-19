@@ -1,5 +1,6 @@
 import {createTruffle} from './truffle';
 import {createMushroom} from './mushroom';
+import {createTruffleSummon,createFracturerVisual} from './assetModels';
 import {
   AbstractMesh,
   ArcRotateCamera,
@@ -89,7 +90,8 @@ const ENTITY_PREVIEWS = [
     label: `Character · ${definition.name}`,
     kind: "character" as const,
   })),
-  { id: "enemy:cone-add", label: "Enemy · Mushroom Summon", kind: "enemy" as const },
+  { id: "enemy:cone-add", label: "Enemy · Mushroom Summon (animated)", kind: "enemy" as const },
+  { id: "boss:fracturer", label: "Boss · Rune Golem / Fracturer", kind: "boss" as const },
   { id: "enemy:fire-totem", label: "Enemy/Unit · Fire Totem", kind: "totem" as const },
   { id: "enemy:healing-totem", label: "Unit · Healing Totem", kind: "totem" as const },
   { id: "boss:warden", label: "Boss · Warden", kind: "boss" as const },
@@ -108,6 +110,7 @@ export function installGameDevLabs(options: InstallOptions) {
   let view: View = "menu";
   let loopTimer = 0;
   let activeEntity: Mesh | null = null;
+  let activeEntityModel:ReturnType<typeof createTruffleSummon>|undefined;
   let activeBoss: Mesh | null = null;
   let characterAction: "idle" | "attack" | "cast" | "hit" = "idle";
   let characterActionTime = 0;
@@ -553,7 +556,7 @@ export function installGameDevLabs(options: InstallOptions) {
         break;
       case "green-adds":
         for (const x of [-2, 2]) {
-          const add = transient(createMushroom(scene,"dev-mushroom-add",1.1));
+          const add = transient(createTruffleSummon(scene,"dev-mushroom-add").mesh);
           add.position.set(x, 0, -0.5);
           add.material = greenMat;
 
@@ -616,7 +619,8 @@ export function installGameDevLabs(options: InstallOptions) {
   }
 
   function disposeEntity() {
-    if (activeEntity && !activeEntity.isDisposed()) activeEntity.dispose();
+    if(activeEntityModel){activeEntityModel.dispose();activeEntityModel=undefined;}
+    else if(activeEntity && !activeEntity.isDisposed())activeEntity.dispose();
     activeEntity = null;
   }
 
@@ -637,8 +641,14 @@ export function installGameDevLabs(options: InstallOptions) {
     const entry = ENTITY_PREVIEWS.find((item) => item.id === entitySelect.value) ?? ENTITY_PREVIEWS[0];
     const id = entry.id;
 
-    if (id.includes("greenCone") || id.includes("cone-add")) {
-      activeEntity = tag(id.includes('cone-add')?createMushroom(scene,'dev-entity-mushroom',1.1):new Mesh('dev-truffle-anchor',scene),'characters');
+    if(id==='enemy:cone-add'||id==='boss:fracturer'){
+      activeEntityModel=id==='enemy:cone-add'
+       ?createTruffleSummon(scene,'dev-entity-mushroom')
+       :createFracturerVisual(scene,'dev-entity-fracturer');
+      activeEntity=tag(activeEntityModel.mesh,'characters');
+      activeEntity.position.set(1.5,0,0);
+    }else if (id.includes("greenCone")) {
+      activeEntity = tag(new Mesh('dev-truffle-anchor',scene),'characters');
       activeEntity.position.set(1.5,0,0);
     } else if (id.includes("yellowBall")) {
       activeEntity = tag(MeshBuilder.CreateSphere("dev-entity-ball", {
@@ -671,7 +681,7 @@ export function installGameDevLabs(options: InstallOptions) {
 
   function syncEntityScale() {
     if (!activeEntity) return;
-    activeEntity.scaling.setAll(Number(scaleInput.value)*(entitySelect.value==='enemy:cone-add'?1.1/1.91:1));
+    activeEntity.scaling.setAll(Number(scaleInput.value));
     viewerRing.scaling.setAll(Math.max(0.8, Number(scaleInput.value)));
     viewerRing.setEnabled(open && view === "characters" && ringInput.checked);
   }
@@ -718,7 +728,7 @@ export function installGameDevLabs(options: InstallOptions) {
     if(showTruffle&&!previewTruffle)previewTruffle=createTruffle(scene,{boss:true,lab:true});
     previewTruffle?.update({pos:{x:view==='characters'?1.5:0,z:view==='characters'?0:-.5},heading:Math.PI,stride:now/2000,walking:characterAction==='attack'},showTruffle,now-smashStart<2150?{startedAt:smashStart,impactAt:smashStart+1500,recoverAt:smashStart+2150,impacted:now>=smashStart+1500}:undefined,now);
     previewTruffle?.root.scaling.setAll(view==='characters'?Number(scaleInput.value):1);
-    healthBar.position.y=(entitySelect.value==='boss:greenCone'?7:2.2)*Number(scaleInput.value);
+    healthBar.position.y=(entitySelect.value==='boss:greenCone'?7:entitySelect.value==='boss:fracturer'?3.7:2.2)*Number(scaleInput.value);
     healthBar.setEnabled(view==='characters'&&healthInput.checked);
     suppressWorld();
     casterRing.rotation.y += deltaSeconds * 0.7;
@@ -726,9 +736,13 @@ export function installGameDevLabs(options: InstallOptions) {
     if (activeBoss && !activeBoss.isDisposed() && view === "vfx") activeBoss.rotation.y += deltaSeconds * 0.2;
 
     if (view === "characters" && activeEntity) {
+      if(activeEntityModel)activeEntityModel.update({
+        id:'dev-preview',pos:{x:1.5,z:0},hp:100,maxHp:100,
+        attackAt:characterAction==='attack'?(Math.floor(now/1200)+1)*1200:Infinity,
+      },now);
       characterActionTime += deltaSeconds;
       const id = entitySelect.value;
-      const baseY = id.includes("cone-add") ? 0 : id.includes("totem") ? 0.6 : id.includes("yellowBall") ? 1.3 : id.includes("greenCone") ? 1.45 : id.includes("warden") ? (id.includes("hardWarden") ? 1.6 : 1.45) : id.includes("cone-add") ? 0.55 : 0.9;
+      const baseY = id.includes("cone-add")||id.includes("fracturer") ? 0 : id.includes("totem") ? 0.6 : id.includes("yellowBall") ? 1.3 : id.includes("greenCone") ? 1.45 : id.includes("warden") ? (id.includes("hardWarden") ? 1.6 : 1.45) : id.includes("cone-add") ? 0.55 : 0.9;
       activeEntity.position.y = baseY + Math.sin(characterActionTime * 2.1) * 0.035;
       activeEntity.rotation.y += deltaSeconds * 0.24;
       if (characterAction === "attack") activeEntity.rotation.z = Math.sin(characterActionTime * 8) * 0.18;
@@ -736,11 +750,11 @@ export function installGameDevLabs(options: InstallOptions) {
       else if (characterAction === "cast") {
         const pulse = 1 + Math.max(0, Math.sin(characterActionTime * 5)) * 0.06;
         const scale = Number(scaleInput.value);
-        activeEntity.scaling.setAll(scale * pulse*(id.includes('cone-add')?1.1/1.91:1));
+        activeEntity.scaling.setAll(scale*pulse);
         viewerRing.rotation.y += deltaSeconds * 2.2;
       } else {
         activeEntity.rotation.z *= 0.82;
-        activeEntity.scaling.setAll(Number(scaleInput.value)*(entitySelect.value==='enemy:cone-add'?1.1/1.91:1));
+        activeEntity.scaling.setAll(Number(scaleInput.value));
       }
     }
 

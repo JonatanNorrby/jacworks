@@ -26,6 +26,7 @@ See [AGENTS.md](./AGENTS.md) for the shared context and collaboration rules AI c
 ## Consolidation and releases
 
 - [Connected Labs decision](ADR/0012-connected-development-labs.md)
+- [0.1.14 DiceFree Magic Effects FREE, animated mushroom summons and crawling Rune Golem](RELEASE_0_1_14.md)
 - [0.1.13 complete Chaos Arena boss mechanics and Warrior frontline damage balance](RELEASE_0_1_13.md)
 - [0.1.12 Rogue melee damage, Vanish reliability and damage regression benchmark](RELEASE_0_1_12.md)
 - [0.1.11 Ranger builds, class equipment memory, threat, HP scaling, Chaos Arena and Guide](RELEASE_0_1_11.md)

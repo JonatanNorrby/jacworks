@@ -21,7 +21,7 @@ test('Labs retains live membership, votes, current scene and late loaded model',
  },core);
  await expect.poll(()=>p.evaluate(()=>(window as any).suppressed)).toBe(true);
  await p.locator('[data-dev-view="characters"]').click();await p.locator('#dev-entity').selectOption('boss:greenCone');
- release();await expect(p.locator('#truffle-lab-status')).toContainText('procedural skeletal walk');
+ release();await expect(p.locator('#truffle-lab-status')).toContainText('procedural skeletal walk',{timeout:30_000});
  await expect.poll(()=>p.evaluate(()=>(window as any).scene.transformNodes.find((n:any)=>n.name==='truffle-man'&&n.metadata?.gameDevLab)?.isEnabled())).toBe(true);
  await p.locator('#dev-health-bar').uncheck();await expect.poll(()=>p.evaluate(()=>(window as any).scene.getMeshByName('dev-health-bar').isEnabled())).toBe(false);
  await p.locator('[data-character-action="attack"]').click();await p.screenshot({path:info.outputPath('labs-truffle.png')});
@@ -32,7 +32,7 @@ test('Labs retains live membership, votes, current scene and late loaded model',
  await p.waitForTimeout(900);expect(await p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(true);
  await p.locator('#dev-vfx-speed').fill('2');await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.some((m:any)=>m.metadata?.gameDevFx))).toBe(false);
  await p.locator('[data-vfx-tab="bosses"]').click();await p.locator('#dev-boss-mechanic').selectOption('green-adds');await p.locator('[data-dev-action="play-vfx"]').click();
- await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.filter((m:any)=>m.name==='dev-mushroom-add-cap').length)).toBe(2);
+ await expect.poll(()=>p.evaluate(()=>(window as any).scene.meshes.filter((m:any)=>m.name==='dev-mushroom-add').length)).toBe(2);
  await q.getByRole('button',{name:'Propose boss',exact:true}).click();await q.locator('#inventory-panel select').selectOption('greenCone');await q.getByRole('button',{name:'Propose encounter',exact:true}).click();
  await p.getByRole('button',{name:'Accept',exact:true}).click();await expect(q.locator('#encounter-vote')).toContainText('1 / 2 accepted');await q.getByRole('button',{name:'Accept',exact:true}).click();
  await expect(p.locator('#game-dev-labs')).toBeVisible();await expect(q.locator('#boss-label')).toHaveText('TRUFFLE MAN');

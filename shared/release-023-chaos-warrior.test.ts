@@ -24,7 +24,7 @@ function start(boss:BossId='chaosArena',party=1,cls:ClassId='warrior'){
 const champ=(g:Game,id:BossId)=>g.adds.find(a=>a.kind==='chaosBoss'&&a.bossId===id&&a.hp>0)!;
 const marked=(g:Game,id:BossId)=>(g.telegraphs as Telegraph[]).filter(t=>t.sourceBossId===id);
 
-test('Chaos: Warden, Fracturer and Ant Queen remain exactly anchored while Yellow Ball and Truffle roam',()=>{
+test('Chaos Warden and Queen remain exactly anchored, Fracturer creeps, and Yellow Ball and Truffle roam',()=>{
  const {g}=start();const fixed=Object.fromEntries(CHAOS_IMMOBILE_BOSSES.map(id=>[id,{...champ(g,id).pos}]));
  const yellow={...champ(g,'yellowBall').pos},truffle={...champ(g,'greenCone').pos};
  for(let now=301;now<=13001;now+=400)g.tick(now);
@@ -76,8 +76,9 @@ test('Chaos Fracturer runs marked circles, line attacks, four expanding corner c
  assert.equal(fractureCardinal({x:10,z:0}),'east');
  g.tick(15901);g.tick(24001);g.tick(32001);
  assert.deepEqual(g.arenaCuts.map(c=>c.quadrant),[0,1,2,3]);
- assert.deepEqual(fracturer.pos,origin);
- // The floor must reopen and old warnings must disappear if the immobile boss dies.
+ assert.ok(Math.hypot(fracturer.pos.x-origin.x,fracturer.pos.z-origin.z)>0,'Fracturer now moves slowly');
+ assert.ok(Math.hypot(fracturer.pos.x-origin.x,fracturer.pos.z-origin.z)<3,'Fracturer does not sprint around its arena');
+ // The floor must reopen and old warnings must disappear when the slow Golem dies.
  g.damageTarget(fracturer.id,1e7,'p0');g.tick(32101);
  assert.equal(g.arenaCuts.length,0);
  assert.equal(g.fracturerSurge,undefined);

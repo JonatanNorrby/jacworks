@@ -1,10 +1,11 @@
 import type {Game} from './game';
 import type {BossId,Vec2,AddState,Telegraph,PlayerState} from './protocol';
 import {distance,partyBossMultiplier} from './game';
+import {creepFracturer} from './fracturerMotion';
 
 export const CHAOS_ARENA_LIMIT=21.5;
 export const CHAOS_FRACTURE_CORRIDOR=5.5;
-// Stationary champions stand on axial walkways, so Fracturer's sequential
+// Warden and Queen stay anchored; the slow Rune Golem uses axial walkways, so Fracturer's sequential
 // corner collapses never make a stationary boss inaccessible to melee players.
 export const CHAOS_BASE_BOSSES=[
  {id:'warden',pos:{x:-12,z:0},hp:1800},
@@ -13,7 +14,7 @@ export const CHAOS_BASE_BOSSES=[
  {id:'fracturer',pos:{x:12,z:0},hp:2500},
  {id:'antQueen',pos:{x:0,z:15},hp:1200}
 ] as const satisfies readonly {id:BossId;pos:Vec2;hp:number}[];
-export const CHAOS_IMMOBILE_BOSSES=['warden','fracturer','antQueen'] as const;
+export const CHAOS_IMMOBILE_BOSSES=['warden','antQueen'] as const;
 export const CHAOS_BASE_HP=CHAOS_BASE_BOSSES.reduce((sum,b)=>sum+b.hp,0);
 export type ChaosState={
  nextWarden:number;wardenPattern:number;
@@ -40,7 +41,7 @@ export function startChaos(this:Game,now:number){
  this.arenaCuts=[];this.nextCollapseAt=now+7000;
  this.fracturerSurge=undefined;this.fracturerSurgeIndex=0;this.nextFracturerSurgeAt=now+11000;
  this.poison.start(now);
- this.system('CHAOS ARENA! All five bosses use their normal mechanics. Warden, Fracturer and the Queen hold position; Yellow Ball and Truffle Man roam.');
+ this.system('CHAOS ARENA! All five bosses attack at once. Warden and Queen hold still; Fracturer crawls very slowly while Yellow Ball and Truffle Man roam.');
 }
 export function chaosHealth(this:Game){
  if(this.boss.id!=='chaosArena')return;
@@ -82,6 +83,11 @@ export function tickChaos(this:Game,now:number){
   state.nextWarden=now+3600;
  }
  const fracturer=chaosBoss(this,'fracturer');
+ if(fracturer&&alive.length){
+  const target=this.selectTarget(now,fracturer.pos)??alive[0];
+  fracturer.heading=Math.atan2(target.pos.x-fracturer.pos.x,target.pos.z-fracturer.pos.z);
+  fracturer.pos=creepFracturer(fracturer.pos,target.pos,dt,5.5,CHAOS_ARENA_LIMIT);
+ }
  if(fracturer&&alive.length&&now>=state.nextFracturer){
   normalBossPattern.call(this,fracturer,now,state.fracturerPattern++,'Chaos Fracturer',alive);
   state.nextFracturer=now+3600;

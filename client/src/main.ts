@@ -143,6 +143,7 @@ let wardrobeSlot:'all'|EquipmentSlot='all';
 const talentKey='jacworks-talent-progress-v1';
 let playerTalents=readTalents(localStorage.getItem(talentKey));
 let savedTalentString=JSON.stringify(playerTalents);
+let classMismatchSince=0,lastClassResyncAt=0;
 const talentTree=createTalentTree((action,classId,nodeId)=>send({type:'talent',action,classId,nodeId}));
 talentTree.update(playerTalents);
 const inventoryKey='jacworks-inventory-v1';
@@ -467,11 +468,33 @@ arenaGround.material = arenaGroundMat;
 const antCave=buildAntCave(scene);const antCaveMeshes=[...antCave.props,antCave.queen];
 for(const p of antCaveMeshes)arenaMeshes.push(p);
 const fractureWarningMat=material('fracture-warning',new Color3(.5,.25,.02),new Color3(.65,.23,.02),.9);
-const fractureVoidMat=material('fracture-void',new Color3(.005,.004,.013),new Color3(.01,.002,.015));
+const fractureCrystalMat=material('fracture-crystal-bed',new Color3(.09,.045,.16),new Color3(.12,.05,.22));
+const crystalMaterials=[
+ material('fracture-crystal-amethyst',new Color3(.37,.17,.85),new Color3(.18,.05,.52)),
+ material('fracture-crystal-sapphire',new Color3(.12,.37,.88),new Color3(.04,.15,.5)),
+ material('fracture-crystal-ice',new Color3(.21,.85,.91),new Color3(.05,.35,.43)),
+];
 const chaosFloorMat=material('chaos-arena-floor',new Color3(.105,.087,.145),new Color3(.018,.011,.036));
 const fractureFloorTiles=[[8,8],[-8,8],[-8,-8],[8,-8]].map(([x,z],i)=>{
  const tile=pushArena(MeshBuilder.CreateGround('fracture-tile-'+i,{width:10,height:10},scene));
- tile.position.set(x,.035,z);tile.setEnabled(false);return tile;
+ tile.position.set(x,.035,z);tile.isPickable=false;
+ // A seeded field of crystalline shards replaces the flat void once this
+ // quadrant collapses. Geometry is visual only: the server keeps the same
+ // unsafe floor and collision/hazard rules in all three Fracturer modes.
+ for(let j=0;j<33;j++){
+   const seed=(j*73+i*43+17),angle=seed*2.399963229728653;
+   const radius=Math.sqrt((j+.5)/33)*4.65;
+   const h=.45+(seed*37%19)/19*1.65;
+   const crystal=MeshBuilder.CreateCylinder('fracture-crystal-'+i+'-'+j,{
+     height:h,diameterTop:0,diameterBottom:.24+(seed*13%11)/11*.48,tessellation:5,
+   },scene);
+   crystal.parent=tile;
+   crystal.position.set(Math.cos(angle)*radius,h/2+.04,Math.sin(angle)*radius);
+   crystal.rotation.x=Math.sin(seed)*.13;crystal.rotation.z=Math.cos(seed)*.13;
+   crystal.material=crystalMaterials[(j+i)%crystalMaterials.length];
+   crystal.isPickable=false;
+ }
+ tile.setEnabled(false);return tile;
 });
 // Four 90-degree compass sectors, painted from the center to beyond arena edges.
  // They are warning overlays, never collision geometry or pointer-pick targets.
@@ -755,8 +778,19 @@ function connectEncounter() {
  const earned=[packet.reward,...(packet.bonusRewards??[])].filter(reward=>grantReward(inventory,reward,myId));if(earned.length){localStorage.setItem(inventoryKey,JSON.stringify(inventory));renderInventory();message.textContent='Rewards: '+earned.map(reward=>ITEMS[reward!.material]).join(' + ');}
       snapshot = packet;guide.observe(packet,myId);syncVote(packet);renderDps(packet);
       const firstClear=packet.talentAward?.players.includes(myId)&&!playerTalents.wins.includes(packet.talentAward.boss);
-      const authoritativeTalents=packet.players.find(p=>p.id===myId)?.talents;
-      if(authoritativeTalents){const updated=JSON.stringify(authoritativeTalents);if(updated!==savedTalentString){playerTalents=readTalents(authoritativeTalents);savedTalentString=JSON.stringify(playerTalents);localStorage.setItem(talentKey,savedTalentString);talentTree.update(playerTalents)}}
+      const ownProfile=packet.players.find(p=>p.id===myId);
+      const authoritativeTalents=ownProfile?.talents;
+      if(packet.phase==='lobby'&&ownProfile?.profileLoaded){
+        if(ownProfile.classId!==selectedClass){
+          const clock=Date.now();if(!classMismatchSince)classMismatchSince=clock;
+          if(clock-lastClassResyncAt>1000){syncJoin();lastClassResyncAt=clock;}
+          if(clock-classMismatchSince>3500)
+            message.textContent='Class change not confirmed by server. Check the server version or reconnect.';
+        }else classMismatchSince=0;
+      }
+      // A newly connected server player exists before their first join is
+      // processed. Never replace a real browser save with that empty default.
+      if(authoritativeTalents&&ownProfile?.profileLoaded===true){const updated=JSON.stringify(authoritativeTalents);if(updated!==savedTalentString){playerTalents=readTalents(authoritativeTalents);savedTalentString=JSON.stringify(playerTalents);localStorage.setItem(talentKey,savedTalentString);talentTree.update(playerTalents)}}
       if(firstClear)message.textContent='First clear! +1 talent point · Open the Talent Tree in the hub.';
       const versionNode=optionsPanel.querySelector<HTMLElement>('#game-version');if(versionNode)versionNode.textContent='Client '+__GAME_VERSION__+' · Server '+(packet.serverVersion??'outdated/unknown');
       connectionLabel.textContent='Connected · '+packet.players.length+' players';gateButton.disabled=!!packet.vote;
@@ -804,7 +838,10 @@ function syncEncounter(state: Snapshot) {
  tile.scaling.x=tile.scaling.z=chaos?1.6:1;
  tile.position.x=(i===0||i===3?1:-1)*(chaos?13.5:8);
  tile.position.z=(i<2?1:-1)*(chaos?13.5:8);
- tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureVoidMat;
+ tile.setEnabled(!!cut&&state.phase==='fight');if(cut)tile.material=state.now<cut.collapseAt?fractureWarningMat:fractureCrystalMat;
+ // Telegraph the incoming collapse without revealing the crystalline hazard
+ // until impact. Children inherit the tile's encounter-only visibility.
+ for(const crystal of tile.getChildMeshes())crystal.setEnabled(!!cut&&state.now>=cut.collapseAt&&state.phase==='fight');
  }
  for(const [id,mesh] of fireMineMeshes)if(!state.effects.some(e=>e.id===id&&e.skill==='fireMine'&&!e.afterglow)){mesh.dispose();fireMineMeshes.delete(id)}
  for(const [id,mesh] of emberAfterglowMeshes)if(!state.effects.some(e=>e.id===id&&e.afterglow)){mesh.dispose();emberAfterglowMeshes.delete(id)}
@@ -886,6 +923,7 @@ for(const a of state.adds){
  soloFracturer.mesh.setEnabled(state.boss.id==='fracturer'&&state.phase==='fight'&&state.boss.hp>0);
  soloFracturer.mesh.position.set(state.boss.pos.x,0,state.boss.pos.z);
  soloFracturer.mesh.rotation.y=state.boss.heading??0;
+ if(state.boss.id==='fracturer')soloFracturer.update(state.boss,state.now);
  bossMesh.setEnabled(!ants&&!chaos&&!yellow&&!green&&state.boss.id!=='fracturer'&&state.phase!=='won');bossMesh.material=state.boss.id==='fracturer'?fracturerMat:bossMat;yellowBoss.setEnabled(yellow&&state.boss.hp>0&&state.phase!=='won');
  const warden=state.boss.id==='warden'||state.boss.id==='hardWarden'||state.boss.id==='duoYellowWarden';
  bossMesh.rotation.y=warden?state.boss.heading??0:0;

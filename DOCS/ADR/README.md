@@ -33,6 +33,7 @@ ADRs capture **significant durable decisions and why they were made**. They are 
 | [0018](0018-chaos-threat-class-loadouts-codex.md) | Accepted for prototype, Chaos mechanics clarified by 0019 | Five Ranger slots, class equipment presets, threat, three talent branches, HP scaling, Chaos Arena, Guide |
 | [0019](0019-chaos-boss-mechanic-parity-and-warrior.md) | Partially superseded by 0020 (Fracturer immobility), otherwise accepted | Complete normal Chaos boss mechanics and Warrior role damage |
 | [0020](0020-magic-effects-animated-mushrooms-crawling-fracturer.md) | Accepted for prototype | Hovl/Babylon magic VFX, animated mushroom summons, Rune Golem Fracturer crawling slowly |
+| [0021](0021-crystalline-fracturer-collapse.md) | Accepted for prototype | Fracturer collapse corners visually fill with crystals; preserve existing floor hazards |
 
 ## Workflow
 

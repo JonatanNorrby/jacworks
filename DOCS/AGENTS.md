@@ -18,6 +18,8 @@ JAC Works is developed concurrently by three human developers and may also have 
 - Document significant architectural and durable game-design decisions as ADRs in `DOCS/ADR/`, not only in chats, issues, or PRs.
 - Never commit credentials, passwords, API tokens, secrets, or private keys.
 
+Crystalline Fracturer corner collapse visuals and the rule that crystals do not change the dangerous-floor mechanics are governed by ADR-0021. Profile loading must be acknowledged before server snapshots overwrite browser-local talent saves (v0.1.15 regression).
+
 Asset integration and Fracturer movement are governed by ADR-0020: Magic Effects FREE sprite adaptation, rigged Mushroom Monster, Rune Golem, and server-authoritative very slow Golem motion. Do not silently restore the old stationary Fracturer behavior.
 
 Recent accepted five-boss Chaos behavior and Warrior damage/role tuning are documented in ADR-0019. The user requires all normal Chaos boss mechanics, including static anchored champions, and design changes must remain reflected in repository documents.

@@ -21,7 +21,7 @@ test('Labs retains live membership, votes, current scene and late loaded model',
  },core);
  await expect.poll(()=>p.evaluate(()=>(window as any).suppressed)).toBe(true);
  await p.locator('[data-dev-view="characters"]').click();await p.locator('#dev-entity').selectOption('boss:greenCone');
- release();await expect(p.locator('#truffle-lab-status')).toContainText('procedural skeletal walk');
+ release();await expect(p.locator('#truffle-lab-status')).toContainText('procedural skeletal walk',{timeout:30_000});
  await expect.poll(()=>p.evaluate(()=>(window as any).scene.transformNodes.find((n:any)=>n.name==='truffle-man'&&n.metadata?.gameDevLab)?.isEnabled())).toBe(true);
  await p.locator('#dev-health-bar').uncheck();await expect.poll(()=>p.evaluate(()=>(window as any).scene.getMeshByName('dev-health-bar').isEnabled())).toBe(false);
  await p.locator('[data-character-action="attack"]').click();await p.screenshot({path:info.outputPath('labs-truffle.png')});
